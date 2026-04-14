@@ -1,0 +1,247 @@
+Lalrpop Report File
+========================================
+
+Summary
+----------------------------------------
+
+Constructed 13 states
+
+State Table
+----------------------------------------
+
+State 0 {
+
+    ArrowType -> . AtomType
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    ArrowType -> . AtomType "->" ArrowType
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    AtomType  -> . Ident
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    AtomType  -> . "(" Type ")"
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    AtomType  -> . "Bool"
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    AtomType  -> . "Int"
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    Ident     -> . r#"[a-zA-Z_][a-zA-Z0-9_]*"#
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    Type      -> . ArrowType
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    __Type    -> . Type
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    "("                         shift and goto 1
+    "Bool"                      shift and goto 7
+    "Int"                       shift and goto 8
+    r#"[a-zA-Z_][a-zA-Z0-9_]*"# shift and goto 9
+
+    ArrowType                   goto 3
+    AtomType                    goto 4
+    Ident                       goto 5
+    Type                        goto 6
+}
+
+State 1 {
+
+    ArrowType -> . AtomType
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    ArrowType -> . AtomType "->" ArrowType
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    AtomType  -> . Ident
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    AtomType  -> . "(" Type ")"
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    AtomType  -> "(" . Type ")"
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    AtomType  -> . "Bool"
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    AtomType  -> . "Int"
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    Ident     -> . r#"[a-zA-Z_][a-zA-Z0-9_]*"#
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    Type      -> . ArrowType
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    "("                         shift and goto 1
+    "Bool"                      shift and goto 7
+    "Int"                       shift and goto 8
+    r#"[a-zA-Z_][a-zA-Z0-9_]*"# shift and goto 9
+
+    ArrowType                   goto 3
+    AtomType                    goto 4
+    Ident                       goto 5
+    Type                        goto 10
+}
+
+State 2 {
+
+    ArrowType -> . AtomType
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    ArrowType -> . AtomType "->" ArrowType
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    ArrowType -> AtomType "->" . ArrowType
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    AtomType  -> . Ident
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    AtomType  -> . "(" Type ")"
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    AtomType  -> . "Bool"
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    AtomType  -> . "Int"
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    Ident     -> . r#"[a-zA-Z_][a-zA-Z0-9_]*"#
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    "("                         shift and goto 1
+    "Bool"                      shift and goto 7
+    "Int"                       shift and goto 8
+    r#"[a-zA-Z_][a-zA-Z0-9_]*"# shift and goto 9
+
+    ArrowType                   goto 11
+    AtomType                    goto 4
+    Ident                       goto 5
+}
+
+State 3 {
+
+    Type -> ArrowType .
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+
+    reduction Type -> ArrowType
+        lookahead ")" Eof
+
+
+}
+
+State 4 {
+
+    ArrowType -> AtomType .
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    ArrowType -> AtomType . "->" ArrowType
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+
+    reduction ArrowType -> AtomType
+        lookahead ")" Eof
+
+    "->" shift and goto 2
+
+}
+
+State 5 {
+
+    AtomType -> Ident .
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+
+    reduction AtomType -> Ident
+        lookahead ")" "->" Eof
+
+
+}
+
+State 6 {
+
+    __Type -> Type .
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+
+    reduction __Type -> Type
+        lookahead Eof
+
+
+}
+
+State 7 {
+
+    AtomType -> "Bool" .
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+
+    reduction AtomType -> "Bool"
+        lookahead ")" "->" Eof
+
+
+}
+
+State 8 {
+
+    AtomType -> "Int" .
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+
+    reduction AtomType -> "Int"
+        lookahead ")" "->" Eof
+
+
+}
+
+State 9 {
+
+    Ident -> r#"[a-zA-Z_][a-zA-Z0-9_]*"# .
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+
+    reduction Ident -> r#"[a-zA-Z_][a-zA-Z0-9_]*"#
+        lookahead ")" "->" Eof
+
+
+}
+
+State 10 {
+
+    AtomType -> "(" Type . ")"
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+    ")" shift and goto 12
+
+}
+
+State 11 {
+
+    ArrowType -> AtomType "->" ArrowType .
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+
+    reduction ArrowType -> AtomType "->" ArrowType
+        lookahead ")" Eof
+
+
+}
+
+State 12 {
+
+    AtomType -> "(" Type ")" .
+        lookahead r#"[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"# r#"[a-zA-Z_][a-zA-Z0-9_]*"# "!" "!=" "&&" "(" ")" "*" "+" "-" "/" ":" "<" "<=" "=" "==" ">" ">=" "Bool" "Int" "else" "false" "fun" "if" "in" "let" "rec" "then" "true" "||" "->" Eof
+
+
+    reduction AtomType -> "(" Type ")"
+        lookahead ")" "->" Eof
+
+
+}
