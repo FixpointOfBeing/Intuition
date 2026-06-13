@@ -127,9 +127,10 @@ ArrowType: Box<Type> = {
 };
 
 AtomType: Box<Type> = {
-    <v:Ident> => Box::new(Type::Var(v)),
     "Int" => Box::new(Type::Int),
     "Bool" => Box::new(Type::Bool),
+    "Unit" => Box::new(Type::Unit),
+    <v:Ident> => Box::new(Type::Var(v)),
     "(" <t:Type> ")" => t,
 };
 
