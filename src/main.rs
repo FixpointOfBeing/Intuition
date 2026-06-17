@@ -2,6 +2,7 @@ pub mod compile;
 pub mod repl;
 pub mod syntax;
 pub mod eval;
+pub mod typechecker;
 
 use crate::repl::repl;
 use crate::compile::compile_file;

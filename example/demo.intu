@@ -1,22 +1,22 @@
-let sign = fun (x : Int) ->
+let sign = fun (x : Int) =>
   if x > 0 then 1 else
   if x < 0 then -1 else
   0
 in
 
-let abs_val = fun (x : Int) ->
+let abs_val = fun (x : Int) =>
   if x < 0 then -x else x
 in
 
-let max_int = fun (a : Int) (b : Int) ->
+let max_int = fun (a : Int) (b : Int) =>
   if a > b then a else b
 in
 
-let min_int = fun (a : Int) (b : Int) ->
+let min_int = fun (a : Int) (b : Int) =>
   if a < b then a else b
 in
 
-let is_even = fun (n : Int) ->
+let is_even = fun (n : Int) =>
   (n - (n / 2) * 2) == 0
 in
 
@@ -30,7 +30,7 @@ let rec fpow (base : Float) (exp : Int) : Float =
   else base * fpow base (exp - 1)
 in
 
-let add = fun (x : Int) -> fun (y : Int) -> x + y in
+let add = fun (x : Int) => fun (y : Int) => x + y in
 let add5 = add 5 in
 
 let result =

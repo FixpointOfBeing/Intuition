@@ -335,15 +335,15 @@ mod tests {
 
     #[test]
     fn test_lambda_apply() {
-        assert_eq!(run("(fun (x: Int) -> x) 42"), Value::Int(42));
-        assert_eq!(run("(fun (x: Int) (y: Int) -> x + y) 3 4"), Value::Int(7));
+        assert_eq!(run("(fun (x: Int) => x) 42"), Value::Int(42));
+        assert_eq!(run("(fun (x: Int) (y: Int) => x + y) 3 4"), Value::Int(7));
     }
 
     #[test]
     fn test_higher_order() {
         let src = "
-            let apply = fun (f: Int -> Int) (x: Int) -> f x in
-            let double = fun (x: Int) -> x * 2 in
+            let apply = fun (f: Int -> Int) (x: Int) => f x in
+            let double = fun (x: Int) => x * 2 in
             apply double 21
         ";
         assert_eq!(run(src), Value::Int(42));
@@ -352,8 +352,8 @@ mod tests {
     #[test]
     fn test_higher_order_closure() {
         let src = "
-            let apply = fun (f: Int -> Int) (x: Int) -> f x in
-            let double = fun (x: Int) -> x * 2 in
+            let apply = fun (f: Int -> Int) (x: Int) => f x in
+            let double = fun (x: Int) => x * 2 in
             apply double 
         ";
         let apply_closure = run(src);

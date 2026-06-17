@@ -6,12 +6,12 @@ let large : Float = 6.022e23 in
 let area_of_circle = fun (r : Float) -> pi * r * r in
 
 let lerp =
-  fun (a : Float) (b : Float) (t : Float) ->
+  fun (a : Float) (b : Float) (t : Float) =>
     a * (1.0 - t) + b * t
 in
 
 let clamp =
-  fun (lo : Float) (hi : Float) (x : Float) ->
+  fun (lo : Float) (hi : Float) (x : Float) =>
     if x < lo then lo else
     if x > hi then hi else
     x

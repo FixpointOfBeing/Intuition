@@ -127,7 +127,7 @@ mod tests {
     #[test]
     fn test_parse_lambda() {
         let expr = parser::ExprParser::new()
-            .parse("fun (x: Int) (y: Int) -> x + y")
+            .parse("fun (x: Int) (y: Int) => x + y")
             .unwrap();
         match *expr {
             Expr::Lambda(params, body) => {
@@ -381,7 +381,7 @@ mod tests {
     #[test]
     fn test_parse_ann_arrow_type() {
         let expr = parser::ExprParser::new()
-            .parse("((fun (x: Int) -> x) : Int -> Int)")
+            .parse("((fun (x: Int) => x) : Int -> Int)")
             .unwrap();
         match *expr {
             Expr::Ann(inner, ty) => {
@@ -517,7 +517,7 @@ mod tests {
     #[test]
     fn test_parse_app_lambda_immediately() {
         let expr = parser::ExprParser::new()
-            .parse("(fun (x: Int) -> x) 42")
+            .parse("(fun (x: Int) => x) 42")
             .unwrap();
         match *expr {
             Expr::App(func, args) => {
@@ -537,7 +537,7 @@ mod tests {
     #[test]
     fn test_parse_lambda_single_param() {
         let expr = parser::ExprParser::new()
-            .parse("fun (x: Bool) -> !x")
+            .parse("fun (x: Bool) => !x")
             .unwrap();
         match *expr {
             Expr::Lambda(params, body) => {
@@ -555,7 +555,7 @@ mod tests {
     #[test]
     fn test_parse_lambda_unit_param() {
         let expr = parser::ExprParser::new()
-            .parse("fun (x: Unit) -> ()")
+            .parse("fun (x: Unit) => ()")
             .unwrap();
         match *expr {
             Expr::Lambda(params, body) => {
