@@ -1,0 +1,17 @@
+let a : Bool = true  in
+let b : Bool = false in
+
+let and_result  = a && b          in
+let or_result   = a || b          in
+let not_a       = !a              in
+let not_not_a   = !(!a)           in
+
+let de_morgan   = !(a && b)       in
+let de_morgan2  = !a || !b        in
+
+let cmp1 = 1 < 2    in
+let cmp2 = 3 >= 3   in
+let cmp3 = 4 != 5   in
+let cmp4 = 2 == 2   in
+
+cmp4

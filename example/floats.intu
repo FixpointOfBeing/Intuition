@@ -1,0 +1,20 @@
+let pi    : Float = 3.14159  in
+let e     : Float = 2.71828  in
+let small : Float = 1.5e-3   in
+let large : Float = 6.022e23 in
+
+let area_of_circle = fun (r : Float) -> pi * r * r in
+
+let lerp =
+  fun (a : Float) (b : Float) (t : Float) ->
+    a * (1.0 - t) + b * t
+in
+
+let clamp =
+  fun (lo : Float) (hi : Float) (x : Float) ->
+    if x < lo then lo else
+    if x > hi then hi else
+    x
+in
+
+(area_of_circle 5.0 : Float)

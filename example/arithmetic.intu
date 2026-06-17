@@ -1,0 +1,9 @@
+let x : Int = 10 in
+let y : Int = 3  in
+let sum     = x + y        in
+let diff    = x - y        in
+let prod    = x * y        in
+let quot    = x / y        in
+let mixed   = x * y + 2    in
+let parens  = (x + y) * 2  in
+parens
