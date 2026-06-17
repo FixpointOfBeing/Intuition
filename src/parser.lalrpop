@@ -32,7 +32,7 @@ Term: Box<Expr> = {
         for (_lp, id, _colon, ty, _rp) in params {
           fargs.push((id.to_string(), *ty));
         }
-       Box::new(Expr::LetRec(fname, fargs, *fret_ty , fbody, body))
+       Box::new(Expr::LetRec(fname, fargs, fret_ty , fbody, body))
     },
     "if" <e1:Expr> "then" <e2:Expr> "else" <e3:Expr> => Box::new(Expr::If(e1, e2, e3)),
     OrExpr,
