@@ -27,21 +27,15 @@ Term: Box<Expr> = {
             Some((_, ty)) => Box::new(Expr::Let(v, Some(*ty), e1, e2))
         }
     },
-    "let" "rec" <def:Fundef> "in" <e:Expr> => {
-       Box::new(Expr::LetRec(def, e))
+    "let" "rec"  <fname:Ident> <params: ("(" Ident ":" Type ")")+> ":" <fret_ty:Type> "=" <fbody:Expr> "in" <body:Expr> => {
+        let mut fargs: Vec<(Ident, Type)> = vec![];
+        for (_lp, id, _colon, ty, _rp) in params {
+          fargs.push((id.to_string(), *ty));
+        }
+       Box::new(Expr::LetRec(fname, fargs, *fret_ty , fbody, body))
     },
     "if" <e1:Expr> "then" <e2:Expr> "else" <e3:Expr> => Box::new(Expr::If(e1, e2, e3)),
     OrExpr,
-};
-
-Fundef: Fundef = {
-    <name:Ident> <params: ("(" Ident ":" Type ")")+> ":" <ty:Type> "=" <e:Expr> => {
-        let mut params1: Vec<(Ident, Type)> = vec![];
-        for (_lp, id, _colon, ty, _rp) in params {
-          params1.push((id.to_string(), *ty));
-        }
-        Fundef {name: name, args: params1, ret_type: *ty, body: e}
-    }
 };
 
 // Binary operators with precedence (lowest to highest)
@@ -128,6 +122,7 @@ ArrowType: Box<Type> = {
 
 AtomType: Box<Type> = {
     "Int" => Box::new(Type::Int),
+    "Float" => Box::new(Type::Float),
     "Bool" => Box::new(Type::Bool),
     "Unit" => Box::new(Type::Unit),
     <v:Ident> => Box::new(Type::Var(v)),

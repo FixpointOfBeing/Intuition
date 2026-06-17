@@ -89,16 +89,16 @@ pub fn eval(env: &Env, expr: &Expr) -> EvalResult {
             eval(&env2, e2)
         }
 
-        Expr::LetRec(fundef, e) => {
-            let params: Vec<Ident> = fundef.args.iter().map(|(id, _)| id.clone()).collect();
+        Expr::LetRec(fname, fargs, _, fbody, body) => {
+            let params: Vec<Ident> = fargs.iter().map(|(id, _)| id.clone()).collect();
             let rec_val = Value::RecClosure {
                 env: env.clone(),
-                fname: fundef.name.clone(),
+                fname: fname.clone(),
                 params: params.clone(),
-                body: fundef.body.clone(),
+                body: fbody.clone(),
             };
-            let env2 = env_extend(env, &fundef.name, rec_val);
-            eval(&env2, e)
+            let env2 = env_extend(env, &fname, rec_val);
+            eval(&env2, body)
         }
 
         Expr::Lambda(params, body) => {
@@ -162,7 +162,7 @@ fn apply(func: Value, argvs: Vec<Value>) -> EvalResult {
                     body: body.clone(),
                 },
             );
-            
+
             for (name, arg) in params.iter().zip(argvs.iter()) {
                 env.insert(name.clone(), arg.clone());
             }
