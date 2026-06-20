@@ -3,7 +3,7 @@ let e     : Float = 2.71828  in
 let small : Float = 1.5e-3   in
 let large : Float = 6.022e23 in
 
-let area_of_circle = fun (r : Float) -> pi * r * r in
+let area_of_circle = fun (r : Float) => pi * r * r in
 
 let lerp =
   fun (a : Float) (b : Float) (t : Float) =>

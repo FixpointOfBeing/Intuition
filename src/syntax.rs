@@ -30,7 +30,7 @@ pub enum Expr {
         Box<Expr>,          // expression after the let rec
     ),
     App(Box<Expr>, Vec<Expr>),
-    Lambda(Vec<(Ident, Type)>, Box<Expr>),
+    Lambda(Vec<(Ident, Type)>, Option<Type>, Box<Expr>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -66,7 +66,9 @@ pub struct Fundef {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::syntax::Type::{Int, Unit};
+
+use super::*;
     use lalrpop_util::lalrpop_mod;
     lalrpop_mod!(pub parser);
 
@@ -127,13 +129,14 @@ mod tests {
     #[test]
     fn test_parse_lambda() {
         let expr = parser::ExprParser::new()
-            .parse("fun (x: Int) (y: Int) => x + y")
+            .parse("fun (x: Int) (y: Int) : Int => x + y")
             .unwrap();
         match *expr {
-            Expr::Lambda(params, body) => {
+            Expr::Lambda(params, ty, body) => {
                 assert_eq!(params.len(), 2);
                 assert_eq!(params[0], ("x".to_string(), Type::Int));
                 assert_eq!(params[1], ("y".to_string(), Type::Int));
+                assert_eq!(ty, Some(Type::Int));
                 match *body {
                     Expr::BinOp(BinOp::Add, left, right) => {
                         assert_eq!(*left, Expr::Var("x".to_string()));
@@ -381,13 +384,13 @@ mod tests {
     #[test]
     fn test_parse_ann_arrow_type() {
         let expr = parser::ExprParser::new()
-            .parse("((fun (x: Int) => x) : Int -> Int)")
+            .parse("((fun (x: Int) : Int => x) : Int -> Int)")
             .unwrap();
         match *expr {
             Expr::Ann(inner, ty) => {
                 assert_eq!(*ty, Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)));
                 match *inner {
-                    Expr::Lambda(params, body) => {
+                    Expr::Lambda(params, _, body) => {
                         assert_eq!(params[0], ("x".to_string(), Type::Int));
                         assert_eq!(*body, Expr::Var("x".to_string()));
                     }
@@ -484,7 +487,7 @@ mod tests {
             .parse("let rec add (x: Int) (y: Int) : Int = x + y in add 1 2")
             .unwrap();
         match *expr {
-            Expr::LetRec(fname, fargs, fret_ty, _, body) => {
+            Expr::LetRec(fname, fargs, fret_ty, _, _) => {
                 assert_eq!(fname, "add");
                 assert_eq!(fargs.len(), 2);
                 assert_eq!(fret_ty, Type::Int);
@@ -517,13 +520,14 @@ mod tests {
     #[test]
     fn test_parse_app_lambda_immediately() {
         let expr = parser::ExprParser::new()
-            .parse("(fun (x: Int) => x) 42")
+            .parse("(fun (x: Int) : Int => x) 42")
             .unwrap();
         match *expr {
             Expr::App(func, args) => {
                 assert_eq!(args, vec![Expr::Int(42)]);
                 match *func {
-                    Expr::Lambda(params, body) => {
+                    Expr::Lambda(params, ty, body) => {
+                        assert_eq!(ty, Some(Int));
                         assert_eq!(params[0], ("x".to_string(), Type::Int));
                         assert_eq!(*body, Expr::Var("x".to_string()));
                     }
@@ -540,7 +544,8 @@ mod tests {
             .parse("fun (x: Bool) => !x")
             .unwrap();
         match *expr {
-            Expr::Lambda(params, body) => {
+            Expr::Lambda(params, ty, body) => {
+                assert_eq!(ty, None);
                 assert_eq!(params.len(), 1);
                 assert_eq!(params[0], ("x".to_string(), Type::Bool));
                 assert_eq!(
@@ -555,10 +560,11 @@ mod tests {
     #[test]
     fn test_parse_lambda_unit_param() {
         let expr = parser::ExprParser::new()
-            .parse("fun (x: Unit) => ()")
+            .parse("fun (x: Unit) : Unit => ()")
             .unwrap();
         match *expr {
-            Expr::Lambda(params, body) => {
+            Expr::Lambda(params, ty, body) => {
+                assert_eq!(ty, Some(Unit));
                 assert_eq!(params[0], ("x".to_string(), Type::Unit));
                 assert_eq!(*body, Expr::Unit);
             }

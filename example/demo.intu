@@ -37,7 +37,7 @@ let result =
   let a = max_int 3 7       in
   let b = min_int 3 7       in
   let c = gcd 48 18         in
-  let d = abs_val -99       in
+  let d = abs_val (-99)     in
   let e = add5 10           in
   a + b + c + d + e
 in

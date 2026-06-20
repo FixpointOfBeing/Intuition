@@ -6,6 +6,7 @@ use crate::syntax::{BinOp, Expr, Ident, Type, UnaryOp};
 pub enum TypeError {
     UnboundVariable(Ident),
     Mismatch { expected: Type, found: Type },
+    ReturnTypeMismatch { expected: Type, found: Type },
     NotAFunction(Type),
     ArityMismatch { expected: usize, found: usize },
     BranchMismatch { then_ty: Type, else_ty: Type },
@@ -20,6 +21,9 @@ impl std::fmt::Display for TypeError {
             TypeError::UnboundVariable(name) => write!(f, "Unbound variable: {name}"),
             TypeError::Mismatch { expected, found } => {
                 write!(f, "Type mismatch: expected {expected:?}, found {found:?}")
+            }
+            TypeError::ReturnTypeMismatch { expected, found } => {
+                write!(f, "Return type mismatch: expected {expected:?}, found {found:?}")
             }
             TypeError::NotAFunction(ty) => write!(f, "Not a function: {ty:?}"),
             TypeError::ArityMismatch { expected, found } => {
@@ -170,7 +174,7 @@ fn infer(ctx: &Context, expr: &Expr) -> Result<Type, TypeError> {
             infer(&rest_ctx, rest)
         }
 
-        Expr::Lambda(params, body) => {
+        Expr::Lambda(params, opty, body) => {
             let mut lam_ctx = ctx.clone();
             let mut param_tys = Vec::new();
             for (pname, pty) in params {
@@ -178,6 +182,14 @@ fn infer(ctx: &Context, expr: &Expr) -> Result<Type, TypeError> {
                 param_tys.push(pty.clone());
             }
             let body_ty = infer(&lam_ctx, body)?;
+            if let Some(rt_ty) = opty {
+                if body_ty != *rt_ty {
+                    return Err(TypeError::ReturnTypeMismatch {
+                        expected: (*rt_ty).clone(),
+                        found: body_ty,
+                    });
+                }
+            }
             Ok(build_arrow(param_tys, body_ty))
         }
 
@@ -275,222 +287,131 @@ fn infer_binop(op: &BinOp, lt: Type, rt: Type) -> Result<Type, TypeError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::syntax::{BinOp, Expr, Type, UnaryOp};
+    use crate::syntax::Type;
+    use lalrpop_util::lalrpop_mod;
+    lalrpop_mod!(pub parser);
 
-    fn tc(e: Expr) -> Result<Type, TypeError> {
-        typecheck(&e)
+    fn tc(src: &str) -> Result<Type, TypeError> {
+        let expr = parser::ExprParser::new()
+            .parse(src)
+            .unwrap_or_else(|e| panic!("failed to parse `{src}`: {e:?}"));
+        typecheck(&expr)
     }
 
     #[test]
     fn test_unit() {
-        assert_eq!(tc(Expr::Unit), Ok(Type::Unit));
+        assert_eq!(tc("()"), Ok(Type::Unit));
     }
 
     #[test]
     fn test_bool() {
-        assert_eq!(tc(Expr::Bool(true)), Ok(Type::Bool));
+        assert_eq!(tc("true"), Ok(Type::Bool));
     }
 
     #[test]
     fn test_int() {
-        assert_eq!(tc(Expr::Int(42)), Ok(Type::Int));
+        assert_eq!(tc("42"), Ok(Type::Int));
     }
 
     #[test]
     fn test_float() {
-        assert_eq!(tc(Expr::Float(3.14)), Ok(Type::Float));
+        assert_eq!(tc("3.14"), Ok(Type::Float));
     }
 
     #[test]
     fn test_neg_int() {
-        assert_eq!(
-            tc(Expr::UnaryOp(UnaryOp::Neg, Box::new(Expr::Int(1)))),
-            Ok(Type::Int)
-        );
+        assert_eq!(tc("-1"), Ok(Type::Int));
     }
 
     #[test]
     fn test_neg_float() {
-        assert_eq!(
-            tc(Expr::UnaryOp(UnaryOp::Neg, Box::new(Expr::Float(1.0)))),
-            Ok(Type::Float)
-        );
+        assert_eq!(tc("-1.0"), Ok(Type::Float));
     }
 
     #[test]
     fn test_neg_bool_err() {
-        assert!(tc(Expr::UnaryOp(UnaryOp::Neg, Box::new(Expr::Bool(true)))).is_err());
+        assert!(tc("-true").is_err());
     }
 
     #[test]
     fn test_not_bool() {
-        assert_eq!(
-            tc(Expr::UnaryOp(UnaryOp::Not, Box::new(Expr::Bool(false)))),
-            Ok(Type::Bool)
-        );
+        assert_eq!(tc("!false"), Ok(Type::Bool));
     }
 
     #[test]
     fn test_not_int_err() {
-        assert!(tc(Expr::UnaryOp(UnaryOp::Not, Box::new(Expr::Int(0)))).is_err());
+        assert!(tc("!0").is_err());
     }
 
     #[test]
     fn test_add_int() {
-        assert_eq!(
-            tc(Expr::BinOp(
-                BinOp::Add,
-                Box::new(Expr::Int(1)),
-                Box::new(Expr::Int(2))
-            )),
-            Ok(Type::Int)
-        );
+        assert_eq!(tc("1 + 2"), Ok(Type::Int));
     }
 
     #[test]
     fn test_add_float() {
-        assert_eq!(
-            tc(Expr::BinOp(
-                BinOp::Add,
-                Box::new(Expr::Float(1.0)),
-                Box::new(Expr::Float(2.0))
-            )),
-            Ok(Type::Float)
-        );
+        assert_eq!(tc("1.0 + 2.0"), Ok(Type::Float));
     }
 
     #[test]
     fn test_add_int_float_err() {
-        assert!(tc(Expr::BinOp(
-            BinOp::Add,
-            Box::new(Expr::Int(1)),
-            Box::new(Expr::Float(2.0))
-        ))
-        .is_err());
+        assert!(tc("1 + 2.0").is_err());
     }
 
     #[test]
     fn test_lt_int() {
-        assert_eq!(
-            tc(Expr::BinOp(
-                BinOp::Lt,
-                Box::new(Expr::Int(1)),
-                Box::new(Expr::Int(2))
-            )),
-            Ok(Type::Bool)
-        );
+        assert_eq!(tc("1 < 2"), Ok(Type::Bool));
     }
 
     #[test]
     fn test_eq_any_type() {
-        assert_eq!(
-            tc(Expr::BinOp(
-                BinOp::Eq,
-                Box::new(Expr::Bool(true)),
-                Box::new(Expr::Bool(false))
-            )),
-            Ok(Type::Bool)
-        );
+        assert_eq!(tc("true == false"), Ok(Type::Bool));
     }
 
     #[test]
     fn test_eq_type_mismatch_err() {
-        assert!(tc(Expr::BinOp(
-            BinOp::Eq,
-            Box::new(Expr::Int(1)),
-            Box::new(Expr::Bool(true))
-        ))
-        .is_err());
+        assert!(tc("1 == true").is_err());
     }
 
     #[test]
     fn test_and_bool() {
-        assert_eq!(
-            tc(Expr::BinOp(
-                BinOp::And,
-                Box::new(Expr::Bool(true)),
-                Box::new(Expr::Bool(false))
-            )),
-            Ok(Type::Bool)
-        );
+        assert_eq!(tc("true && false"), Ok(Type::Bool));
     }
 
     #[test]
     fn test_if_ok() {
-        assert_eq!(
-            tc(Expr::If(
-                Box::new(Expr::Bool(true)),
-                Box::new(Expr::Int(1)),
-                Box::new(Expr::Int(0))
-            )),
-            Ok(Type::Int)
-        );
+        assert_eq!(tc("if true then 1 else 0"), Ok(Type::Int));
     }
 
     #[test]
     fn test_if_cond_not_bool_err() {
-        assert!(tc(Expr::If(
-            Box::new(Expr::Int(1)),
-            Box::new(Expr::Int(2)),
-            Box::new(Expr::Int(3))
-        ))
-        .is_err());
+        assert!(tc("if 1 then 2 else 3").is_err());
     }
 
     #[test]
     fn test_if_branch_mismatch_err() {
-        assert!(tc(Expr::If(
-            Box::new(Expr::Bool(true)),
-            Box::new(Expr::Int(1)),
-            Box::new(Expr::Bool(false))
-        ))
-        .is_err());
+        assert!(tc("if true then 1 else false").is_err());
     }
 
     #[test]
     fn test_let_no_ann() {
-        assert_eq!(
-            tc(Expr::Let(
-                "x".to_string(),
-                None,
-                Box::new(Expr::Int(1)),
-                Box::new(Expr::Var("x".to_string()))
-            )),
-            Ok(Type::Int)
-        );
+        assert_eq!(tc("let x = 1 in x"), Ok(Type::Int));
     }
 
     #[test]
     fn test_let_with_correct_ann() {
-        assert_eq!(
-            tc(Expr::Let(
-                "x".to_string(),
-                Some(Type::Int),
-                Box::new(Expr::Int(1)),
-                Box::new(Expr::Var("x".to_string()))
-            )),
-            Ok(Type::Int)
-        );
+        assert_eq!(tc("let x: Int = 1 in x"), Ok(Type::Int));
     }
 
     #[test]
     fn test_let_wrong_ann_err() {
-        assert!(tc(Expr::Let(
-            "x".to_string(),
-            Some(Type::Bool),
-            Box::new(Expr::Int(1)),
-            Box::new(Expr::Var("x".to_string()))
-        ))
-        .is_err());
+        assert!(tc("let x: Bool = 1 in x").is_err());
     }
 
     #[test]
     fn test_lambda_identity_int() {
         assert_eq!(
-            tc(Expr::Lambda(
-                vec![("x".to_string(), Type::Int)],
-                Box::new(Expr::Var("x".to_string()))
-            )),
+            tc("fun (x: Int) => x"),
             Ok(Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)))
         );
     }
@@ -498,17 +419,7 @@ mod tests {
     #[test]
     fn test_lambda_multi_param() {
         assert_eq!(
-            tc(Expr::Lambda(
-                vec![
-                    ("x".to_string(), Type::Int),
-                    ("y".to_string(), Type::Int)
-                ],
-                Box::new(Expr::BinOp(
-                    BinOp::Add,
-                    Box::new(Expr::Var("x".to_string())),
-                    Box::new(Expr::Var("y".to_string()))
-                ))
-            )),
+            tc("fun (x: Int) (y: Int) => x + y"),
             Ok(Type::Arrow(
                 Box::new(Type::Int),
                 Box::new(Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)))
@@ -518,109 +429,50 @@ mod tests {
 
     #[test]
     fn test_app_lambda() {
-        assert_eq!(
-            tc(Expr::App(
-                Box::new(Expr::Lambda(
-                    vec![("x".to_string(), Type::Int)],
-                    Box::new(Expr::Var("x".to_string()))
-                )),
-                vec![Expr::Int(42)]
-            )),
-            Ok(Type::Int)
-        );
+        assert_eq!(tc("(fun (x: Int) : Int => x) 42"), Ok(Type::Int));
     }
 
     #[test]
     fn test_app_wrong_arg_type_err() {
-        assert!(tc(Expr::App(
-            Box::new(Expr::Lambda(
-                vec![("x".to_string(), Type::Int)],
-                Box::new(Expr::Var("x".to_string()))
-            )),
-            vec![Expr::Bool(true)]
-        ))
-        .is_err());
+        assert!(tc("(fun (x: Int) => x) true").is_err());
     }
 
     #[test]
     fn test_app_not_function_err() {
-        assert!(tc(Expr::App(
-            Box::new(Expr::Int(42)),
-            vec![Expr::Int(1)]
-        ))
-        .is_err());
+        assert!(tc("42 1").is_err());
+    }
+    #[test]
+    fn test_function_ret_mismatch() {
+        assert!(tc("fun (x : Int) : Int => x <= 37").is_err())
     }
 
     #[test]
     fn test_letrec_factorial() {
-        let body = Expr::If(
-            Box::new(Expr::BinOp(
-                BinOp::Eq,
-                Box::new(Expr::Var("n".to_string())),
-                Box::new(Expr::Int(0)),
-            )),
-            Box::new(Expr::Int(1)),
-            Box::new(Expr::BinOp(
-                BinOp::Mul,
-                Box::new(Expr::Var("n".to_string())),
-                Box::new(Expr::App(
-                    Box::new(Expr::Var("fact".to_string())),
-                    vec![Expr::BinOp(
-                        BinOp::Sub,
-                        Box::new(Expr::Var("n".to_string())),
-                        Box::new(Expr::Int(1)),
-                    )],
-                )),
-            )),
-        );
-
-        let rest = Expr::App(
-            Box::new(Expr::Var("fact".to_string())),
-            vec![Expr::Int(5)],
-        );
-
         assert_eq!(
-            tc(Expr::LetRec(
-                "fact".to_string(),
-                vec![("n".to_string(), Type::Int)],
-                Type::Int,
-                Box::new(body),
-                Box::new(rest)
-            )),
+            tc("let rec fact (n: Int) : Int = \
+                    if n == 0 then 1 else n * fact(n - 1) \
+                in fact(5)"),
             Ok(Type::Int)
         );
     }
 
     #[test]
     fn test_letrec_wrong_body_type_err() {
-        assert!(tc(Expr::LetRec(
-            "f".to_string(),
-            vec![("n".to_string(), Type::Int)],
-            Type::Int,
-            Box::new(Expr::Bool(true)),
-            Box::new(Expr::App(
-                Box::new(Expr::Var("f".to_string())),
-                vec![Expr::Int(0)]
-            ))
-        ))
-        .is_err());
+        assert!(tc("let rec f (n: Int) : Int = true in f(0)").is_err());
     }
 
     #[test]
     fn test_ann_ok() {
-        assert_eq!(
-            tc(Expr::Ann(Box::new(Expr::Int(1)), Box::new(Type::Int))),
-            Ok(Type::Int)
-        );
+        assert_eq!(tc("(1 : Int)"), Ok(Type::Int));
     }
 
     #[test]
     fn test_ann_mismatch_err() {
-        assert!(tc(Expr::Ann(Box::new(Expr::Int(1)), Box::new(Type::Bool))).is_err());
+        assert!(tc("(1 : Bool)").is_err());
     }
 
     #[test]
     fn test_unbound_variable_err() {
-        assert!(tc(Expr::Var("foo".to_string())).is_err());
+        assert!(tc("foo").is_err());
     }
 }

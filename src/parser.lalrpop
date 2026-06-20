@@ -3,7 +3,16 @@ use crate::syntax::*;
 grammar;
 
 match {
-    "->"
+    r"\s*" => { },
+    r"//[^\n\r]*" => { },
+    r"/\*([^*]|\*+[^*/])*\*/" => { },
+    "->",
+    "==",
+    "!=",
+    "<=",
+    ">=",
+    "&&",
+    "||"
 } else {
     _
 }
@@ -13,12 +22,15 @@ pub Expr: Box<Expr> = {
 };
 
 Term: Box<Expr> = {
-    "fun" <params: ("(" Ident ":" Type ")")+> "=>" <e:Expr> => {
+    "fun" <params: ("(" Ident ":" Type ")")+> <opty: (":" Type)?>"=>" <e:Expr> => {
         let mut params1: Vec<(Ident, Type)> = vec![];
         for (_lp, id, _colon, ty, _rp) in params {
           params1.push((id.to_string(), *ty));
         }
-        Box::new(Expr::Lambda(params1, e))
+        match opty {
+            None => Box::new(Expr::Lambda(params1, None, e)),
+            Some((_, rt_ty)) => Box::new(Expr::Lambda(params1, Some(*rt_ty), e))
+        }
     },
 
     "let" <v:Ident> <opty: (":" Type)?>  "=" <e1:Expr> "in" <e2:Expr> => {

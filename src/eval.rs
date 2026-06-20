@@ -1,5 +1,7 @@
-use crate::syntax::*;
-use std::collections::HashMap;
+use crate::{syntax::*, typechecker::typecheck};
+use lalrpop_util::lalrpop_mod;
+use std::{collections::HashMap, fs::read_to_string, path::PathBuf};
+lalrpop_mod!(pub parser);
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
@@ -101,7 +103,7 @@ pub fn eval(env: &Env, expr: &Expr) -> EvalResult {
             eval(&env2, body)
         }
 
-        Expr::Lambda(params, body) => {
+        Expr::Lambda(params, _, body) => {
             let param_names: Vec<Ident> = params.iter().map(|(id, _)| id.clone()).collect();
             Ok(Value::Closure(env.clone(), param_names, body.clone()))
         }
@@ -242,7 +244,19 @@ fn eval_binop(op: &BinOp, v1: Value, v2: Value) -> EvalResult {
 }
 
 pub fn eval_top(expr: &Expr) -> EvalResult {
-    eval(&Env::new(), expr)
+    match typecheck(expr) {
+        Ok(_) => eval(&Env::new(), expr),
+        Err(e) => err!("type error: {}", e),
+    }
+}
+
+pub fn eval_file(file: &PathBuf) -> EvalResult {
+    if let Ok(content) = read_to_string(file.clone()) {
+        let expr = parser::ExprParser::new().parse(&content).unwrap();
+        eval_top(&*expr)
+    } else {
+        err!("read file error: {}", file.to_str().unwrap())
+    }
 }
 
 #[cfg(test)]

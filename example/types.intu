@@ -1,5 +1,5 @@
 let const_int =
-  (fun (x : Int) (y : Int) -> x : Int -> Int -> Int)
+  (fun (x : Int) (y : Int) => x : Int -> Int -> Int)
 in
 
 let flip_int_bool =
@@ -7,12 +7,12 @@ let flip_int_bool =
    : (Int -> Int -> Bool) -> Int -> Int -> Bool)
 in
 
-let id_int  = (fun (x : Int)   => x : Int   -> Int)   in
-let id_bool = (fun (x : Bool)  => x : Bool  -> Bool)  in
+let id_int  = (fun (x : Int) : Int   => x : Int   -> Int)   in
+let id_bool = (fun (x : Bool) : Bool  => x : Bool  -> Bool)  in
 let id_unit = (fun (x : Unit)  => x : Unit  -> Unit)  in
 
 let always_true =
-  (fun (x : Int) => true : Int -> Bool)
+  (fun (x : Int) : Bool => true : Int -> Bool)
 in
 
 always_true 0

@@ -1,11 +1,12 @@
 pub mod compile;
+pub mod eval;
 pub mod repl;
 pub mod syntax;
-pub mod eval;
 pub mod typechecker;
 
-use crate::repl::repl;
 use crate::compile::compile_file;
+use crate::eval::eval_file;
+use crate::repl::repl;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -20,7 +21,11 @@ struct Cli {
 #[derive(Subcommand, Debug)]
 enum Commands {
     Repl,
-    Build {
+    Eval {
+        #[arg(value_name = "FILE")]
+        file: PathBuf,
+    },
+    Compile {
         #[arg(value_name = "FILE")]
         file: PathBuf,
 
@@ -35,11 +40,23 @@ fn main() {
         None | Some(Commands::Repl) => {
             repl();
         }
-        Some(Commands::Build { file, output }) => {
-            if let Err(e) = compile_file(file, output) {
-                std::process::exit(1);
+        Some(Commands::Compile { file, output }) => {
+            match compile_file(file, output) {
+                Ok(()) => {
+                    println!("Compilation successful");
+                }
+                Err(e) => {
+                    println!("{}", e);
+                }
             }
         }
+        Some(Commands::Eval { file }) => match eval_file(file) {
+            Ok(v) => {
+                println!("{}", v);
+            }
+            Err(e) => {
+                println!("{}", e)
+            }
+        },
     }
 }
-

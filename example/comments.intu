@@ -1,0 +1,50 @@
+// 判断一个整数是否为偶数
+let rec is_even (n : Int) : Bool =
+  if n == 0
+  then true
+  else
+    !(is_even (n - 1))
+in
+/*
+  计算两个整数中的较大值
+*/
+let max = fun (a : Int) (b : Int) =>
+  if a >= b
+  then a
+  else b
+in
+
+// 绝对值函数
+let abs = fun (x : Int) : Int =>
+  if x < 0
+  then (-x)
+  else x
+in
+
+let x = (-42) in
+
+/* 这里应该得到 42 */
+let y = abs x in
+
+// 比较两个数字
+let bigger = max y 17 in
+
+let /* comment */ answer /* comment */ =
+  42
+in
+
+let doubled =
+  answer
+  * /* middle comment */ 2
+in
+
+
+let pi : Float = 3.14159 in
+
+// 测试浮点数
+let radius : Float = 5.0 in
+
+if doubled /* comment */ >= /* comment */ 80
+then true
+else false
+is_even bigger
