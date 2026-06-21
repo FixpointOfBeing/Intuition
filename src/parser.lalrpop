@@ -39,6 +39,31 @@ Term: Box<Expr> = {
             Some((_, ty)) => Box::new(Expr::Let(v, Some(*ty), e1, e2))
         }
     },
+
+   "let" <v:Ident> <params: ("(" Ident ":" Type ")")+> <opty: (":" Type)?> "=" <e1:Expr> "in" <e2:Expr>=> {
+       let mut params1: Vec<(Ident, Type)> = vec![];
+       let mut lambda_ty: Vec<Type> = vec![];
+       for (_lp, id, _colon, ty, _rp) in params {
+           params1.push((id.to_string(), (*ty).clone()));
+           lambda_ty.push(*ty);
+       }
+       match opty {
+            None => {
+                let lambda = Box::new(Expr::Lambda(params1, None, e1));
+                Box::new(Expr::Let(v, None, lambda, e2))
+            }
+            Some((_, rt_ty)) => {
+                let lambda = Box::new(Expr::Lambda(params1, Some((*rt_ty).clone()), e1));
+                let arrow = lambda_ty
+                        .into_iter()
+                        .rev()
+                        .fold(*rt_ty, |acc, p| Type::Arrow(Box::new(p), Box::new(acc)));
+                Box::new(Expr::Let(v, Some(arrow), lambda, e2))
+            }
+
+       }
+    },
+
     "let" "rec"  <fname:Ident> <params: ("(" Ident ":" Type ")")+> ":" <fret_ty:Type> "=" <fbody:Expr> "in" <body:Expr> => {
         let mut fargs: Vec<(Ident, Type)> = vec![];
         for (_lp, id, _colon, ty, _rp) in params {

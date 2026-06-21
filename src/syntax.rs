@@ -55,20 +55,112 @@ pub enum UnaryOp {
     Not,
 }
 
-// todo: remove Fundef
-#[derive(Debug, Clone, PartialEq)]
-pub struct Fundef {
-    pub name: Ident,
-    pub args: Vec<(Ident, Type)>,
-    pub ret_type: Type,
-    pub body: Box<Expr>,
+impl std::fmt::Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Type::Unit => write!(f, "Unit"),
+            Type::Bool => write!(f, "Bool"),
+            Type::Int => write!(f, "Int"),
+            Type::Float => write!(f, "Float"),
+            Type::Var(name) => write!(f, "{}", name),
+            Type::Arrow(from, to) => {
+                let from_str = match **from {
+                    Type::Arrow(_, _) => format!("({})", from),
+                    _ => format!("{}", from),
+                };
+                write!(f, "{} -> {}", from_str, to)
+            }
+        }
+    }
 }
 
+impl std::fmt::Display for BinOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let op_str = match self {
+            BinOp::Add => "+",
+            BinOp::Sub => "-",
+            BinOp::Mul => "*",
+            BinOp::Div => "/",
+            BinOp::And => "&&",
+            BinOp::Or => "||",
+            BinOp::Eq => "==",
+            BinOp::Neq => "!=",
+            BinOp::Lt => "<",
+            BinOp::Gt => ">",
+            BinOp::Leq => "<=",
+            BinOp::Geq => ">=",
+        };
+        write!(f, "{}", op_str)
+    }
+}
+
+impl std::fmt::Display for UnaryOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let op_str = match self {
+            UnaryOp::Neg => "-",
+            UnaryOp::Not => "!",
+        };
+        write!(f, "{}", op_str)
+    }
+}
+
+impl std::fmt::Display for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Expr::Unit => write!(f, "()"),
+            Expr::Bool(b) => write!(f, "{}", b),
+            Expr::Int(n) => write!(f, "{}", n),
+            Expr::Float(fl) => write!(f, "{}", fl),
+            Expr::Var(name) => write!(f, "{}", name),
+            Expr::BinOp(op, left, right) => write!(f, "({} {} {})", left, op, right),
+            Expr::UnaryOp(op, expr) => write!(f, "({}{})", op, expr),
+            Expr::Ann(expr, ty) => write!(f, "({} : {})", expr, ty),
+            Expr::If(cond, then_branch, else_branch) => {
+                write!(f, "if {} then {} else {}", cond, then_branch, else_branch)
+            }
+            Expr::Let(name, ann, val, body) => {
+                if let Some(ty) = ann {
+                    write!(f, "let {}: {} = {} in {}", name, ty, val, body)
+                } else {
+                    write!(f, "let {} = {} in {}", name, val, body)     
+                }
+            }
+            Expr::LetRec(fname, fargs, fret_ty, fbody, body) => {
+                let args_str = fargs
+                    .iter()
+                    .map(|(arg_name, arg_ty)| format!("({}: {})", arg_name, arg_ty))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                write!(
+                    f,
+                    "let rec {} {} : {} = {} in {}",
+                    fname, args_str, fret_ty, fbody, body
+                )
+            }
+            Expr::App(func, args) => {
+                let args_str = args.iter().map(|arg| format!("{}", arg)).collect::<Vec<_>>().join(" ");
+                write!(f, "({} {})", func, args_str) 
+            }
+            Expr::Lambda(params, ty, body) => {
+                let params_str = params
+                    .iter()
+                    .map(|(param_name, param_ty)| format!("({}: {})", param_name, param_ty))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                if let Some(ret_ty) = ty {
+                    write!(f, "fun {} : {} => {}", params_str, ret_ty, body)
+                } else {
+                    write!(f, "fun {} => {}", params_str, body)
+                }
+            }
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use crate::syntax::Type::{Int, Unit};
 
-use super::*;
+    use super::*;
     use lalrpop_util::lalrpop_mod;
     lalrpop_mod!(pub parser);
 
@@ -432,8 +524,74 @@ use super::*;
     }
 
     #[test]
+    fn test_let_lambda() {
+        let expr = parser::ExprParser::new()
+            .parse("let f (b: Bool) (x: Int) (y: Int) : Int = if b then x + y else x - y in f true 3 5")
+            .unwrap();
+        match *expr {
+            Expr::Let(name, ann, val, body) => {
+                assert_eq!(name, "f");
+                assert_eq!(
+                    ann,
+                    Some(Type::Arrow(
+                        Box::new(Type::Bool),
+                        Box::new(Type::Arrow(
+                            Box::new(Type::Int),
+                            Box::new(Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)))
+                        ))
+                    ))
+                );
+                match *val {
+                    Expr::Lambda(params, ty, lambda_body) => {
+                        assert_eq!(params.len(), 3);
+                        assert_eq!(params[0], ("b".to_string(), Type::Bool));
+                        assert_eq!(params[1], ("x".to_string(), Type::Int));
+                        assert_eq!(params[2], ("y".to_string(), Type::Int));
+                        assert_eq!(ty, Some(Type::Int));
+                        match *lambda_body {
+                            Expr::If(cond, then_branch, else_branch) => {
+                                assert_eq!(*cond, Expr::Var("b".to_string()));
+                                assert_eq!(
+                                    *then_branch,
+                                    Expr::BinOp(
+                                        BinOp::Add,
+                                        Box::new(Expr::Var("x".to_string())),
+                                        Box::new(Expr::Var("y".to_string()))
+                                    )
+                                );
+                                assert_eq!(
+                                    *else_branch,
+                                    Expr::BinOp(
+                                        BinOp::Sub,
+                                        Box::new(Expr::Var("x".to_string())),
+                                        Box::new(Expr::Var("y".to_string()))
+                                    )
+                                );
+                            }
+                            _ => panic!("Expected If in lambda body"),
+                        }
+                    }
+                    _ => panic!("Expected Lambda as value in Let"),
+                }
+                match *body {
+                    Expr::App(func, args) => {
+                        assert_eq!(args.len(), 3);
+                        assert_eq!(args[0], Expr::Bool(true));
+                        assert_eq!(args[1], Expr::Int(3));
+                        assert_eq!(args[2], Expr::Int(5));
+                        match *func {
+                            Expr::Var(ref name) if name == "f" => {}
+                            _ => panic!("Expected Var 'f' as function in App"),
+                        }
+                    }
+                    _ => panic!("Expected App as body of Let"),
+                }
+            }
+            _ => panic!("Expected Expr::Let"),
+        }
+    }
+    #[test]
     fn test_parse_let_nested() {
-        // let x = 1 in let y = 2 in x + y
         let expr = parser::ExprParser::new()
             .parse("let x = 1 in let y = 2 in x + y")
             .unwrap();

@@ -1,8 +1,8 @@
 let identity = fun (x : Int) => x in
 
-let add = fun (x : Int) (y : Int) : Int => x + y in
+let add (x : Int) (y : Int) : Int = x + y in
 
-let apply1 = fun (f : Int -> Int) (x : Int) : Int => f x in
+let apply1 (f : Int -> Int) (x : Int) : Int = f x in
 
 let apply2 = fun (f : Int -> Int -> Int) (x : Int) : Int -> Int => f x in
 
@@ -11,8 +11,8 @@ let compose =
     f (g x)
 in
 
-let double    = fun (x : Int) => x * 2      in
-let inc       = fun (x : Int) => x + 1      in
+let double (x : Int) = x * 2      in
+let inc (x : Int) : Int = x + 1      in
 let double_then_inc = compose inc double    in
 
 apply1 double_then_inc 5

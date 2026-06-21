@@ -1,6 +1,5 @@
-use std::collections::HashMap;
 use crate::syntax::{BinOp, Expr, Ident, Type, UnaryOp};
-
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeError {
@@ -23,7 +22,10 @@ impl std::fmt::Display for TypeError {
                 write!(f, "Type mismatch: expected {expected:?}, found {found:?}")
             }
             TypeError::ReturnTypeMismatch { expected, found } => {
-                write!(f, "Return type mismatch: expected {expected:?}, found {found:?}")
+                write!(
+                    f,
+                    "Return type mismatch: expected {expected:?}, found {found:?}"
+                )
             }
             TypeError::NotAFunction(ty) => write!(f, "Not a function: {ty:?}"),
             TypeError::ArityMismatch { expected, found } => {
@@ -40,7 +42,10 @@ impl std::fmt::Display for TypeError {
             TypeError::InvalidUnary { op, ty } => {
                 write!(f, "Operator `{op}` cannot be applied to {ty:?}")
             }
-            TypeError::AnnotationMismatch { annotated, inferred } => write!(
+            TypeError::AnnotationMismatch {
+                annotated,
+                inferred,
+            } => write!(
                 f,
                 "Annotation mismatch: declared {annotated:?}, inferred {inferred:?}"
             ),
@@ -74,7 +79,6 @@ pub fn typecheck(expr: &Expr) -> Result<Type, TypeError> {
 pub fn typecheck_with_ctx(ctx: &Context, expr: &Expr) -> Result<Type, TypeError> {
     infer(ctx, expr)
 }
-
 
 fn infer(ctx: &Context, expr: &Expr) -> Result<Type, TypeError> {
     match expr {
@@ -155,7 +159,10 @@ fn infer(ctx: &Context, expr: &Expr) -> Result<Type, TypeError> {
         }
 
         Expr::LetRec(fname, args, ret_ty, body, rest) => {
-            let fn_ty = build_arrow(args.iter().map(|(_, t)| t.clone()).collect(), ret_ty.clone());
+            let fn_ty = build_arrow(
+                args.iter().map(|(_, t)| t.clone()).collect(),
+                ret_ty.clone(),
+            );
 
             let mut body_ctx = ctx.extend(fname.clone(), fn_ty.clone());
             for (arg_name, arg_ty) in args {
@@ -207,7 +214,8 @@ fn infer(ctx: &Context, expr: &Expr) -> Result<Type, TypeError> {
                         }
                         fn_ty = *ret_ty;
                     }
-                    other => return Err(TypeError::NotAFunction(other)),
+                    other => return Err(TypeError::NotAFunction(other))
+
                 }
             }
             Ok(fn_ty)
@@ -215,12 +223,7 @@ fn infer(ctx: &Context, expr: &Expr) -> Result<Type, TypeError> {
     }
 }
 
-fn check(
-    _ctx: &Context,
-    _expr: &Expr,
-    expected: &Type,
-    inferred: Type,
-) -> Result<(), TypeError> {
+fn check(_ctx: &Context, _expr: &Expr, expected: &Type, inferred: Type) -> Result<(), TypeError> {
     if &inferred != expected {
         Err(TypeError::Mismatch {
             expected: expected.clone(),
@@ -427,6 +430,16 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_let_lambda() {
+        assert_eq!(
+            tc("let add (x: Int) (y: Int) = x + y in add"),
+            Ok(Type::Arrow(
+                Box::new(Type::Int),
+                Box::new(Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)))
+            ))
+        );
+    }
     #[test]
     fn test_app_lambda() {
         assert_eq!(tc("(fun (x: Int) : Int => x) 42"), Ok(Type::Int));
