@@ -1,11 +1,11 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use crate::syntax::{BinOp, Expr, Ident, Type, UnaryOp};
+use crate::{uniquify::rename_top, syntax::{BinOp, Expr, Ident, Type, UnaryOp}};
 use inkwell::{
     builder::Builder,
     context::Context,
     module::Module,
-    types::{BasicType, BasicTypeEnum, FunctionType},
+    types::{BasicType, BasicTypeEnum},
     values::BasicValueEnum,
 };
 
@@ -29,7 +29,7 @@ impl<'ctx> CodeGen<'ctx> {
 
         let ret_type = Self::compile_type(context, top_level_ty);
         let fn_type = ret_type.fn_type(&[], false);
-        let function = codegen.module.add_function("program", fn_type, None); // 改名！不叫 main
+        let function = codegen.module.add_function("program", fn_type, None);
 
         let entry = context.append_basic_block(function, "entry");
         codegen.builder.position_at_end(entry);
@@ -220,7 +220,7 @@ impl<'ctx> CodeGen<'ctx> {
         self.builder.position_at_end(then_bb);
         let then_val = self.compile_expr(then_e);
         self.builder.build_unconditional_branch(merge_bb).unwrap();
-        let then_bb = self.builder.get_insert_block().unwrap(); // 可能因嵌套 if 已变化
+        let then_bb = self.builder.get_insert_block().unwrap(); 
 
         // else
         self.builder.position_at_end(else_bb);
@@ -259,7 +259,6 @@ pub fn compile_file(file_path: &std::path::Path, output: &Option<PathBuf>) -> Re
     let ast = parser::ExprParser::new()
         .parse(&source)
         .map_err(|e| e.to_string())?;
-    let top_level_ty = typecheck(&ast).map_err(|e| format!("类型检查错误: {}", e))?;
 
     let module_name = file_path
         .file_stem()
@@ -267,7 +266,10 @@ pub fn compile_file(file_path: &std::path::Path, output: &Option<PathBuf>) -> Re
         .unwrap_or("main_module");
 
     let context = Context::create();
+    let top_level_ty = typecheck(&ast).map_err(|e| format!("类型检查错误: {}", e))?;
     let mut codegen = CodeGen::new(&context, module_name, &top_level_ty);
+    
+    let ast = rename_top(&ast);
     let result = codegen.compile_expr(&ast);
 
     codegen

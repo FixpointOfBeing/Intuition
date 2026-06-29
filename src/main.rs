@@ -3,6 +3,8 @@ pub mod eval;
 pub mod repl;
 pub mod syntax;
 pub mod typechecker;
+pub mod remove_complex;
+pub mod uniquify;
 
 use crate::compile::compile_file;
 use crate::eval::eval_file;

@@ -141,7 +141,7 @@ Factor: Box<Expr> = {
     },
     "true" => Box::new(Expr::Bool(true)),
     "false" => Box::new(Expr::Bool(false)),
-    "(" <e:Expr> ":" <t:Type> ")" => Box::new(Expr::Ann(e, t)),
+    "(" <e:Expr> ":" <t:Type> ")" => Box::new(Expr::Ann(e, (*t).clone())),
     "(" <e:Expr> ")" => e,
     "(" ")" => Box::new(Expr::Unit)
 

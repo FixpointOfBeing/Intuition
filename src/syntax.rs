@@ -16,12 +16,12 @@ pub enum Expr {
     Bool(bool),
     Int(i64),
     Float(f64),
+    Var(Ident),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
     UnaryOp(UnaryOp, Box<Expr>),
-    Ann(Box<Expr>, Box<Type>),
+    Ann(Box<Expr>, Type),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
     Let(Ident, Option<Type>, Box<Expr>, Box<Expr>),
-    Var(Ident),
     LetRec(
         Ident,              // function name
         Vec<(Ident, Type)>, // function arguments with their types
@@ -480,7 +480,7 @@ mod tests {
             .unwrap();
         match *expr {
             Expr::Ann(inner, ty) => {
-                assert_eq!(*ty, Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)));
+                assert_eq!(ty, Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)));
                 match *inner {
                     Expr::Lambda(params, _, body) => {
                         assert_eq!(params[0], ("x".to_string(), Type::Int));
@@ -785,7 +785,7 @@ mod tests {
         match *expr {
             Expr::Ann(_, ty) => {
                 assert_eq!(
-                    *ty,
+                    ty,
                     Type::Arrow(
                         Box::new(Type::Int),
                         Box::new(Type::Arrow(Box::new(Type::Int), Box::new(Type::Bool)))
@@ -801,7 +801,7 @@ mod tests {
         let expr = parser::ExprParser::new().parse("(x : a)").unwrap();
         match *expr {
             Expr::Ann(_, ty) => {
-                assert_eq!(*ty, Type::Var("a".to_string()));
+                assert_eq!(ty, Type::Var("a".to_string()));
             }
             _ => panic!("Expected Expr::Ann with type var"),
         }

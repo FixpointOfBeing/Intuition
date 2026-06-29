@@ -94,9 +94,9 @@ fn infer(ctx: &Context, expr: &Expr) -> Result<Type, TypeError> {
 
         Expr::Ann(inner, ann_ty) => {
             let inferred = infer(ctx, inner)?;
-            if &inferred != ann_ty.as_ref() {
+            if &inferred != ann_ty{
                 return Err(TypeError::AnnotationMismatch {
-                    annotated: *ann_ty.clone(),
+                    annotated: (*ann_ty).clone(),
                     inferred,
                 });
             }
