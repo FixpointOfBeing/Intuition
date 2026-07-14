@@ -43,7 +43,8 @@ impl RemoveComplex {
             Expr::Unit | Expr::Bool(_) | Expr::Int(_) | Expr::Float(_) | Expr::Var(_)
         )
     }
-    fn remove_complex_atom(&self, expr: &Expr) -> MonAtom {
+
+    fn to_atom(&self, expr: &Expr) -> MonAtom {
         match expr {
             Expr::Unit => MonAtom::Unit,
             Expr::Bool(b) => MonAtom::Bool(*b),
@@ -53,52 +54,40 @@ impl RemoveComplex {
             _ => unreachable!(),
         }
     }
+
     fn remove_complex(&mut self, expr: &Expr) -> MonExpr {
         match expr {
-            Expr::BinOp(op, left, right) => match (self.is_atom(left), self.is_atom(right)) {
-                (true, true) => {
-                    let left = self.remove_complex_atom(left);
-                    let right = self.remove_complex_atom(right);
-                    MonExpr::BinOp((*op).clone(), left, right)
-                }
-                (true, false) => {
-                    let left = self.remove_complex_atom(left);
-
-                    let right = self.remove_complex(right);
+            Expr::BinOp(op, left, right) => {
+                let (mon_left, left_let) = if self.is_atom(left) {
+                    (self.to_atom(left), None)
+                } else {
+                    let mon = self.remove_complex(left);
                     let name = self.fresh();
-                    let right_atom = MonAtom::Var(name.clone());
+                    (MonAtom::Var(name.clone()), Some((name, mon)))
+                };
 
-                    let body = MonExpr::BinOp((*op).clone(), left, right_atom);
-                    MonExpr::Let(name, None, Box::new(right), Box::new(body))
-                }
-                (false, true) => {
-                    let left = self.remove_complex(left);
+                let (mon_right, right_let) = if self.is_atom(right) {
+                    (self.to_atom(right), None)
+                } else {
+                    let mon = self.remove_complex(right);
                     let name = self.fresh();
-                    let left_atom = MonAtom::Var(name.clone());
+                    (MonAtom::Var(name.clone()), Some((name, mon)))
+                };
 
-                    let right = self.remove_complex_atom(right);
-
-                    let body = MonExpr::BinOp((*op).clone(), left_atom, right);
-                    MonExpr::Let(name, None, Box::new(left), Box::new(body))
+                let mut body = MonExpr::BinOp(op.clone(), mon_left, mon_right);
+                if let Some((name, mon)) = right_let {
+                    body = MonExpr::Let(name, None, Box::new(mon), Box::new(body));
                 }
-                (false, false) => {
-                    let left = self.remove_complex(left);
-                    let name_left = self.fresh();
-                    let left_atom = MonAtom::Var(name_left.clone());
 
-                    let right = self.remove_complex(right);
-                    let name_right = self.fresh();
-                    let right_atom = MonAtom::Var(name_right.clone());
-
-                    let body_inner = MonExpr::BinOp((*op).clone(), left_atom, right_atom);
-                    let body_outer =
-                        MonExpr::Let(name_right, None, Box::new(right), Box::new(body_inner));
-                    MonExpr::Let(name_left, None, Box::new(left), Box::new(body_outer))
+                if let Some((name, mon)) = left_let {
+                    body = MonExpr::Let(name, None, Box::new(mon), Box::new(body));
                 }
-            },
+                body
+            }
+
             Expr::UnaryOp(op, expr) => {
                 if self.is_atom(expr) {
-                    let expr = self.remove_complex_atom(expr);
+                    let expr = self.to_atom(expr);
                     MonExpr::UnaryOp((*op).clone(), expr)
                 } else {
                     let expr = self.remove_complex(expr);
@@ -110,7 +99,12 @@ impl RemoveComplex {
                 }
             }
             Expr::If(cond, then_e, else_e) => {
-                if !self.is_atom(cond) {
+                if self.is_atom(cond) {
+                    let cond = self.to_atom(cond);
+                    let then_e = self.remove_complex(then_e);
+                    let else_e = self.remove_complex(else_e);
+                    MonExpr::If(cond, Box::new(then_e), Box::new(else_e))
+                } else {
                     let cond_mon = self.remove_complex(cond);
                     let name = self.fresh();
                     let then_mon = self.remove_complex(then_e);
@@ -121,11 +115,6 @@ impl RemoveComplex {
                         Box::new(else_mon),
                     );
                     MonExpr::Let(name, None, Box::new(cond_mon), Box::new(body))
-                } else {
-                    let cond = self.remove_complex_atom(cond);
-                    let then_e = self.remove_complex(then_e);
-                    let else_e = self.remove_complex(else_e);
-                    MonExpr::If(cond, Box::new(then_e), Box::new(else_e))
                 }
             }
             Expr::Let(name, ty, rhs, body) => {
@@ -156,7 +145,7 @@ impl RemoveComplex {
                     panic!("Application with no arguments is not allowed");
                 }
                 if self.is_atom(func) {
-                    self.remove_complex_app(self.remove_complex_atom(func), args)
+                    self.remove_complex_app(self.to_atom(func), args)
                 } else {
                     let func = self.remove_complex(func);
                     let name = self.fresh();
@@ -169,7 +158,7 @@ impl RemoveComplex {
                 MonExpr::Lambda((*args).clone(), (*ty).clone(), Box::new(body))
             }
             Expr::Ann(expr, _) => self.remove_complex(expr),
-            _ => MonExpr::Atom(self.remove_complex_atom(expr)),
+            _ => MonExpr::Atom(self.to_atom(expr)),
         }
     }
 
@@ -179,13 +168,13 @@ impl RemoveComplex {
 
         for arg in args {
             if self.is_atom(arg) {
-                atom_args.push(self.remove_complex_atom(arg));
-            } else {
-                let mon = self.remove_complex(arg);
-                let name = self.fresh();
-                atom_args.push(MonAtom::Var(name.clone()));
-                lets.push((name, mon));
+                atom_args.push(self.to_atom(arg));
+                continue;
             }
+            let mon = self.remove_complex(arg);
+            let name = self.fresh();
+            atom_args.push(MonAtom::Var(name.clone()));
+            lets.push((name, mon));
         }
 
         let mut body = MonExpr::App(func, atom_args);
@@ -195,9 +184,11 @@ impl RemoveComplex {
         body
     }
 }
+
 pub fn remove_complex(expr: &Expr) -> MonExpr {
     RemoveComplex::new().remove_complex(expr)
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -319,5 +310,45 @@ mod tests {
                 ))
             )
         );
+    }
+
+    #[test]
+    fn test_app_complex_more_args() {
+        assert_eq!(
+            test(Expr::App(
+                Box::new(Expr::Var("f".into())),
+                vec![
+                    Expr::BinOp(BinOp::Add, Box::new(Expr::Int(1)), Box::new(Expr::Int(2))),
+                    Expr::BinOp(
+                        BinOp::Mul,
+                        Box::new(Expr::Float(3.0)),
+                        Box::new(Expr::Float(4.0)),
+                    ),
+                    Expr::Int(5)
+                ],
+            )),
+            MonExpr::Let(
+                "$0".into(),
+                None,
+                Box::new(MonExpr::BinOp(BinOp::Add, MonAtom::Int(1), MonAtom::Int(2))),
+                Box::new(MonExpr::Let(
+                    "$1".into(),
+                    None,
+                    Box::new(MonExpr::BinOp(
+                        BinOp::Mul,
+                        MonAtom::Float(3.0),
+                        MonAtom::Float(4.0)
+                    )),
+                    Box::new(MonExpr::App(
+                        MonAtom::Var("f".into()),
+                        vec![
+                            MonAtom::Var("$0".into()),
+                            MonAtom::Var("$1".into()),
+                            MonAtom::Int(5)
+                        ]
+                    ))
+                ))
+            )
+        )
     }
 }
