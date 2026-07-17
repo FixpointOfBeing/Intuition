@@ -129,12 +129,12 @@ fn infer(ctx: &Context, expr: &Expr) -> Result<Type, TypeError> {
             infer_binop(op, lt, rt)
         }
 
-        Expr::If(cond, then_expr, else_expr) => {
+        Expr::If(cond, thn, els) => {
             let cond_ty = infer(ctx, cond)?;
             check(ctx, cond, &Type::Bool, cond_ty)?;
 
-            let then_ty = infer(ctx, then_expr)?;
-            let else_ty = infer(ctx, else_expr)?;
+            let then_ty = infer(ctx, thn)?;
+            let else_ty = infer(ctx, els)?;
 
             if then_ty != else_ty {
                 return Err(TypeError::BranchMismatch { then_ty, else_ty });

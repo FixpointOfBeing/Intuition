@@ -1,43 +1,9 @@
 use crate::{syntax::*, typechecker::typecheck};
+use crate::env::{Env, Value};
+
 use lalrpop_util::lalrpop_mod;
-use std::{collections::HashMap, fs::read_to_string, path::PathBuf};
+use std::{fs::read_to_string, path::PathBuf};
 lalrpop_mod!(pub parser);
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Value {
-    Unit,
-    Bool(bool),
-    Int(i64),
-    Float(f64),
-    Closure(Env, Vec<Ident>, Box<Expr>),
-    RecClosure {
-        env: Env,
-        fname: Ident,
-        params: Vec<Ident>,
-        body: Box<Expr>,
-    },
-}
-
-impl std::fmt::Display for Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Value::Unit => write!(f, "()"),
-            Value::Bool(b) => write!(f, "{}", b),
-            Value::Int(n) => write!(f, "{}", n),
-            Value::Float(x) => write!(f, "{}", x),
-            Value::Closure(..) => write!(f, "<closure>"),
-            Value::RecClosure { .. } => write!(f, "<rec-closure>"),
-        }
-    }
-}
-
-pub type Env = HashMap<Ident, Value>;
-
-fn env_extend(env: &Env, name: &str, val: Value) -> Env {
-    let mut e = env.clone();
-    e.insert(name.to_string(), val);
-    e
-}
 
 #[derive(Debug, Clone)]
 pub struct EvalError(pub String);
@@ -79,15 +45,15 @@ pub fn eval(env: &Env, expr: &Expr) -> EvalResult {
             eval_binop(op, v1, v2)
         }
 
-        Expr::If(cond, then_e, else_e) => match eval(env, cond)? {
-            Value::Bool(true) => eval(env, then_e),
-            Value::Bool(false) => eval(env, else_e),
+        Expr::If(cond, thn, els) => match eval(env, cond)? {
+            Value::Bool(true) => eval(env, thn),
+            Value::Bool(false) => eval(env, els),
             other => err!("condition must be Bool, got {}", other),
         },
 
         Expr::Let(name, _ty, e1, e2) => {
             let v = eval(env, e1)?;
-            let env2 = env_extend(env, name, v);
+            let env2 = env.extend(name, v);
             eval(&env2, e2)
         }
 
@@ -97,15 +63,15 @@ pub fn eval(env: &Env, expr: &Expr) -> EvalResult {
                 env: env.clone(),
                 fname: fname.clone(),
                 params: params.clone(),
-                body: fbody.clone(),
+                body: (**fbody).clone(),
             };
-            let env2 = env_extend(env, &fname, rec_val);
+            let env2 = env.extend( &fname, rec_val);
             eval(&env2, body)
         }
 
         Expr::Lambda(params, _, body) => {
             let param_names: Vec<Ident> = params.iter().map(|(id, _)| id.clone()).collect();
-            Ok(Value::Closure(env.clone(), param_names, body.clone()))
+            Ok(Value::Closure(env.clone(), param_names, (**body).clone()))
         }
 
         Expr::App(func, args) => {

@@ -82,7 +82,7 @@ impl<'ctx> CodeGen<'ctx> {
                 self.compile_unaryop(op, value)
             }
             Expr::Ann(expr, _) => self.compile_expr(expr),
-            Expr::If(cond, then_e, else_e) => self.compile_if(cond, then_e, else_e),
+            Expr::If(cond, thn, els) => self.compile_if(cond, thn, els),
             Expr::Let(name, _, rhs, body) => self.compile_let(name, rhs, body),
             Expr::Var(name) => *self.env.get(name).expect("未绑定的变量"),
             Expr::LetRec(_, items, _, expr, expr1) => todo!(),
@@ -199,7 +199,7 @@ impl<'ctx> CodeGen<'ctx> {
         }
     }
 
-    fn compile_if(&mut self, cond: &Expr, then_e: &Expr, else_e: &Expr) -> BasicValueEnum<'ctx> {
+    fn compile_if(&mut self, cond: &Expr, thn: &Expr, els: &Expr) -> BasicValueEnum<'ctx> {
         let cond_val = self.compile_expr(cond).into_int_value();
         let func = self
             .builder
@@ -218,13 +218,13 @@ impl<'ctx> CodeGen<'ctx> {
 
         // then
         self.builder.position_at_end(then_bb);
-        let then_val = self.compile_expr(then_e);
+        let then_val = self.compile_expr(thn);
         self.builder.build_unconditional_branch(merge_bb).unwrap();
         let then_bb = self.builder.get_insert_block().unwrap(); 
 
         // else
         self.builder.position_at_end(else_bb);
-        let else_val = self.compile_expr(else_e);
+        let else_val = self.compile_expr(els);
         self.builder.build_unconditional_branch(merge_bb).unwrap();
         let else_bb = self.builder.get_insert_block().unwrap();
 

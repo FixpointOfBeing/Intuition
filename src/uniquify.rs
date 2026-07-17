@@ -56,11 +56,11 @@ impl Uniquify {
                 let expr = self.rename(expr);
                 Expr::Ann(Box::new(expr), ty.clone())
             }
-            Expr::If(cond, then_e, else_e) => {
+            Expr::If(cond, thn, els) => {
                 let cond = self.rename(cond);
-                let then_e = self.rename(then_e);
-                let else_e = self.rename(else_e);
-                Expr::If(Box::new(cond), Box::new(then_e), Box::new(else_e))
+                let thn = self.rename(thn);
+                let els = self.rename(els);
+                Expr::If(Box::new(cond), Box::new(thn), Box::new(els))
             }
             Expr::Let(name, ty, rhs, body) => {
                 let rhs = self.rename(rhs);
