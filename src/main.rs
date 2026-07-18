@@ -8,6 +8,7 @@ pub mod explicate_control;
 pub mod env;
 pub mod a_normal_form;
 pub mod gensym;
+pub mod select_instructions;
 
 use crate::compile::compile_file;
 use crate::eval::eval_file;
