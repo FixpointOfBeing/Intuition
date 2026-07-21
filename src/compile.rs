@@ -58,8 +58,8 @@ impl<'ctx> CodeGen<'ctx> {
             Type::Bool => context.bool_type().into(),
             Type::Int => context.i64_type().into(),
             Type::Float => context.f64_type().into(),
-            Type::Arrow(_, _) => panic!("函数类型不直接对应一个值类型，需要单独处理函数签名"),
-            Type::Var(_) => panic!("到这一步类型变量应该已经被类型推断解析掉了"),
+            Type::Arrow(_, _) => panic!("arrow type does not directly correspond to a value type; function signatures must be handled separately"),
+            Type::Var(_) => panic!("type variables should have been resolved by type inference by this point"),
         }
     }
 
@@ -84,7 +84,7 @@ impl<'ctx> CodeGen<'ctx> {
             Expr::Ann(expr, _) => self.compile_expr(expr),
             Expr::If(cond, thn, els) => self.compile_if(cond, thn, els),
             Expr::Let(name, _, rhs, body) => self.compile_let(name, rhs, body),
-            Expr::Var(name) => *self.env.get(name).expect("未绑定的变量"),
+            Expr::Var(name) => *self.env.get(name).expect("unbound variable"),
             Expr::LetRec(_, items, _, expr, expr1) => todo!(),
             Expr::App(expr, exprs) => todo!(),
             Expr::Lambda(items, _, expr) => todo!(),
@@ -175,9 +175,9 @@ impl<'ctx> CodeGen<'ctx> {
                     .build_float_compare(inkwell::FloatPredicate::OGE, lv, rv, "")
                     .unwrap()
                     .into(),
-                _ => panic!("浮点类型不支持的二元操作"),
+                _ => panic!("binary operation not supported for float type"),
             },
-            _ => panic!("类型不匹配的二元操作，类型检查阶段应该已经排除这种情况"),
+            _ => panic!("type mismatch in binary operation; this should have been caught by type checking"),
         }
     }
 
@@ -193,9 +193,9 @@ impl<'ctx> CodeGen<'ctx> {
             },
             BasicValueEnum::FloatValue(fv) => match op {
                 UnaryOp::Neg => self.builder.build_float_neg(fv, "").unwrap().into(),
-                UnaryOp::Not => panic!("浮点类型不支持的一元操作"),
+                UnaryOp::Not => panic!("unary operation not supported for float type"),
             },
-            _ => panic!("类型不匹配的一元操作，类型检查阶段应该已经排除这种情况"),
+            _ => panic!("type mismatch in unary operation; this should have been caught by type checking"),
         }
     }
 
@@ -266,7 +266,7 @@ pub fn compile_file(file_path: &std::path::Path, output: &Option<PathBuf>) -> Re
         .unwrap_or("main_module");
 
     let context = Context::create();
-    let top_level_ty = typecheck(&ast).map_err(|e| format!("类型检查错误: {}", e))?;
+    let top_level_ty = typecheck(&ast).map_err(|e| format!("type checking error: {}", e))?;
     let mut codegen = CodeGen::new(&context, module_name, &top_level_ty);
     
     let ast = rename_top(&ast);
@@ -280,7 +280,7 @@ pub fn compile_file(file_path: &std::path::Path, output: &Option<PathBuf>) -> Re
     codegen.emit_c_main();
 
     if let Err(e) = codegen.module.verify() {
-        return Err(format!("生成的 LLVM IR 不合法: {}", e.to_string()));
+        return Err(format!("generated LLVM IR is invalid: {}", e.to_string()));
     }
     if let Some(output_path) = output {
         codegen
@@ -292,4 +292,40 @@ pub fn compile_file(file_path: &std::path::Path, output: &Option<PathBuf>) -> Re
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::typechecker::typecheck;
+    use lalrpop_util::lalrpop_mod;
+    lalrpop_mod!(pub parser);
+
+    fn compile_and_print(src: &str) {
+        let ast = parser::ExprParser::new().parse(src).unwrap();
+        let top_level_ty = typecheck(&ast).expect("type checking failed");
+
+        let context = Context::create();
+        let mut codegen = CodeGen::new(&context, "test_module", &top_level_ty);
+
+        let ast = rename_top(&ast);
+        let result = codegen.compile_expr(&ast);
+        codegen.builder.build_return(Some(&result)).unwrap();
+
+        if let Err(e) = codegen.module.verify() {
+            panic!("IR is invalid: {}", e.to_string());
+        }
+
+        println!("{}", codegen.module.print_to_string().to_string());
+    }
+
+    #[test]
+    fn test_add() {
+        compile_and_print("1 + (let x = 2 in x * x)");
+    }
+
+    #[test]
+    fn test_if() {
+        compile_and_print("if true then 1 else 2");
+    }
 }
