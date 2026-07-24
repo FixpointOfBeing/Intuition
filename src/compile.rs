@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use crate::{uniquify::rename_top, syntax::{BinOp, Expr, Ident, Type, UnaryOp}};
+use crate::{uniquify::rename_top, syntax::{BinOp, Ident, Type, UnaryOp}, typechecker::TypedExpr};
 use inkwell::{
     builder::Builder,
     context::Context,
@@ -63,31 +63,31 @@ impl<'ctx> CodeGen<'ctx> {
         }
     }
 
-    fn compile_expr(&mut self, expr: &Expr) -> BasicValueEnum<'ctx> {
+    fn compile_expr(&mut self, expr: &TypedExpr) -> BasicValueEnum<'ctx> {
         match expr {
-            Expr::Unit => self.context.struct_type(&[], false).const_zero().into(),
-            Expr::Bool(b) => {
+            TypedExpr::Unit => self.context.struct_type(&[], false).const_zero().into(),
+            TypedExpr::Bool(b) => {
                 let v = if *b { 1 } else { 0 };
                 self.context.bool_type().const_int(v, false).into()
             }
-            Expr::Int(i) => self.context.i64_type().const_int(*i as u64, false).into(),
-            Expr::Float(f) => self.context.f64_type().const_float(*f).into(),
-            Expr::BinOp(op, left, right) => {
+            TypedExpr::Int(i) => self.context.i64_type().const_int(*i as u64, false).into(),
+            TypedExpr::Float(f) => self.context.f64_type().const_float(*f).into(),
+            TypedExpr::BinOp(op, left, right, _) => {
                 let left_value = self.compile_expr(left);
                 let right_value = self.compile_expr(right);
                 self.compile_binop(op, left_value, right_value)
             }
-            Expr::UnaryOp(op, expr) => {
+            TypedExpr::UnaryOp(op, expr, _) => {
                 let value = self.compile_expr(expr);
                 self.compile_unaryop(op, value)
             }
-            Expr::Ann(expr, _) => self.compile_expr(expr),
-            Expr::If(cond, thn, els) => self.compile_if(cond, thn, els),
-            Expr::Let(name, _, rhs, body) => self.compile_let(name, rhs, body),
-            Expr::Var(name) => *self.env.get(name).expect("unbound variable"),
-            Expr::LetRec(_, items, _, expr, expr1) => todo!(),
-            Expr::App(expr, exprs) => todo!(),
-            Expr::Lambda(items, _, expr) => todo!(),
+            TypedExpr::Ann(expr, _) => self.compile_expr(expr),
+            TypedExpr::If(cond, thn, els, _) => self.compile_if(cond, thn, els),
+            TypedExpr::Let(name, _, rhs, body, _) => self.compile_let(name, rhs, body),
+            TypedExpr::Var(name, _) => *self.env.get(name).expect("unbound variable"),
+            TypedExpr::LetRec(_, items, _, expr, expr1, _) => todo!(),
+            TypedExpr::App(expr, exprs, _) => todo!(),
+            TypedExpr::Lambda(items, _, expr, _) => todo!(),
         }
     }
 
@@ -199,7 +199,7 @@ impl<'ctx> CodeGen<'ctx> {
         }
     }
 
-    fn compile_if(&mut self, cond: &Expr, thn: &Expr, els: &Expr) -> BasicValueEnum<'ctx> {
+    fn compile_if(&mut self, cond: &TypedExpr, thn: &TypedExpr, els: &TypedExpr) -> BasicValueEnum<'ctx> {
         let cond_val = self.compile_expr(cond).into_int_value();
         let func = self
             .builder
@@ -238,7 +238,7 @@ impl<'ctx> CodeGen<'ctx> {
         phi.as_basic_value()
     }
 
-    fn compile_let(&mut self, name: &str, rhs: &Expr, body: &Expr) -> BasicValueEnum<'ctx> {
+    fn compile_let(&mut self, name: &str, rhs: &TypedExpr, body: &TypedExpr) -> BasicValueEnum<'ctx> {
         let rhs_value = self.compile_expr(rhs);
         let old_value = self.env.insert(name.to_string(), rhs_value);
         let result = self.compile_expr(body);
@@ -266,10 +266,10 @@ pub fn compile_file(file_path: &std::path::Path, output: &Option<PathBuf>) -> Re
         .unwrap_or("main_module");
 
     let context = Context::create();
-    let top_level_ty = typecheck(&ast).map_err(|e| format!("type checking error: {}", e))?;
+    let (top_level_ty, typed_ast) = typecheck(&ast).map_err(|e| format!("type checking error: {}", e))?;
     let mut codegen = CodeGen::new(&context, module_name, &top_level_ty);
     
-    let ast = rename_top(&ast);
+    let ast = rename_top(&typed_ast);
     let result = codegen.compile_expr(&ast);
 
     codegen
@@ -303,12 +303,12 @@ mod tests {
 
     fn compile_and_print(src: &str) {
         let ast = parser::ExprParser::new().parse(src).unwrap();
-        let top_level_ty = typecheck(&ast).expect("type checking failed");
+        let (top_level_ty, typed_ast) = typecheck(&ast).expect("type checking failed");
 
         let context = Context::create();
         let mut codegen = CodeGen::new(&context, "test_module", &top_level_ty);
 
-        let ast = rename_top(&ast);
+        let ast = rename_top(&typed_ast);
         let result = codegen.compile_expr(&ast);
         codegen.builder.build_return(Some(&result)).unwrap();
 

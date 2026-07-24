@@ -59,11 +59,21 @@ pub enum UnaryOp {
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Type::Unit => write!(f, "Unit"),
-            Type::Bool => write!(f, "Bool"),
-            Type::Int => write!(f, "Int"),
-            Type::Float => write!(f, "Float"),
-            Type::Var(name) => write!(f, "{}", name),
+            Type::Unit => {
+                write!(f, "Unit")
+            }
+            Type::Bool => {
+                write!(f, "Bool")
+            }
+            Type::Int => {
+                write!(f, "Int")
+            }
+            Type::Float => {
+                write!(f, "Float")
+            }
+            Type::Var(name) => {
+                write!(f, "{}", name)
+            }
             Type::Arrow(from, to) => {
                 let from_str = match **from {
                     Type::Arrow(_, _) => format!("({})", from),
@@ -84,8 +94,8 @@ impl std::fmt::Display for BinOp {
             BinOp::Div => "/",
             BinOp::And => "&&",
             BinOp::Or => "||",
-            BinOp::Eq => "==",
-            BinOp::Neq => "!=",
+            BinOp::Eq => "=",
+            BinOp::Neq => "<>",
             BinOp::Lt => "<",
             BinOp::Gt => ">",
             BinOp::Leq => "<=",
@@ -108,14 +118,30 @@ impl std::fmt::Display for UnaryOp {
 impl std::fmt::Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Expr::Unit => write!(f, "()"),
-            Expr::Bool(b) => write!(f, "{}", b),
-            Expr::Int(n) => write!(f, "{}", n),
-            Expr::Float(fl) => write!(f, "{}", fl),
-            Expr::Var(name) => write!(f, "{}", name),
-            Expr::BinOp(op, left, right) => write!(f, "({} {} {})", left, op, right),
-            Expr::UnaryOp(op, expr) => write!(f, "({}{})", op, expr),
-            Expr::Ann(expr, ty) => write!(f, "({} : {})", expr, ty),
+            Expr::Unit => {
+                write!(f, "()")
+            }
+            Expr::Bool(b) => {
+                write!(f, "{}", b)
+            }
+            Expr::Int(n) => {
+                write!(f, "{}", n)
+            }
+            Expr::Float(fl) => {
+                write!(f, "{}", fl)
+            }
+            Expr::Var(name) => {
+                write!(f, "{}", name)
+            }
+            Expr::BinOp(op, left, right) => {
+                write!(f, "({} {} {})", left, op, right)
+            }
+            Expr::UnaryOp(op, expr) => {
+                write!(f, "({}{})", op, expr)
+            }
+            Expr::Ann(expr, ty) => {
+                write!(f, "({} : {})", expr, ty)
+            }
             Expr::If(cond, then_branch, else_branch) => {
                 write!(f, "if {} then {} else {}", cond, then_branch, else_branch)
             }
@@ -123,7 +149,7 @@ impl std::fmt::Display for Expr {
                 if let Some(ty) = ann {
                     write!(f, "let {}: {} = {} in {}", name, ty, val, body)
                 } else {
-                    write!(f, "let {} = {} in {}", name, val, body)     
+                    write!(f, "let {} = {} in {}", name, val, body)
                 }
             }
             Expr::LetRec(fname, fargs, fret_ty, fbody, body) => {
@@ -139,8 +165,12 @@ impl std::fmt::Display for Expr {
                 )
             }
             Expr::App(func, args) => {
-                let args_str = args.iter().map(|arg| format!("{}", arg)).collect::<Vec<_>>().join(" ");
-                write!(f, "({} {})", func, args_str) 
+                let args_str = args
+                    .iter()
+                    .map(|arg| format!("{}", arg))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                write!(f, "({} {})", func, args_str)
             }
             Expr::Lambda(params, ty, body) => {
                 let params_str = params
