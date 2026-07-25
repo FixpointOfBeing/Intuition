@@ -1,10 +1,17 @@
+// use std::sync::Arc;
+
 // use crate::{
 //     explicate_control::{CAtom, CExpr, CStmt, CTail},
 //     gensym::Gensym,
-//     syntax::{BinOp, Ident, UnaryOp},
+//     syntax::{BinOp, Ident, Type, UnaryOp},
 // };
-// use llvm_ir::{Constant, ConstantRef, Name, Operand, instruction::Sub};
-// use llvm_ir::{constant::Float, types::TypeRef};
+// use llvm_ir::Type as LLVMType;
+// use llvm_ir::{
+//     Constant, ConstantRef, Name, Operand, constant::Float,  types::FPType,
+//     types::TypeRef,
+//     types
+// };
+// use llvm_ir::types::{Types, TypesBuilder};
 
 // fn const_int_ref(i: u64) -> ConstantRef {
 //     let cst = Constant::Int { bits: 32, value: i };
@@ -16,6 +23,25 @@
 //     ConstantRef::new(f)
 // }
 
+// fn type_to_llvm_ty(ty: &Type) -> LLVMType {
+//     match ty {
+//         Type::Unit => LLVMType::VoidType,
+//         Type::Bool => LLVMType::IntegerType { bits: 1 },
+//         Type::Int => LLVMType::IntegerType { bits: 32 },
+//         Type::Float => LLVMType::FPType(FPType::Double),
+//         Type::Arrow(input_ty, output_ty) => {
+//             let input_llvm_ty = type_to_llvm_ty(input_ty);
+//             let output_llvm_ty = type_to_llvm_ty(output_ty);
+//             let ty_builber = TypesBuilder()
+//             LLVMType::FuncType {
+//                 result_type: TypeRef::new(output_llvm_ty),
+//                 param_types: vec![TypeRef::new(input_llvm_ty)],
+//                 is_var_arg: false,
+//             }
+//         }
+//         Type::Var(_) => panic!("type variables should be resolved before codegen"),
+//     }
+// }
 // fn select_atom(atom: &CAtom) -> Operand {
 //     match atom {
 //         CAtom::Unit => Operand::ConstantOperand(const_int_ref(0)),
@@ -35,8 +61,9 @@
 //             let f = const_float_ref(*f);
 //             Operand::ConstantOperand(f)
 //         }
-//         CAtom::Var(name) => {
-//             Operand::LocalOperand { name: Name::Name(Box::new(name.to_string())), ty: () }
+//         CAtom::Var(name, ty) => Operand::LocalOperand {
+//             name: Name::Name(Box::new(name.to_string())),
+//             ty: (*ty).clone(),
 //         },
 //     }
 // }

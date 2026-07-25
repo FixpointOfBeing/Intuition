@@ -10,6 +10,7 @@ pub mod a_normal_form;
 pub mod gensym;
 pub mod select_instructions;
 pub mod assign_homes;
+pub mod llvm_ir;
 
 use crate::compile::compile_file;
 use crate::eval::eval_file;
