@@ -2,7 +2,7 @@
 use crate::llvm_ir::function::{CallingConvention, FunctionAttribute, ParameterAttribute};
 use crate::llvm_ir::instruction::{HasResult, InlineAssembly};
 use crate::llvm_ir::types::{Typed, Types};
-use crate::llvm_ir::{ConstantRef, Name, Operand, Type, TypeRef};
+use crate::llvm_ir::{ConstantRef, Name, Operand, types::LLVMType, TypeRef};
 use either::Either;
 use std::convert::TryFrom;
 use std::fmt::{self, Display};
@@ -325,7 +325,7 @@ impl_hasresult!(Invoke);
 impl Typed for Invoke {
     fn get_type(&self, _types: &Types) -> TypeRef {
         match self.function_ty.as_ref() {
-            Type::FuncType { result_type, .. } => result_type.clone(),
+            LLVMType::FuncType { result_type, .. } => result_type.clone(),
             ty => panic!("Expected Invoke.function_ty to be a FuncType, got {:?}", ty),
         }
     }
@@ -517,7 +517,7 @@ impl_hasresult!(CallBr);
 impl Typed for CallBr {
     fn get_type(&self, types: &Types) -> TypeRef {
         match types.type_of(&self.function).as_ref() {
-            Type::FuncType { result_type, .. } => result_type.clone(),
+            LLVMType::FuncType { result_type, .. } => result_type.clone(),
             ty => panic!(
                 "Expected the function argument of a CallBr to have type FuncType; got {:?}",
                 ty

@@ -58,20 +58,20 @@ pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: &TypedExpr) -> Typed
             let new_name = env.get(name).expect("unbound variable");
             TypedExpr::Var(new_name.clone(), ty.clone())
         }
-        TypedExpr::LetRec(fname, fargs, fty, fbody, body, letrec_ty) => {
+        TypedExpr::LetRec(fname, fparams, fty, fbody, body, letrec_ty) => {
             let (new_fname, old_fname) = bind(gensym, env, fname);
 
-            let mut new_fargs = vec![];
-            let mut old_fargs = vec![];
-            for (name, arg_ty) in fargs {
+            let mut new_fparams = vec![];
+            let mut old_fparams = vec![];
+            for (name, param_ty) in fparams {
                 let (new_name, old) = bind(gensym, env, name);
-                old_fargs.push((name, old));
-                new_fargs.push((new_name, arg_ty.clone()));
+                old_fparams.push((name, old));
+                new_fparams.push((new_name, param_ty.clone()));
             }
 
             let fbody = rename(gensym, env, fbody);
 
-            for (name, old) in old_fargs.into_iter().rev() {
+            for (name, old) in old_fparams.into_iter().rev() {
                 unbind(env, name, old);
             }
 
@@ -80,7 +80,7 @@ pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: &TypedExpr) -> Typed
 
             TypedExpr::LetRec(
                 new_fname,
-                new_fargs,
+                new_fparams,
                 fty.clone(),
                 Box::new(fbody),
                 Box::new(body),
@@ -92,22 +92,22 @@ pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: &TypedExpr) -> Typed
             let args = args.iter().map(|e| rename(gensym, env, e)).collect();
             TypedExpr::App(Box::new(func), args, ty.clone())
         }
-        TypedExpr::Lambda(args, ty, body, lambda_ty) => {
-            let mut new_args = vec![];
-            let mut old_args = vec![];
-            for (name, arg_ty) in args {
+        TypedExpr::Lambda(param, ty, body, lambda_ty) => {
+            let mut new_params = vec![];
+            let mut old_params = vec![];
+            for (name, param_ty) in param {
                 let (new_name, old) = bind(gensym, env, name);
-                old_args.push((name, old));
-                new_args.push((new_name, arg_ty.clone()));
+                old_params.push((name, old));
+                new_params.push((new_name, param_ty.clone()));
             }
 
             let body = rename(gensym, env, body);
 
-            for (name, old) in old_args.into_iter().rev() {
+            for (name, old) in old_params.into_iter().rev() {
                 unbind(env, name, old);
             }
 
-            TypedExpr::Lambda(new_args, ty.clone(), Box::new(body), lambda_ty.clone())
+            TypedExpr::Lambda(new_params, ty.clone(), Box::new(body), lambda_ty.clone())
         }
     }
 }
@@ -246,7 +246,7 @@ mod tests {
     }
 
     #[test]
-    fn letrec_args_dont_leak_into_continuation() {
+    fn letrec_params_dont_leak_into_continuation() {
         let expr = TypedExpr::Let(
             "x".to_string(),
             Type::Int,
@@ -266,10 +266,10 @@ mod tests {
         let (outer_x, _, letrec) = expect_let(&renamed);
 
         match letrec {
-            TypedExpr::LetRec(_, fargs, _, fbody, cont, _) => {
-                let arg_name = &fargs[0].0;
+            TypedExpr::LetRec(_, fparams, _, fbody, cont, _) => {
+                let param_name = &fparams[0].0;
                 let body_var = expect_var(fbody);
-                assert_eq!(arg_name, body_var, "function body refers to its own param");
+                assert_eq!(param_name, body_var, "function body refers to its own param");
 
                 let cont_var = expect_var(cont);
                 assert_eq!(
@@ -500,8 +500,8 @@ mod tests {
 
         let renamed = rename_top(&expr);
         match renamed {
-            TypedExpr::LetRec(new_fname, fargs, _, fbody, cont, _) => {
-                let n_name = &fargs[0].0;
+            TypedExpr::LetRec(new_fname, fparams, _, fbody, cont, _) => {
+                let n_name = &fparams[0].0;
 
                 match *fbody {
                     TypedExpr::If(cond, _, else_branch, _) => {

@@ -65,11 +65,11 @@ Term: Box<Expr> = {
     },
 
     "let" "rec"  <fname:Ident> <params: ("(" Ident ":" Type ")")+> ":" <fret_ty:Type> "=" <fbody:Expr> "in" <body:Expr> => {
-        let mut fargs: Vec<(Ident, Type)> = vec![];
+        let mut fparams: Vec<(Ident, Type)> = vec![];
         for (_lp, id, _colon, ty, _rp) in params {
-          fargs.push((id.to_string(), *ty));
+          fparams.push((id.to_string(), *ty));
         }
-       Box::new(Expr::LetRec(fname, fargs, *fret_ty , fbody, body))
+       Box::new(Expr::LetRec(fname, fparams, *fret_ty , fbody, body))
     },
     "if" <e1:Expr> "then" <e2:Expr> "else" <e3:Expr> => Box::new(Expr::If(e1, e2, e3)),
     OrExpr,

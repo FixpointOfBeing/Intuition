@@ -17,7 +17,7 @@ pub enum TypedExpr {
     Let(Ident, Type, Box<TypedExpr>, Box<TypedExpr>, Type),
     LetRec(
         Ident,              // function name
-        Vec<(Ident, Type)>, // function arguments with their types
+        Vec<(Ident, Type)>, // function parameters with their types
         Type,               // function return type
         Box<TypedExpr>,     // function body
         Box<TypedExpr>,     // expression after the let rec
@@ -221,15 +221,15 @@ fn infer(ctx: &Context, expr: &Expr) -> Result<(Type, TypedExpr), TypeError> {
             ))
         }
 
-        Expr::LetRec(fname, fargs, fret_ty, body, rest) => {
+        Expr::LetRec(fname, fparams, fret_ty, body, rest) => {
             let fn_ty = build_arrow(
-                fargs.iter().map(|(_, t)| t.clone()).collect(),
+                fparams.iter().map(|(_, t)| t.clone()).collect(),
                 fret_ty.clone(),
             );
 
             let mut body_ctx = ctx.extend(fname.clone(), fn_ty.clone());
-            for (arg_name, arg_ty) in fargs {
-                body_ctx = body_ctx.extend(arg_name.clone(), arg_ty.clone());
+            for (param_name, param_ty) in fparams {
+                body_ctx = body_ctx.extend(param_name.clone(), param_ty.clone());
             }
 
             let (fbody_ty, typed_fbody) = infer(&body_ctx, body)?;
@@ -244,7 +244,7 @@ fn infer(ctx: &Context, expr: &Expr) -> Result<(Type, TypedExpr), TypeError> {
             let (body_ty, typed_body) = infer(&rest_ctx, rest)?;
             let typed_letrec = TypedExpr::LetRec(
                 fname.to_string(),
-                (*fargs).clone(),
+                (*fparams).clone(),
                 (*fret_ty).clone(),
                 Box::new(typed_fbody),
                 Box::new(typed_body),

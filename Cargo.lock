@@ -391,7 +391,7 @@ dependencies = [
  "bitflags",
  "inkwell_internals",
  "libc",
- "llvm-sys 221.0.1",
+ "llvm-sys",
  "thiserror",
 ]
 
@@ -417,7 +417,6 @@ dependencies = [
  "itertools 0.11.0",
  "lalrpop",
  "lalrpop-util",
- "llvm-ir",
  "log",
  "ordered-float",
  "rand",
@@ -517,32 +516,6 @@ name = "linux-raw-sys"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df1d3c3b53da64cf5760482273a98e575c651a67eec7f77df96b5b642de8f039"
-
-[[package]]
-name = "llvm-ir"
-version = "0.11.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a44e38b5a8002de59bc4c5717f5f07dcf8f132d1281bb7be1befdeda1b943438"
-dependencies = [
- "either",
- "llvm-sys 191.1.0",
- "log",
- "ordered-float",
-]
-
-[[package]]
-name = "llvm-sys"
-version = "191.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0ad1fffbdac72a40b55aa58b31aa0efe925e277941b6705f128692b27f1d506"
-dependencies = [
- "anyhow",
- "cc",
- "lazy_static",
- "libc",
- "regex-lite",
- "semver",
-]
 
 [[package]]
 name = "llvm-sys"

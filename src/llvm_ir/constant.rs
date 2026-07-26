@@ -1,5 +1,5 @@
 use crate::llvm_ir::name::Name;
-use crate::llvm_ir::types::{FPType, Type, TypeRef, Typed, Types};
+use crate::llvm_ir::types::{FPType, LLVMType, TypeRef, Typed, Types};
 use std::convert::TryFrom;
 use std::fmt::{self, Display};
 use std::ops::Deref;
@@ -253,7 +253,7 @@ impl Display for Constant {
                     Name::Number(n) => n.to_string(),
                 };
                 match ty.as_ref() {
-                    Type::FuncType { .. } => {
+                    LLVMType::FuncType { .. } => {
                         write!(f, "@{}", name)
                     },
                     _ => {
@@ -493,7 +493,7 @@ impl_constexpr!(ExtractElement, ExtractElement);
 impl Typed for ExtractElement {
     fn get_type(&self, types: &Types) -> TypeRef {
         match types.type_of(&self.vector).as_ref() {
-            Type::VectorType { element_type, .. } => element_type.clone(),
+            LLVMType::VectorType { element_type, .. } => element_type.clone(),
             ty => panic!(
                 "Expected an ExtractElement vector to be VectorType, got {:?}",
                 ty
@@ -548,8 +548,8 @@ impl Typed for ShuffleVector {
         let ty = types.type_of(&self.operand0);
         debug_assert_eq!(ty, types.type_of(&self.operand1));
         match ty.as_ref() {
-            Type::VectorType { element_type, .. } => match types.type_of(&self.mask).as_ref() {
-                Type::VectorType {
+            LLVMType::VectorType { element_type, .. } => match types.type_of(&self.mask).as_ref() {
+                LLVMType::VectorType {
                     num_elements,
                     scalable,
                     ..

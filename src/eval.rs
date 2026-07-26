@@ -57,8 +57,8 @@ pub fn eval(env: &Env, expr: &Expr) -> EvalResult {
             eval(&env2, e2)
         }
 
-        Expr::LetRec(fname, fargs, _, fbody, body) => {
-            let params: Vec<Ident> = fargs.iter().map(|(id, _)| id.clone()).collect();
+        Expr::LetRec(fname, fparams, _, fbody, body) => {
+            let params: Vec<Ident> = fparams.iter().map(|(id, _)| id.clone()).collect();
             let rec_val = Value::RecClosure {
                 env: env.clone(),
                 fname: fname.clone(),

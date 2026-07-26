@@ -11,6 +11,7 @@ pub mod gensym;
 pub mod select_instructions;
 pub mod assign_homes;
 pub mod llvm_ir;
+pub mod emit_llvm;
 
 use crate::compile::compile_file;
 use crate::eval::eval_file;

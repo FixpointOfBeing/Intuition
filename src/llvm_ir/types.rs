@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 #[allow(non_camel_case_types)]
-pub enum Type {
+pub enum LLVMType {
     VoidType,
     IntegerType {
         bits: u32,
@@ -48,14 +48,14 @@ pub enum Type {
     TargetExtType, // TODO ideally we want something like TargetExtType { name: String, contained_types: Vec<TypeRef>, contained_ints: Vec<u32> }
 }
 
-impl Display for Type {
+impl Display for LLVMType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Type::VoidType => write!(f, "void"),
-            Type::IntegerType { bits } => write!(f, "i{}", bits),
-            Type::PointerType { .. } => write!(f, "ptr"),
-            Type::FPType(fpt) => write!(f, "{}", fpt),
-            Type::FuncType {
+            LLVMType::VoidType => write!(f, "void"),
+            LLVMType::IntegerType { bits } => write!(f, "i{}", bits),
+            LLVMType::PointerType { .. } => write!(f, "ptr"),
+            LLVMType::FPType(fpt) => write!(f, "{}", fpt),
+            LLVMType::FuncType {
                 result_type,
                 param_types,
                 is_var_arg,
@@ -74,7 +74,7 @@ impl Display for Type {
                 write!(f, ")")?;
                 Ok(())
             },
-            Type::VectorType {
+            LLVMType::VectorType {
                 element_type,
                 num_elements,
                 scalable,
@@ -85,11 +85,11 @@ impl Display for Type {
                     write!(f, "<{} x {}>", num_elements, element_type)
                 }
             },
-            Type::ArrayType {
+            LLVMType::ArrayType {
                 element_type,
                 num_elements,
             } => write!(f, "[{} x {}]", num_elements, element_type),
-            Type::StructType {
+            LLVMType::StructType {
                 element_types,
                 is_packed,
             } => {
@@ -110,13 +110,13 @@ impl Display for Type {
                 }
                 Ok(())
             },
-            Type::NamedStructType { name } => write!(f, "%{}", name),
-            Type::X86_MMXType => write!(f, "x86_mmx"),
-            Type::X86_AMXType => write!(f, "x86_amx"),
-            Type::MetadataType => write!(f, "metadata"),
-            Type::LabelType => write!(f, "label"),
-            Type::TokenType => write!(f, "token"),
-            Type::TargetExtType => write!(f, "target()"),
+            LLVMType::NamedStructType { name } => write!(f, "%{}", name),
+            LLVMType::X86_MMXType => write!(f, "x86_mmx"),
+            LLVMType::X86_AMXType => write!(f, "x86_amx"),
+            LLVMType::MetadataType => write!(f, "metadata"),
+            LLVMType::LabelType => write!(f, "label"),
+            LLVMType::TokenType => write!(f, "token"),
+            LLVMType::TargetExtType => write!(f, "target()"),
             /*
             let members = [name]
                 .iter()
@@ -145,9 +145,9 @@ pub enum FPType {
     PPC_FP128,
 }
 
-impl From<FPType> for Type {
-    fn from(fpt: FPType) -> Type {
-        Type::FPType(fpt)
+impl From<FPType> for LLVMType {
+    fn from(fpt: FPType) -> LLVMType {
+        LLVMType::FPType(fpt)
     }
 }
 
@@ -166,18 +166,18 @@ impl Display for FPType {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
-pub struct TypeRef(Arc<Type>);
+pub struct TypeRef(Arc<LLVMType>);
 
-impl AsRef<Type> for TypeRef {
-    fn as_ref(&self) -> &Type {
+impl AsRef<LLVMType> for TypeRef {
+    fn as_ref(&self) -> &LLVMType {
         self.0.as_ref()
     }
 }
 
 impl Deref for TypeRef {
-    type Target = Type;
+    type Target = LLVMType;
 
-    fn deref(&self) -> &Type {
+    fn deref(&self) -> &LLVMType {
         self.0.deref()
     }
 }
@@ -189,7 +189,7 @@ impl Display for TypeRef {
 }
 
 impl TypeRef {
-    fn new(ty: Type) -> Self {
+    fn new(ty: LLVMType) -> Self {
         Self(Arc::new(ty))
     }
 }
@@ -204,7 +204,7 @@ impl Typed for TypeRef {
     }
 }
 
-impl Typed for Type {
+impl Typed for LLVMType {
     fn get_type(&self, types: &Types) -> TypeRef {
         types.get_for_type(self)
     }
@@ -258,7 +258,7 @@ pub struct Types {
 impl Types {
     pub fn new() -> Self {
         Self {
-            void_type: TypeRef::new(Type::VoidType),
+            void_type: TypeRef::new(LLVMType::VoidType),
             int_types: TypeCache::new(),
             pointer_types: TypeCache::new(),
             fp_types: TypeCache::new(),
@@ -268,12 +268,12 @@ impl Types {
             struct_types: TypeCache::new(),
             named_struct_types: TypeCache::new(),
             named_struct_defs: HashMap::new(),
-            x86_mmx_type: TypeRef::new(Type::X86_MMXType),
-            x86_amx_type: TypeRef::new(Type::X86_AMXType),
-            metadata_type: TypeRef::new(Type::MetadataType),
-            label_type: TypeRef::new(Type::LabelType),
-            token_type: TypeRef::new(Type::TokenType),
-            target_ext_type: TypeRef::new(Type::TargetExtType),
+            x86_mmx_type: TypeRef::new(LLVMType::X86_MMXType),
+            x86_amx_type: TypeRef::new(LLVMType::X86_AMXType),
+            metadata_type: TypeRef::new(LLVMType::MetadataType),
+            label_type: TypeRef::new(LLVMType::LabelType),
+            token_type: TypeRef::new(LLVMType::TokenType),
+            target_ext_type: TypeRef::new(LLVMType::TargetExtType),
         }
     }
     pub fn type_of<T: Typed + ?Sized>(&self, t: &T) -> TypeRef {
@@ -287,7 +287,7 @@ impl Types {
     pub fn int(&self, bits: u32) -> TypeRef {
         self.int_types
             .lookup(&bits)
-            .unwrap_or_else(|| TypeRef::new(Type::IntegerType { bits }))
+            .unwrap_or_else(|| TypeRef::new(LLVMType::IntegerType { bits }))
     }
 
     pub fn bool(&self) -> TypeRef {
@@ -317,13 +317,13 @@ impl Types {
     pub fn pointer_in_addr_space(&self, addr_space: AddrSpace) -> TypeRef {
         self.pointer_types
             .lookup(&addr_space)
-            .unwrap_or_else(|| TypeRef::new(Type::PointerType { addr_space }))
+            .unwrap_or_else(|| TypeRef::new(LLVMType::PointerType { addr_space }))
     }
 
     pub fn fp(&self, fpt: FPType) -> TypeRef {
         self.fp_types
             .lookup(&fpt)
-            .unwrap_or_else(|| TypeRef::new(Type::FPType(fpt)))
+            .unwrap_or_else(|| TypeRef::new(LLVMType::FPType(fpt)))
     }
 
     pub fn single(&self) -> TypeRef {
@@ -343,7 +343,7 @@ impl Types {
         self.func_types
             .lookup(&(result_type.clone(), param_types.clone(), is_var_arg))
             .unwrap_or_else(|| {
-                TypeRef::new(Type::FuncType {
+                TypeRef::new(LLVMType::FuncType {
                     result_type,
                     param_types,
                     is_var_arg,
@@ -355,7 +355,7 @@ impl Types {
         self.vec_types
             .lookup(&(element_type.clone(), num_elements, scalable))
             .unwrap_or_else(|| {
-                TypeRef::new(Type::VectorType {
+                TypeRef::new(LLVMType::VectorType {
                     element_type,
                     num_elements,
                     scalable,
@@ -367,7 +367,7 @@ impl Types {
         self.arr_types
             .lookup(&(element_type.clone(), num_elements))
             .unwrap_or_else(|| {
-                TypeRef::new(Type::ArrayType {
+                TypeRef::new(LLVMType::ArrayType {
                     element_type,
                     num_elements,
                 })
@@ -378,7 +378,7 @@ impl Types {
         self.struct_types
             .lookup(&(element_types.clone(), is_packed))
             .unwrap_or_else(|| {
-                TypeRef::new(Type::StructType {
+                TypeRef::new(LLVMType::StructType {
                     element_types,
                     is_packed,
                 })
@@ -388,7 +388,7 @@ impl Types {
     pub fn named_struct(&self, name: &str) -> TypeRef {
         self.named_struct_types
             .lookup(name)
-            .unwrap_or_else(|| TypeRef::new(Type::NamedStructType { name: name.into() }))
+            .unwrap_or_else(|| TypeRef::new(LLVMType::NamedStructType { name: name.into() }))
     }
 
     pub fn named_struct_def(&self, name: &str) -> Option<&NamedStructDef> {
@@ -441,33 +441,33 @@ impl Types {
     }
 
     #[rustfmt::skip] // so we can keep each of the match arms more consistent with each other
-    pub fn get_for_type(&self, ty: &Type) -> TypeRef {
+    pub fn get_for_type(&self, ty: &LLVMType) -> TypeRef {
         match ty {
-            Type::VoidType => self.void(),
-            Type::IntegerType{ bits } => self.int(*bits),
-            Type::PointerType { addr_space } => {
+            LLVMType::VoidType => self.void(),
+            LLVMType::IntegerType{ bits } => self.int(*bits),
+            LLVMType::PointerType { addr_space } => {
                 self.pointer_in_addr_space(*addr_space)
             },
-            Type::FPType(fpt) => self.fp(*fpt),
-            Type::FuncType { result_type, param_types, is_var_arg } => {
+            LLVMType::FPType(fpt) => self.fp(*fpt),
+            LLVMType::FuncType { result_type, param_types, is_var_arg } => {
                 self.func_type(result_type.clone(), param_types.clone(), *is_var_arg)
             },
-            Type::VectorType { element_type, num_elements, scalable } => {
+            LLVMType::VectorType { element_type, num_elements, scalable } => {
                 self.vector_of(element_type.clone(), *num_elements, *scalable)
             },
-            Type::ArrayType { element_type, num_elements } => {
+            LLVMType::ArrayType { element_type, num_elements } => {
                 self.array_of(element_type.clone(), *num_elements)
             },
-            Type::StructType { element_types, is_packed } => {
+            LLVMType::StructType { element_types, is_packed } => {
                 self.struct_of(element_types.clone(), *is_packed)
             },
-            Type::NamedStructType { name  } => self.named_struct(name),
-            Type::X86_MMXType => self.x86_mmx(),
-            Type::X86_AMXType => self.x86_amx(),
-            Type::MetadataType => self.metadata_type(),
-            Type::LabelType => self.label_type(),
-            Type::TokenType => self.token_type(),
-            Type::TargetExtType => self.target_ext_type(),
+            LLVMType::NamedStructType { name  } => self.named_struct(name),
+            LLVMType::X86_MMXType => self.x86_mmx(),
+            LLVMType::X86_AMXType => self.x86_amx(),
+            LLVMType::MetadataType => self.metadata_type(),
+            LLVMType::LabelType => self.label_type(),
+            LLVMType::TokenType => self.token_type(),
+            LLVMType::TargetExtType => self.target_ext_type(),
         }
     }
 }
@@ -493,7 +493,7 @@ impl<K: Eq + Hash + Clone> TypeCache<K> {
         self.map.get(key).cloned()
     }
 
-    fn lookup_or_insert(&mut self, key: K, if_missing: impl FnOnce() -> Type) -> TypeRef {
+    fn lookup_or_insert(&mut self, key: K, if_missing: impl FnOnce() -> LLVMType) -> TypeRef {
         self.map
             .entry(key)
             .or_insert_with(|| TypeRef::new(if_missing()))

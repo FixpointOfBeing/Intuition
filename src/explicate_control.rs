@@ -35,11 +35,7 @@ pub enum CTail {
     If(CAtom, Box<CTail>, Box<CTail>),
 }
 
-pub struct CProgram {
-    blocks: HashMap<Ident, CTail>,
-}
-
-fn explicate_assign(expr: AnfExpr, name: &str, cont: CTail) -> CTail {
+pub fn explicate_assign(expr: AnfExpr, name: &str, cont: CTail) -> CTail {
     match expr {
         AnfExpr::Complex(cexpr) => match cexpr {
             CompExpr::Atom(aexpr) => {
@@ -75,13 +71,13 @@ fn explicate_assign(expr: AnfExpr, name: &str, cont: CTail) -> CTail {
                 let else_tail = explicate_assign(*els, name, cont);
                 CTail::If(cond_catom, Box::new(then_tail), Box::new(else_tail))
             }
-            CompExpr::Lambda(args, _, body) => todo!(),
+            CompExpr::Lambda(params, _, body) => todo!(),
         },
         AnfExpr::Let(name1, cexpr, body) => {
             let inner_cont = explicate_assign(*body, name, cont);
             explicate_assign(AnfExpr::Complex(cexpr), &name1, inner_cont)
         }
-        AnfExpr::LetRec(fname, fargs, _, fbody, body) => todo!(),
+        AnfExpr::LetRec(fname, fparams, _, fbody, body) => todo!(),
     }
 }
 
@@ -143,7 +139,7 @@ fn aexpr_to_catom(aexpr: AExpr) -> CAtom {
         AExpr::Var(name, ty) => CAtom::Var(name, ty),
     }
 }
-fn explicate_tail(anf: AnfExpr) -> CTail {
+pub fn explicate_tail(anf: AnfExpr) -> CTail {
     match anf {
         AnfExpr::Complex(cexpr) => match cexpr {
             CompExpr::Atom(aexpr) => CTail::Return(CExpr::Atom(aexpr_to_catom(aexpr))),

@@ -152,16 +152,16 @@ impl std::fmt::Display for Expr {
                     write!(f, "let {} = {} in {}", name, val, body)
                 }
             }
-            Expr::LetRec(fname, fargs, fret_ty, fbody, body) => {
-                let args_str = fargs
+            Expr::LetRec(fname, fparams, fret_ty, fbody, body) => {
+                let params_str = fparams
                     .iter()
-                    .map(|(arg_name, arg_ty)| format!("({}: {})", arg_name, arg_ty))
+                    .map(|(param_name, param_ty)| format!("({}: {})", param_name, param_ty))
                     .collect::<Vec<_>>()
                     .join(" ");
                 write!(
                     f,
                     "let rec {} {} : {} = {} in {}",
-                    fname, args_str, fret_ty, fbody, body
+                    fname, params_str, fret_ty, fbody, body
                 )
             }
             Expr::App(func, args) => {

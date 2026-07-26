@@ -4,7 +4,7 @@ use crate::llvm_ir::function::{CallingConvention, FunctionAttribute, ParameterAt
 use crate::llvm_ir::name::Name;
 use crate::llvm_ir::operand::Operand;
 use crate::llvm_ir::{predicates::*, Constant};
-use crate::llvm_ir::types::{Type, TypeRef, Typed, Types};
+use crate::llvm_ir::types::{LLVMType, TypeRef, Typed, Types};
 use either::Either;
 use std::convert::TryFrom;
 use std::fmt::{self, Debug, Display};
@@ -1019,7 +1019,7 @@ impl_hasresult!(ExtractElement);
 impl Typed for ExtractElement {
     fn get_type(&self, types: &Types) -> TypeRef {
         match types.type_of(&self.vector).as_ref() {
-            Type::VectorType { element_type, .. } => element_type.clone(),
+            LLVMType::VectorType { element_type, .. } => element_type.clone(),
             ty => panic!(
                 "Expected an ExtractElement vector to be VectorType, got {:?}",
                 ty
@@ -1091,8 +1091,8 @@ impl Typed for ShuffleVector {
         let ty = types.type_of(&self.operand0);
         debug_assert_eq!(ty, types.type_of(&self.operand1));
         match ty.as_ref() {
-            Type::VectorType { element_type, .. } => match types.type_of(&self.mask).as_ref() {
-                Type::VectorType {
+            LLVMType::VectorType { element_type, .. } => match types.type_of(&self.mask).as_ref() {
+                LLVMType::VectorType {
                     num_elements,
                     scalable,
                     ..
@@ -1145,8 +1145,8 @@ fn ev_type(cur_type: TypeRef, mut indices: impl Iterator<Item = u32>) -> TypeRef
     match indices.next() {
         None => cur_type,
         Some(index) => match cur_type.as_ref() {
-            Type::ArrayType { element_type, .. } => ev_type(element_type.clone(), indices),
-            Type::StructType { element_types, .. } => ev_type(
+            LLVMType::ArrayType { element_type, .. } => ev_type(element_type.clone(), indices),
+            LLVMType::StructType { element_types, .. } => ev_type(
                 element_types
                     .get(index as usize)
                     .expect("ExtractValue index out of range")
@@ -1632,7 +1632,7 @@ impl Typed for ICmp {
         let ty = types.type_of(&self.operand0);
         debug_assert_eq!(ty, types.type_of(&self.operand1));
         match ty.as_ref() {
-            Type::VectorType {
+            LLVMType::VectorType {
                 num_elements,
                 scalable,
                 ..
@@ -1673,7 +1673,7 @@ impl Typed for FCmp {
         let ty = types.type_of(&self.operand0);
         debug_assert_eq!(ty, types.type_of(&self.operand1));
         match ty.as_ref() {
-            Type::VectorType {
+            LLVMType::VectorType {
                 num_elements,
                 scalable,
                 ..
@@ -1792,7 +1792,7 @@ impl_inst!(Call, Call);
 impl Typed for Call {
     fn get_type(&self, _types: &Types) -> TypeRef {
         match self.function_ty.as_ref() {
-            Type::FuncType { result_type, .. } => result_type.clone(),
+            LLVMType::FuncType { result_type, .. } => result_type.clone(),
             ty => panic!("Expected Call.function_ty to be a FuncType, got {:?}", ty),
         }
     }

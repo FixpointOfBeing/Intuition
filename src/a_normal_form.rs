@@ -104,20 +104,20 @@ fn collect_bindings(expr: &TypedExpr, gs: &mut Gensym, bindings: &mut Bindings) 
             }
             CompExpr::App(func_atom, args_atom)
         }
-        TypedExpr::Lambda(args, ret_ty, body, _) => {
+        TypedExpr::Lambda(params, ret_ty, body, _) => {
             let body_anf = normalize(body, gs);
-            CompExpr::Lambda((*args).clone(), (*ret_ty).clone(), Box::new(body_anf))
+            CompExpr::Lambda((*params).clone(), (*ret_ty).clone(), Box::new(body_anf))
         }
         TypedExpr::Let(name, _, rhs, body, _) => {
             let rhs_comp = collect_bindings(rhs, gs, bindings);
             bindings.push(Binding::Let(name.clone(), rhs_comp));
             collect_bindings(body, gs, bindings)
         }
-        TypedExpr::LetRec(fname, fargs, fty, fbody, body, _) => {
+        TypedExpr::LetRec(fname, fparams, fty, fbody, body, _) => {
             let fbody_anf = normalize(fbody, gs);
             bindings.push(Binding::LetRec(
                 fname.clone(),
-                fargs.clone(),
+                fparams.clone(),
                 fty.clone(),
                 fbody_anf,
             ));
@@ -129,8 +129,8 @@ fn collect_bindings(expr: &TypedExpr, gs: &mut Gensym, bindings: &mut Bindings) 
 fn bindings_to_lets(bindings: Bindings, tail: AnfExpr) -> AnfExpr {
     bindings.into_iter().rev().fold(tail, |acc, b| match b {
         Binding::Let(name, c) => AnfExpr::Let(name, c, Box::new(acc)),
-        Binding::LetRec(fname, fargs, fty, fbody) => {
-            AnfExpr::LetRec(fname, fargs, fty, Box::new(fbody), Box::new(acc))
+        Binding::LetRec(fname, fparams, fty, fbody) => {
+            AnfExpr::LetRec(fname, fparams, fty, Box::new(fbody), Box::new(acc))
         }
     })
 }
