@@ -25,9 +25,9 @@ fn unbind(env: &mut NameEnv, name: Ident, old: Option<Ident>) {
 pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: TypedExpr) -> TypedExpr {
     match expr {
         TypedExpr::Unit => expr,
-        TypedExpr::Bool(b) => expr,
-        TypedExpr::Int(i) => expr,
-        TypedExpr::Float(f) => expr,
+        TypedExpr::Bool(_) => expr,
+        TypedExpr::Int(_) => expr,
+        TypedExpr::Float(_) => expr,
         TypedExpr::BinOp(op, left, right, ty) => {
             let left = rename(gensym, env, *left);
             let right = rename(gensym, env, *right);

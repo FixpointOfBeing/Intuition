@@ -326,93 +326,6 @@ pub trait ConstBinaryOp {
     fn get_operand1(&self) -> ConstantRef;
 }
 
-macro_rules! impl_constexpr {
-    ($expr:ty, $id:ident) => {
-        impl From<$expr> for Constant {
-            fn from(expr: $expr) -> Constant {
-                Constant::$id(expr)
-            }
-        }
-
-        impl TryFrom<Constant> for $expr {
-            type Error = &'static str;
-            fn try_from(constant: Constant) -> Result<Self, Self::Error> {
-                match constant {
-                    Constant::$id(expr) => Ok(expr),
-                    _ => Err("Constant is not of requested kind"),
-                }
-            }
-        }
-    };
-}
-
-macro_rules! impl_unop {
-    ($expr:ty) => {
-        impl ConstUnaryOp for $expr {
-            fn get_operand(&self) -> ConstantRef {
-                self.operand.clone()
-            }
-        }
-    };
-}
-
-macro_rules! impl_binop {
-    ($expr:ty, $dispname:expr) => {
-        impl ConstBinaryOp for $expr {
-            fn get_operand0(&self) -> ConstantRef {
-                self.operand0.clone()
-            }
-            fn get_operand1(&self) -> ConstantRef {
-                self.operand1.clone()
-            }
-        }
-    };
-}
-
-macro_rules! binop_same_type {
-    ($expr:ty, $dispname:expr) => {
-        impl_binop!($expr, $dispname);
-
-        impl Typed for $expr {
-            fn get_type(&self, types: &Types) -> TypeRef {
-                let t = types.type_of(&self.get_operand0());
-                debug_assert_eq!(t, types.type_of(&self.get_operand1()));
-                t
-            }
-        }
-
-        impl Display for $expr {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(f, "{} ({}, {})", $dispname, &self.operand0, &self.operand1)
-            }
-        }
-    };
-}
-
-
-macro_rules! unop_explicitly_typed {
-    ($expr:ty, $dispname:expr) => {
-        impl_unop!($expr);
-
-        impl Typed for $expr {
-            fn get_type(&self, _types: &Types) -> TypeRef {
-                self.to_type.clone()
-            }
-        }
-
-        impl Display for $expr {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(
-                    f,
-                    "{} ({} to {})",
-                    $dispname,
-                    &self.get_operand(),
-                    &self.to_type,
-                )
-            }
-        }
-    };
-}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Add {
@@ -420,8 +333,43 @@ pub struct Add {
     pub operand1: ConstantRef,
 }
 
-impl_constexpr!(Add, Add);
-binop_same_type!(Add, "add");
+impl From<Add> for Constant {
+    fn from(expr: Add) -> Constant {
+        Constant::Add(expr)
+    }
+}
+
+impl TryFrom<Constant> for Add {
+    type Error = &'static str;
+    fn try_from(constant: Constant) -> Result<Self, Self::Error> {
+        match constant {
+            Constant::Add(expr) => Ok(expr),
+            _ => Err("Constant is not of requested kind"),
+        }
+    }
+}
+impl ConstBinaryOp for Add {
+    fn get_operand0(&self) -> ConstantRef {
+        self.operand0.clone()
+    }
+    fn get_operand1(&self) -> ConstantRef {
+        self.operand1.clone()
+    }
+}
+
+impl Typed for Add {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        let t = types.type_of(&self.get_operand0());
+        debug_assert_eq!(t, types.type_of(&self.get_operand1()));
+        t
+    }
+}
+
+impl Display for Add {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "add ({}, {})", &self.operand0, &self.operand1)
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Sub {
@@ -429,8 +377,43 @@ pub struct Sub {
     pub operand1: ConstantRef,
 }
 
-impl_constexpr!(Sub, Sub);
-binop_same_type!(Sub, "sub");
+impl From<Sub> for Constant {
+    fn from(expr: Sub) -> Constant {
+        Constant::Sub(expr)
+    }
+}
+
+impl TryFrom<Constant> for Sub {
+    type Error = &'static str;
+    fn try_from(constant: Constant) -> Result<Self, Self::Error> {
+        match constant {
+            Constant::Sub(expr) => Ok(expr),
+            _ => Err("Constant is not of requested kind"),
+        }
+    }
+}
+impl ConstBinaryOp for Sub {
+    fn get_operand0(&self) -> ConstantRef {
+        self.operand0.clone()
+    }
+    fn get_operand1(&self) -> ConstantRef {
+        self.operand1.clone()
+    }
+}
+
+impl Typed for Sub {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        let t = types.type_of(&self.get_operand0());
+        debug_assert_eq!(t, types.type_of(&self.get_operand1()));
+        t
+    }
+}
+
+impl Display for Sub {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "sub ({}, {})", &self.operand0, &self.operand1)
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Mul {
@@ -438,19 +421,43 @@ pub struct Mul {
     pub operand1: ConstantRef,
 }
 
-impl_constexpr!(Mul, Mul);
-binop_same_type!(Mul, "mul");
+impl From<Mul> for Constant {
+    fn from(expr: Mul) -> Constant {
+        Constant::Mul(expr)
+    }
+}
 
+impl TryFrom<Constant> for Mul {
+    type Error = &'static str;
+    fn try_from(constant: Constant) -> Result<Self, Self::Error> {
+        match constant {
+            Constant::Mul(expr) => Ok(expr),
+            _ => Err("Constant is not of requested kind"),
+        }
+    }
+}
+impl ConstBinaryOp for Mul {
+    fn get_operand0(&self) -> ConstantRef {
+        self.operand0.clone()
+    }
+    fn get_operand1(&self) -> ConstantRef {
+        self.operand1.clone()
+    }
+}
 
+impl Typed for Mul {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        let t = types.type_of(&self.get_operand0());
+        debug_assert_eq!(t, types.type_of(&self.get_operand1()));
+        t
+    }
+}
 
-
-
-
-
-
-
-
-
+impl Display for Mul {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "mul ({}, {})", &self.operand0, &self.operand1)
+    }
+}
 
 
 #[derive(PartialEq, Clone, Debug, Hash)]
@@ -459,21 +466,43 @@ pub struct Xor {
     pub operand1: ConstantRef,
 }
 
-impl_constexpr!(Xor, Xor);
-binop_same_type!(Xor, "xor");
+impl From<Xor> for Constant {
+    fn from(expr: Xor) -> Constant {
+        Constant::Xor(expr)
+    }
+}
 
+impl TryFrom<Constant> for Xor {
+    type Error = &'static str;
+    fn try_from(constant: Constant) -> Result<Self, Self::Error> {
+        match constant {
+            Constant::Xor(expr) => Ok(expr),
+            _ => Err("Constant is not of requested kind"),
+        }
+    }
+}
+impl ConstBinaryOp for Xor {
+    fn get_operand0(&self) -> ConstantRef {
+        self.operand0.clone()
+    }
+    fn get_operand1(&self) -> ConstantRef {
+        self.operand1.clone()
+    }
+}
 
+impl Typed for Xor {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        let t = types.type_of(&self.get_operand0());
+        debug_assert_eq!(t, types.type_of(&self.get_operand1()));
+        t
+    }
+}
 
-
-
-
-
-
-
-
-
-
-
+impl Display for Xor {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "xor ({}, {})", &self.operand0, &self.operand1)
+    }
+}
 
 
 pub struct FRem {
@@ -488,7 +517,21 @@ pub struct ExtractElement {
     pub index: ConstantRef,
 }
 
-impl_constexpr!(ExtractElement, ExtractElement);
+impl From<ExtractElement> for Constant {
+    fn from(expr: ExtractElement) -> Constant {
+        Constant::ExtractElement(expr)
+    }
+}
+
+impl TryFrom<Constant> for ExtractElement {
+    type Error = &'static str;
+    fn try_from(constant: Constant) -> Result<Self, Self::Error> {
+        match constant {
+            Constant::ExtractElement(expr) => Ok(expr),
+            _ => Err("Constant is not of requested kind"),
+        }
+    }
+}
 
 impl Typed for ExtractElement {
     fn get_type(&self, types: &Types) -> TypeRef {
@@ -515,7 +558,21 @@ pub struct InsertElement {
     pub index: ConstantRef,
 }
 
-impl_constexpr!(InsertElement, InsertElement);
+impl From<InsertElement> for Constant {
+    fn from(expr: InsertElement) -> Constant {
+        Constant::InsertElement(expr)
+    }
+}
+
+impl TryFrom<Constant> for InsertElement {
+    type Error = &'static str;
+    fn try_from(constant: Constant) -> Result<Self, Self::Error> {
+        match constant {
+            Constant::InsertElement(expr) => Ok(expr),
+            _ => Err("Constant is not of requested kind"),
+        }
+    }
+}
 
 impl Typed for InsertElement {
     fn get_type(&self, types: &Types) -> TypeRef {
@@ -540,8 +597,29 @@ pub struct ShuffleVector {
     pub mask: ConstantRef,
 }
 
-impl_constexpr!(ShuffleVector, ShuffleVector);
-impl_binop!(ShuffleVector, "shufflevector");
+impl From<ShuffleVector> for Constant {
+    fn from(expr: ShuffleVector) -> Constant {
+        Constant::ShuffleVector(expr)
+    }
+}
+
+impl TryFrom<Constant> for ShuffleVector {
+    type Error = &'static str;
+    fn try_from(constant: Constant) -> Result<Self, Self::Error> {
+        match constant {
+            Constant::ShuffleVector(expr) => Ok(expr),
+            _ => Err("Constant is not of requested kind"),
+        }
+    }
+}
+impl ConstBinaryOp for ShuffleVector {
+    fn get_operand0(&self) -> ConstantRef {
+        self.operand0.clone()
+    }
+    fn get_operand1(&self) -> ConstantRef {
+        self.operand1.clone()
+    }
+}
 
 impl Typed for ShuffleVector {
     fn get_type(&self, types: &Types) -> TypeRef {
@@ -578,14 +656,6 @@ impl Display for ShuffleVector {
 }
 
 
-
-
-
-
-
-
-
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct GetElementPtr {
     pub address: ConstantRef,
@@ -593,7 +663,21 @@ pub struct GetElementPtr {
     pub in_bounds: bool,
 }
 
-impl_constexpr!(GetElementPtr, GetElementPtr);
+impl From<GetElementPtr> for Constant {
+    fn from(expr: GetElementPtr) -> Constant {
+        Constant::GetElementPtr(expr)
+    }
+}
+
+impl TryFrom<Constant> for GetElementPtr {
+    type Error = &'static str;
+    fn try_from(constant: Constant) -> Result<Self, Self::Error> {
+        match constant {
+            Constant::GetElementPtr(expr) => Ok(expr),
+            _ => Err("Constant is not of requested kind"),
+        }
+    }
+}
 
 impl Typed for GetElementPtr {
     fn get_type(&self, types: &Types) -> TypeRef {
@@ -624,22 +708,43 @@ pub struct Trunc {
     pub to_type: TypeRef,
 }
 
-impl_constexpr!(Trunc, Trunc);
-unop_explicitly_typed!(Trunc, "trunc");
+impl From<Trunc> for Constant {
+    fn from(expr: Trunc) -> Constant {
+        Constant::Trunc(expr)
+    }
+}
 
+impl TryFrom<Constant> for Trunc {
+    type Error = &'static str;
+    fn try_from(constant: Constant) -> Result<Self, Self::Error> {
+        match constant {
+            Constant::Trunc(expr) => Ok(expr),
+            _ => Err("Constant is not of requested kind"),
+        }
+    }
+}
+impl ConstUnaryOp for Trunc {
+    fn get_operand(&self) -> ConstantRef {
+        self.operand.clone()
+    }
+}
 
+impl Typed for Trunc {
+    fn get_type(&self, _types: &Types) -> TypeRef {
+        self.to_type.clone()
+    }
+}
 
-
-
-
-
-
-
-
-
-
-
-
+impl Display for Trunc {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "trunc ({} to {})",
+            &self.get_operand(),
+            &self.to_type,
+        )
+    }
+}
 
 
 #[derive(PartialEq, Clone, Debug, Hash)]
@@ -648,8 +753,43 @@ pub struct PtrToInt {
     pub to_type: TypeRef,
 }
 
-impl_constexpr!(PtrToInt, PtrToInt);
-unop_explicitly_typed!(PtrToInt, "ptrtoint");
+impl From<PtrToInt> for Constant {
+    fn from(expr: PtrToInt) -> Constant {
+        Constant::PtrToInt(expr)
+    }
+}
+
+impl TryFrom<Constant> for PtrToInt {
+    type Error = &'static str;
+    fn try_from(constant: Constant) -> Result<Self, Self::Error> {
+        match constant {
+            Constant::PtrToInt(expr) => Ok(expr),
+            _ => Err("Constant is not of requested kind"),
+        }
+    }
+}
+impl ConstUnaryOp for PtrToInt {
+    fn get_operand(&self) -> ConstantRef {
+        self.operand.clone()
+    }
+}
+
+impl Typed for PtrToInt {
+    fn get_type(&self, _types: &Types) -> TypeRef {
+        self.to_type.clone()
+    }
+}
+
+impl Display for PtrToInt {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "ptrtoint ({} to {})",
+            &self.get_operand(),
+            &self.to_type,
+        )
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct IntToPtr {
@@ -657,8 +797,43 @@ pub struct IntToPtr {
     pub to_type: TypeRef,
 }
 
-impl_constexpr!(IntToPtr, IntToPtr);
-unop_explicitly_typed!(IntToPtr, "inttoptr");
+impl From<IntToPtr> for Constant {
+    fn from(expr: IntToPtr) -> Constant {
+        Constant::IntToPtr(expr)
+    }
+}
+
+impl TryFrom<Constant> for IntToPtr {
+    type Error = &'static str;
+    fn try_from(constant: Constant) -> Result<Self, Self::Error> {
+        match constant {
+            Constant::IntToPtr(expr) => Ok(expr),
+            _ => Err("Constant is not of requested kind"),
+        }
+    }
+}
+impl ConstUnaryOp for IntToPtr {
+    fn get_operand(&self) -> ConstantRef {
+        self.operand.clone()
+    }
+}
+
+impl Typed for IntToPtr {
+    fn get_type(&self, _types: &Types) -> TypeRef {
+        self.to_type.clone()
+    }
+}
+
+impl Display for IntToPtr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "inttoptr ({} to {})",
+            &self.get_operand(),
+            &self.to_type,
+        )
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct BitCast {
@@ -666,8 +841,43 @@ pub struct BitCast {
     pub to_type: TypeRef,
 }
 
-impl_constexpr!(BitCast, BitCast);
-unop_explicitly_typed!(BitCast, "bitcast");
+impl From<BitCast> for Constant {
+    fn from(expr: BitCast) -> Constant {
+        Constant::BitCast(expr)
+    }
+}
+
+impl TryFrom<Constant> for BitCast {
+    type Error = &'static str;
+    fn try_from(constant: Constant) -> Result<Self, Self::Error> {
+        match constant {
+            Constant::BitCast(expr) => Ok(expr),
+            _ => Err("Constant is not of requested kind"),
+        }
+    }
+}
+impl ConstUnaryOp for BitCast {
+    fn get_operand(&self) -> ConstantRef {
+        self.operand.clone()
+    }
+}
+
+impl Typed for BitCast {
+    fn get_type(&self, _types: &Types) -> TypeRef {
+        self.to_type.clone()
+    }
+}
+
+impl Display for BitCast {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "bitcast ({} to {})",
+            &self.get_operand(),
+            &self.to_type,
+        )
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct AddrSpaceCast {
@@ -675,17 +885,42 @@ pub struct AddrSpaceCast {
     pub to_type: TypeRef,
 }
 
-impl_constexpr!(AddrSpaceCast, AddrSpaceCast);
-unop_explicitly_typed!(AddrSpaceCast, "addrspacecast");
+impl From<AddrSpaceCast> for Constant {
+    fn from(expr: AddrSpaceCast) -> Constant {
+        Constant::AddrSpaceCast(expr)
+    }
+}
 
+impl TryFrom<Constant> for AddrSpaceCast {
+    type Error = &'static str;
+    fn try_from(constant: Constant) -> Result<Self, Self::Error> {
+        match constant {
+            Constant::AddrSpaceCast(expr) => Ok(expr),
+            _ => Err("Constant is not of requested kind"),
+        }
+    }
+}
+impl ConstUnaryOp for AddrSpaceCast {
+    fn get_operand(&self) -> ConstantRef {
+        self.operand.clone()
+    }
+}
 
+impl Typed for AddrSpaceCast {
+    fn get_type(&self, _types: &Types) -> TypeRef {
+        self.to_type.clone()
+    }
+}
 
-
-
-
-
-
-
-
+impl Display for AddrSpaceCast {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "addrspacecast ({} to {})",
+            &self.get_operand(),
+            &self.to_type,
+        )
+    }
+}
 
 

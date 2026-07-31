@@ -22,3 +22,5 @@ pub mod terminator;
 pub use terminator::Terminator;
 pub mod types;
 pub use types::{LLVMType, TypeRef};
+pub mod show;
+pub use show::Show;

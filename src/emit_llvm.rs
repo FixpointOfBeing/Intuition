@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::fmt::{self, Write};
 
 use either::Either;
 
@@ -979,109 +978,8 @@ fn nn(s: &str) -> Name {
     Name::Name(Box::new(s.to_string()))
 }
 
-pub fn write_module(module: &Module, w: &mut impl Write) -> fmt::Result {
-    if let Some(triple) = &module.target_triple {
-        writeln!(w, "target triple = \"{}\"", triple)?;
-    }
-    writeln!(w, "")?;
-
-    for decl in &module.func_declarations {
-        write_function_declaration(decl, w)?;
-    }
-    if !module.func_declarations.is_empty() {
-        writeln!(w, "")?;
-    }
-
-    for func in &module.functions {
-        write_function(func, &module.types, w)?;
-        writeln!(w, "")?;
-    }
-
-    Ok(())
-}
-
-fn write_function_declaration(decl: &FunctionDeclaration, w: &mut impl Write) -> fmt::Result {
-    write!(w, "declare {} @{}(", decl.return_type, decl.name)?;
-    for (i, param) in decl.parameters.iter().enumerate() {
-        if i > 0 {
-            write!(w, ", ")?;
-        }
-        write!(w, "{}", param.ty)?;
-        write_param_attributes(&param.attributes, w)?;
-    }
-    if decl.is_var_arg {
-        if !decl.parameters.is_empty() {
-            write!(w, ", ")?;
-        }
-        write!(w, "...")?;
-    }
-    writeln!(w, ")")?;
-    Ok(())
-}
-
-fn write_function(func: &Function, _types: &Types, w: &mut impl Write) -> fmt::Result {
-    write!(w, "define {} @{}(", func.return_type, func.name)?;
-    for (i, param) in func.parameters.iter().enumerate() {
-        if i > 0 {
-            write!(w, ", ")?;
-        }
-        write!(w, "{} {}", param.ty, param.name)?;
-        write_param_attributes(&param.attributes, w)?;
-    }
-    if func.is_var_arg {
-        if !func.parameters.is_empty() {
-            write!(w, ", ")?;
-        }
-        write!(w, "...")?;
-    }
-    writeln!(w, ") {{")?;
-
-    for bb in &func.basic_blocks {
-        write_label_name(&bb.name, w)?;
-        writeln!(w, ":")?;
-        for instr in &bb.instrs {
-            writeln!(w, "  {}", instr)?;
-        }
-        writeln!(w, "  {}", bb.term)?;
-    }
-
-    writeln!(w, "}}")?;
-    Ok(())
-}
-
-fn write_label_name(name: &Name, w: &mut impl Write) -> fmt::Result {
-    match name {
-        Name::Name(s) => write!(w, "{}", s),
-        Name::Number(n) => write!(w, "{}", n),
-    }
-}
-
-fn write_param_attributes(attrs: &[ParameterAttribute], w: &mut impl Write) -> fmt::Result {
-    for attr in attrs {
-        match attr {
-            ParameterAttribute::ZeroExt => write!(w, " zeroext")?,
-            ParameterAttribute::SignExt => write!(w, " signext")?,
-            ParameterAttribute::InReg => write!(w, " inreg")?,
-            ParameterAttribute::NoAlias => write!(w, " noalias")?,
-            ParameterAttribute::NoCapture => write!(w, " nocapture")?,
-            ParameterAttribute::NoFree => write!(w, " nofree")?,
-            ParameterAttribute::Nest => write!(w, " nest")?,
-            ParameterAttribute::Returned => write!(w, " returned")?,
-            ParameterAttribute::NonNull => write!(w, " nonnull")?,
-            ParameterAttribute::ImmArg => write!(w, " immarg")?,
-            ParameterAttribute::NoUndef => write!(w, " noundef")?,
-            ParameterAttribute::SwiftSelf => write!(w, " swiftself")?,
-            ParameterAttribute::SwiftError => write!(w, " swifterror")?,
-            _ => {}
-        }
-    }
-    Ok(())
-}
-
 pub fn module_to_string(module: &Module) -> String {
-    let mut s = String::new();
-    write_module(module, &mut s).unwrap();
-    s
+    module.to_string()
 }
 
 #[cfg(test)]
@@ -1103,7 +1001,7 @@ mod tests {
             .map(|d| (d.clone(), crate::explicate_control::explicate_control_convert(d.body.clone())))
             .collect();
         let module = emit_module(body_ctail, return_ty, "test_module", &fn_ctails);
-        module_to_string(&module)
+        module.to_string()
     }
 
     #[test]

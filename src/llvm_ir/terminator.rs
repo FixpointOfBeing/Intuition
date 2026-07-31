@@ -120,59 +120,6 @@ impl Terminator {
     }
 }
 
-macro_rules! impl_term {
-    ($term:ty, $id:ident) => {
-        impl From<$term> for Terminator {
-            fn from(term: $term) -> Terminator {
-                Terminator::$id(term)
-            }
-        }
-
-        impl TryFrom<Terminator> for $term {
-            type Error = &'static str;
-            fn try_from(term: Terminator) -> Result<Self, Self::Error> {
-                match term {
-                    Terminator::$id(term) => Ok(term),
-                    _ => Err("Terminator is not of requested type"),
-                }
-            }
-        }
-
-        /* impl HasDebugLoc for $term {
-            fn get_debug_loc(&self) -> &Option<DebugLoc> {
-                &self.debugloc
-            }
-        } */
-
-        /* --TODO not yet implemented: metadata
-        impl HasMetadata for $term {
-            fn get_metadata(&self) -> &InstructionMetadata {
-                &self.metadata
-            }
-        }
-        */
-    };
-}
-
-macro_rules! impl_hasresult {
-    ($term:ty) => {
-        impl HasResult for $term {
-            fn get_result(&self) -> &Name {
-                &self.result
-            }
-        }
-    };
-}
-
-macro_rules! void_typed {
-    ($term:ty) => {
-        impl Typed for $term {
-            fn get_type(&self, types: &Types) -> TypeRef {
-                types.void()
-            }
-        }
-    };
-}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Ret {
@@ -180,8 +127,26 @@ pub struct Ret {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_term!(Ret, Ret);
-void_typed!(Ret); // technically the instruction has void type, even though the function may not
+impl From<Ret> for Terminator {
+    fn from(term: Ret) -> Terminator {
+        Terminator::Ret(term)
+    }
+}
+
+impl TryFrom<Terminator> for Ret {
+    type Error = &'static str;
+    fn try_from(term: Terminator) -> Result<Self, Self::Error> {
+        match term {
+            Terminator::Ret(term) => Ok(term),
+            _ => Err("Terminator is not of requested type"),
+        }
+    }
+}
+impl Typed for Ret {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        types.void()
+    }
+} // technically the instruction has void type, even though the function may not
 
 impl Display for Ret {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -206,8 +171,26 @@ pub struct Br {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_term!(Br, Br);
-void_typed!(Br);
+impl From<Br> for Terminator {
+    fn from(term: Br) -> Terminator {
+        Terminator::Br(term)
+    }
+}
+
+impl TryFrom<Terminator> for Br {
+    type Error = &'static str;
+    fn try_from(term: Terminator) -> Result<Self, Self::Error> {
+        match term {
+            Terminator::Br(term) => Ok(term),
+            _ => Err("Terminator is not of requested type"),
+        }
+    }
+}
+impl Typed for Br {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        types.void()
+    }
+}
 
 impl Display for Br {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -227,8 +210,26 @@ pub struct CondBr {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_term!(CondBr, CondBr);
-void_typed!(CondBr);
+impl From<CondBr> for Terminator {
+    fn from(term: CondBr) -> Terminator {
+        Terminator::CondBr(term)
+    }
+}
+
+impl TryFrom<Terminator> for CondBr {
+    type Error = &'static str;
+    fn try_from(term: Terminator) -> Result<Self, Self::Error> {
+        match term {
+            Terminator::CondBr(term) => Ok(term),
+            _ => Err("Terminator is not of requested type"),
+        }
+    }
+}
+impl Typed for CondBr {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        types.void()
+    }
+}
 
 impl Display for CondBr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -252,8 +253,26 @@ pub struct Switch {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_term!(Switch, Switch);
-void_typed!(Switch);
+impl From<Switch> for Terminator {
+    fn from(term: Switch) -> Terminator {
+        Terminator::Switch(term)
+    }
+}
+
+impl TryFrom<Terminator> for Switch {
+    type Error = &'static str;
+    fn try_from(term: Terminator) -> Result<Self, Self::Error> {
+        match term {
+            Terminator::Switch(term) => Ok(term),
+            _ => Err("Terminator is not of requested type"),
+        }
+    }
+}
+impl Typed for Switch {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        types.void()
+    }
+}
 
 impl Display for Switch {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -280,8 +299,26 @@ pub struct IndirectBr {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_term!(IndirectBr, IndirectBr);
-void_typed!(IndirectBr);
+impl From<IndirectBr> for Terminator {
+    fn from(term: IndirectBr) -> Terminator {
+        Terminator::IndirectBr(term)
+    }
+}
+
+impl TryFrom<Terminator> for IndirectBr {
+    type Error = &'static str;
+    fn try_from(term: Terminator) -> Result<Self, Self::Error> {
+        match term {
+            Terminator::IndirectBr(term) => Ok(term),
+            _ => Err("Terminator is not of requested type"),
+        }
+    }
+}
+impl Typed for IndirectBr {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        types.void()
+    }
+}
 
 impl Display for IndirectBr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -319,8 +356,26 @@ pub struct Invoke {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_term!(Invoke, Invoke);
-impl_hasresult!(Invoke);
+impl From<Invoke> for Terminator {
+    fn from(term: Invoke) -> Terminator {
+        Terminator::Invoke(term)
+    }
+}
+
+impl TryFrom<Terminator> for Invoke {
+    type Error = &'static str;
+    fn try_from(term: Terminator) -> Result<Self, Self::Error> {
+        match term {
+            Terminator::Invoke(term) => Ok(term),
+            _ => Err("Terminator is not of requested type"),
+        }
+    }
+}
+impl HasResult for Invoke {
+    fn get_result(&self) -> &Name {
+        &self.result
+    }
+}
 
 impl Typed for Invoke {
     fn get_type(&self, _types: &Types) -> TypeRef {
@@ -367,8 +422,26 @@ pub struct Resume {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_term!(Resume, Resume);
-void_typed!(Resume);
+impl From<Resume> for Terminator {
+    fn from(term: Resume) -> Terminator {
+        Terminator::Resume(term)
+    }
+}
+
+impl TryFrom<Terminator> for Resume {
+    type Error = &'static str;
+    fn try_from(term: Terminator) -> Result<Self, Self::Error> {
+        match term {
+            Terminator::Resume(term) => Ok(term),
+            _ => Err("Terminator is not of requested type"),
+        }
+    }
+}
+impl Typed for Resume {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        types.void()
+    }
+}
 
 impl Display for Resume {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -385,8 +458,26 @@ pub struct Unreachable {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_term!(Unreachable, Unreachable);
-void_typed!(Unreachable);
+impl From<Unreachable> for Terminator {
+    fn from(term: Unreachable) -> Terminator {
+        Terminator::Unreachable(term)
+    }
+}
+
+impl TryFrom<Terminator> for Unreachable {
+    type Error = &'static str;
+    fn try_from(term: Terminator) -> Result<Self, Self::Error> {
+        match term {
+            Terminator::Unreachable(term) => Ok(term),
+            _ => Err("Terminator is not of requested type"),
+        }
+    }
+}
+impl Typed for Unreachable {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        types.void()
+    }
+}
 
 impl Display for Unreachable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -405,8 +496,26 @@ pub struct CleanupRet {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_term!(CleanupRet, CleanupRet);
-void_typed!(CleanupRet);
+impl From<CleanupRet> for Terminator {
+    fn from(term: CleanupRet) -> Terminator {
+        Terminator::CleanupRet(term)
+    }
+}
+
+impl TryFrom<Terminator> for CleanupRet {
+    type Error = &'static str;
+    fn try_from(term: Terminator) -> Result<Self, Self::Error> {
+        match term {
+            Terminator::CleanupRet(term) => Ok(term),
+            _ => Err("Terminator is not of requested type"),
+        }
+    }
+}
+impl Typed for CleanupRet {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        types.void()
+    }
+}
 
 impl Display for CleanupRet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -433,8 +542,26 @@ pub struct CatchRet {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_term!(CatchRet, CatchRet);
-void_typed!(CatchRet);
+impl From<CatchRet> for Terminator {
+    fn from(term: CatchRet) -> Terminator {
+        Terminator::CatchRet(term)
+    }
+}
+
+impl TryFrom<Terminator> for CatchRet {
+    type Error = &'static str;
+    fn try_from(term: Terminator) -> Result<Self, Self::Error> {
+        match term {
+            Terminator::CatchRet(term) => Ok(term),
+            _ => Err("Terminator is not of requested type"),
+        }
+    }
+}
+impl Typed for CatchRet {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        types.void()
+    }
+}
 
 impl Display for CatchRet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -459,8 +586,26 @@ pub struct CatchSwitch {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_term!(CatchSwitch, CatchSwitch);
-impl_hasresult!(CatchSwitch);
+impl From<CatchSwitch> for Terminator {
+    fn from(term: CatchSwitch) -> Terminator {
+        Terminator::CatchSwitch(term)
+    }
+}
+
+impl TryFrom<Terminator> for CatchSwitch {
+    type Error = &'static str;
+    fn try_from(term: Terminator) -> Result<Self, Self::Error> {
+        match term {
+            Terminator::CatchSwitch(term) => Ok(term),
+            _ => Err("Terminator is not of requested type"),
+        }
+    }
+}
+impl HasResult for CatchSwitch {
+    fn get_result(&self) -> &Name {
+        &self.result
+    }
+}
 
 impl Typed for CatchSwitch {
     fn get_type(&self, _types: &Types) -> TypeRef {
@@ -511,8 +656,26 @@ pub struct CallBr {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_term!(CallBr, CallBr);
-impl_hasresult!(CallBr);
+impl From<CallBr> for Terminator {
+    fn from(term: CallBr) -> Terminator {
+        Terminator::CallBr(term)
+    }
+}
+
+impl TryFrom<Terminator> for CallBr {
+    type Error = &'static str;
+    fn try_from(term: Terminator) -> Result<Self, Self::Error> {
+        match term {
+            Terminator::CallBr(term) => Ok(term),
+            _ => Err("Terminator is not of requested type"),
+        }
+    }
+}
+impl HasResult for CallBr {
+    fn get_result(&self) -> &Name {
+        &self.result
+    }
+}
 
 impl Typed for CallBr {
     fn get_type(&self, types: &Types) -> TypeRef {

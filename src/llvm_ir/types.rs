@@ -235,7 +235,16 @@ pub enum NamedStructDef {
     Defined(TypeRef),
 }
 
-#[derive(Clone)]
+impl Display for NamedStructDef {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            NamedStructDef::Opaque => write!(f, "type opaque"),
+            NamedStructDef::Defined(ty) => write!(f, "type {}", ty),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct Types {
     void_type: TypeRef,
     int_types: TypeCache<u32>,

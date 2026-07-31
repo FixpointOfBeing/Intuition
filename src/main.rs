@@ -52,14 +52,9 @@ fn main() {
             repl();
         }
         Some(Commands::Compile { file, output }) => {
-            match compile_file(file, output) {
-                Ok(()) => {
-                    println!("Compilation successful");
-                }
-                Err(e) => {
-                    println!("{}", e);
-                }
-            }
+            compile_file(file, output).unwrap_or_else(|e| {
+                println!("Error: {}", e);
+            }); 
         }
         Some(Commands::Eval { file }) => match eval_file(file) {
             Ok(v) => {

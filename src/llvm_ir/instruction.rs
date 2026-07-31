@@ -504,250 +504,6 @@ impl Display for Instruction {
     }
 }
 
-macro_rules! impl_inst {
-    ($inst:ty, $id:ident) => {
-        impl From<$inst> for Instruction {
-            fn from(inst: $inst) -> Instruction {
-                Instruction::$id(inst)
-            }
-        }
-
-        impl TryFrom<Instruction> for $inst {
-            type Error = &'static str;
-            fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
-                match inst {
-                    Instruction::$id(inst) => Ok(inst),
-                    _ => Err("Instruction is not of requested type"),
-                }
-            }
-        }
-
-       /*  impl HasDebugLoc for $inst {
-            fn get_debug_loc(&self) -> &Option<DebugLoc> {
-                &self.debugloc
-            }
-        } */
-
-        /* --TODO not yet implemented: metadata
-        impl HasMetadata for $inst {
-            fn get_metadata(&self) -> &InstructionMetadata {
-                &self.metadata
-            }
-        }
-        */
-    };
-}
-
-macro_rules! impl_hasresult {
-    ($inst:ty) => {
-        impl HasResult for $inst {
-            fn get_result(&self) -> &Name {
-                &self.dest
-            }
-        }
-    };
-}
-
-macro_rules! impl_unop {
-    ($inst:ty) => {
-        impl_hasresult!($inst);
-
-        impl IsUnaryOp for $inst {
-            fn get_operand(&self) -> &Operand {
-                &self.operand
-            }
-        }
-    };
-}
-
-macro_rules! impl_binop {
-    ($inst:ty, $id:ident) => {
-        impl_hasresult!($inst);
-
-        impl IsBinaryOp for $inst {
-            fn get_operand0(&self) -> &Operand {
-                &self.operand0
-            }
-            fn get_operand1(&self) -> &Operand {
-                &self.operand1
-            }
-        }
-
-        impl From<$inst> for BinaryOp {
-            fn from(inst: $inst) -> Self {
-                BinaryOp::$id(inst)
-            }
-        }
-
-        impl TryFrom<BinaryOp> for $inst {
-            type Error = &'static str;
-            fn try_from(bo: BinaryOp) -> Result<Self, Self::Error> {
-                match bo {
-                    BinaryOp::$id(i) => Ok(i),
-                    _ => Err("BinaryOp is not of requested type"),
-                }
-            }
-        }
-    };
-}
-
-macro_rules! binop_display {
-    ($inst:ty, $dispname:expr) => {
-        impl Display for $inst {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(
-                    f,
-                    "{} = {} {}, {}",
-                    &self.dest, $dispname, &self.operand0, &self.operand1,
-                )?;
-                // if self.debugloc.is_some() {
-                //     write!(f, " (with debugloc)")?;
-                // }
-                Ok(())
-            }
-        }
-    };
-}
-
-macro_rules! binop_display_with_flags {
-    ($inst:ty, $dispname:expr, ($($flag_display:expr ; $flag_field:ident ; $required_feature:expr),*)) => {
-        impl Display for $inst {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(
-                    f,
-                    "{} = {}",
-                    &self.dest, $dispname
-                )?;
-
-                $( #[cfg(feature = $required_feature)] if self.$flag_field { write!(f, " {}", $flag_display)?; })*
-
-                write!(
-                    f,
-                    " {}, {}",
-                    &self.operand0, &self.operand1,
-                )?;
-
-                // if self.debugloc.is_some() {
-                //     write!(f, " (with debugloc)")?;
-                // }
-                Ok(())
-            }
-        }
-    };
-}
-
-macro_rules! unop_same_type {
-    ($inst:ty, $dispname:expr) => {
-        impl_unop!($inst);
-
-        impl Typed for $inst {
-            fn get_type(&self, types: &Types) -> TypeRef {
-                types.type_of(self.get_operand())
-            }
-        }
-
-        impl Display for $inst {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(f, "{} = {} {}", &self.dest, $dispname, &self.operand)?;
-                // if self.debugloc.is_some() {
-                //     write!(f, " (with debugloc)")?;
-                // }
-                Ok(())
-            }
-        }
-    };
-}
-
-macro_rules! unop_typed_display_with_flags {
-    ($inst:ty, $dispname:expr, ($($flag_display:expr ; $flag_field:ident ; $required_feature:expr),*)) => {
-        impl Display for $inst {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(
-                    f,
-                    "{} = {}",
-                    &self.dest, $dispname
-                )?;
-
-                $( #[cfg(feature = $required_feature)] if self.$flag_field { write!(f, " {}", $flag_display)?; })*
-
-                write!(
-                    f,
-                    " {} to {}",
-                    &self.operand, &self.to_type
-                )?;
-
-                // if self.debugloc.is_some() {
-                //     write!(f, " (with debugloc)")?;
-                // }
-                Ok(())
-            }
-        }
-    };
-}
-
-macro_rules! unop_explicitly_typed {
-    ($inst:ty, $dispname:expr) => {
-        impl_unop!($inst);
-        explicitly_typed!($inst);
-
-        impl Display for $inst {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(
-                    f,
-                    "{} = {} {} to {}",
-                    &self.dest, $dispname, &self.operand, &self.to_type,
-                )?;
-                // if self.debugloc.is_some() {
-                //     write!(f, " (with debugloc)")?;
-                // }
-                Ok(())
-            }
-        }
-    };
-}
-
-macro_rules! binop_same_type {
-    ($inst:ty) => {
-        impl Typed for $inst {
-            fn get_type(&self, types: &Types) -> TypeRef {
-                let ty = types.type_of(self.get_operand0());
-                debug_assert_eq!(ty, types.type_of(self.get_operand1()));
-                ty
-            }
-        }
-    };
-}
-
-macro_rules! binop_left_type {
-    ($inst:ty) => {
-        impl Typed for $inst {
-            fn get_type(&self, types: &Types) -> TypeRef {
-                types.type_of(self.get_operand0())
-            }
-        }
-    };
-}
-
-macro_rules! explicitly_typed {
-    ($inst:ty) => {
-        impl Typed for $inst {
-            fn get_type(&self, _types: &Types) -> TypeRef {
-                self.to_type.clone()
-            }
-        }
-    };
-}
-
-macro_rules! void_typed {
-    ($inst:ty) => {
-        impl Typed for $inst {
-            fn get_type(&self, types: &Types) -> TypeRef {
-                types.void()
-            }
-        }
-    };
-}
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Add {
     pub operand0: Operand,
@@ -758,10 +514,75 @@ pub struct Add {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(Add, Add);
-impl_binop!(Add, Add);
-binop_same_type!(Add);
-binop_display_with_flags!(Add, "add", ("nuw" ; nuw ; "llvm-17-or-greater", "nsw" ; nsw ; "llvm-17-or-greater"));
+impl From<Add> for Instruction {
+    fn from(inst: Add) -> Instruction {
+        Instruction::Add(inst)
+    }
+}
+
+impl TryFrom<Instruction> for Add {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::Add(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for Add {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsBinaryOp for Add {
+    fn get_operand0(&self) -> &Operand {
+        &self.operand0
+    }
+    fn get_operand1(&self) -> &Operand {
+        &self.operand1
+    }
+}
+
+impl From<Add> for BinaryOp {
+    fn from(inst: Add) -> Self {
+        BinaryOp::Add(inst)
+    }
+}
+
+impl TryFrom<BinaryOp> for Add {
+    type Error = &'static str;
+    fn try_from(bo: BinaryOp) -> Result<Self, Self::Error> {
+        match bo {
+            BinaryOp::Add(i) => Ok(i),
+            _ => Err("BinaryOp is not of requested type"),
+        }
+    }
+}
+impl Typed for Add {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        let ty = types.type_of(self.get_operand0());
+        debug_assert_eq!(ty, types.type_of(self.get_operand1()));
+        ty
+    }
+}
+impl Display for Add {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = add",
+            &self.dest
+        )?;
+
+        write!(
+            f,
+            " {}, {}",
+            &self.operand0, &self.operand1,
+        )?;
+
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Sub {
@@ -773,10 +594,75 @@ pub struct Sub {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(Sub, Sub);
-impl_binop!(Sub, Sub);
-binop_same_type!(Sub);
-binop_display_with_flags!(Sub, "sub", ("nuw" ; nuw ; "llvm-17-or-greater", "nsw" ; nsw ; "llvm-17-or-greater"));
+impl From<Sub> for Instruction {
+    fn from(inst: Sub) -> Instruction {
+        Instruction::Sub(inst)
+    }
+}
+
+impl TryFrom<Instruction> for Sub {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::Sub(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for Sub {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsBinaryOp for Sub {
+    fn get_operand0(&self) -> &Operand {
+        &self.operand0
+    }
+    fn get_operand1(&self) -> &Operand {
+        &self.operand1
+    }
+}
+
+impl From<Sub> for BinaryOp {
+    fn from(inst: Sub) -> Self {
+        BinaryOp::Sub(inst)
+    }
+}
+
+impl TryFrom<BinaryOp> for Sub {
+    type Error = &'static str;
+    fn try_from(bo: BinaryOp) -> Result<Self, Self::Error> {
+        match bo {
+            BinaryOp::Sub(i) => Ok(i),
+            _ => Err("BinaryOp is not of requested type"),
+        }
+    }
+}
+impl Typed for Sub {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        let ty = types.type_of(self.get_operand0());
+        debug_assert_eq!(ty, types.type_of(self.get_operand1()));
+        ty
+    }
+}
+impl Display for Sub {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = sub",
+            &self.dest
+        )?;
+
+        write!(
+            f,
+            " {}, {}",
+            &self.operand0, &self.operand1,
+        )?;
+
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Mul {
@@ -788,10 +674,75 @@ pub struct Mul {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(Mul, Mul);
-impl_binop!(Mul, Mul);
-binop_same_type!(Mul);
-binop_display_with_flags!(Mul, "mul", ("nuw" ; nuw ; "llvm-17-or-greater", "nsw" ; nsw ; "llvm-17-or-greater"));
+impl From<Mul> for Instruction {
+    fn from(inst: Mul) -> Instruction {
+        Instruction::Mul(inst)
+    }
+}
+
+impl TryFrom<Instruction> for Mul {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::Mul(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for Mul {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsBinaryOp for Mul {
+    fn get_operand0(&self) -> &Operand {
+        &self.operand0
+    }
+    fn get_operand1(&self) -> &Operand {
+        &self.operand1
+    }
+}
+
+impl From<Mul> for BinaryOp {
+    fn from(inst: Mul) -> Self {
+        BinaryOp::Mul(inst)
+    }
+}
+
+impl TryFrom<BinaryOp> for Mul {
+    type Error = &'static str;
+    fn try_from(bo: BinaryOp) -> Result<Self, Self::Error> {
+        match bo {
+            BinaryOp::Mul(i) => Ok(i),
+            _ => Err("BinaryOp is not of requested type"),
+        }
+    }
+}
+impl Typed for Mul {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        let ty = types.type_of(self.get_operand0());
+        debug_assert_eq!(ty, types.type_of(self.get_operand1()));
+        ty
+    }
+}
+impl Display for Mul {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = mul",
+            &self.dest
+        )?;
+
+        write!(
+            f,
+            " {}, {}",
+            &self.operand0, &self.operand1,
+        )?;
+
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct UDiv {
@@ -802,10 +753,75 @@ pub struct UDiv {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(UDiv, UDiv);
-impl_binop!(UDiv, UDiv);
-binop_same_type!(UDiv);
-binop_display_with_flags!(UDiv, "udiv", ("exact" ; exact ; "llvm-17-or-greater"));
+impl From<UDiv> for Instruction {
+    fn from(inst: UDiv) -> Instruction {
+        Instruction::UDiv(inst)
+    }
+}
+
+impl TryFrom<Instruction> for UDiv {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::UDiv(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for UDiv {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsBinaryOp for UDiv {
+    fn get_operand0(&self) -> &Operand {
+        &self.operand0
+    }
+    fn get_operand1(&self) -> &Operand {
+        &self.operand1
+    }
+}
+
+impl From<UDiv> for BinaryOp {
+    fn from(inst: UDiv) -> Self {
+        BinaryOp::UDiv(inst)
+    }
+}
+
+impl TryFrom<BinaryOp> for UDiv {
+    type Error = &'static str;
+    fn try_from(bo: BinaryOp) -> Result<Self, Self::Error> {
+        match bo {
+            BinaryOp::UDiv(i) => Ok(i),
+            _ => Err("BinaryOp is not of requested type"),
+        }
+    }
+}
+impl Typed for UDiv {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        let ty = types.type_of(self.get_operand0());
+        debug_assert_eq!(ty, types.type_of(self.get_operand1()));
+        ty
+    }
+}
+impl Display for UDiv {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = udiv",
+            &self.dest
+        )?;
+
+        write!(
+            f,
+            " {}, {}",
+            &self.operand0, &self.operand1,
+        )?;
+
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct SDiv {
@@ -816,10 +832,75 @@ pub struct SDiv {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(SDiv, SDiv);
-impl_binop!(SDiv, SDiv);
-binop_same_type!(SDiv);
-binop_display_with_flags!(SDiv, "sdiv", ("exact" ; exact ; "llvm-17-or-greater"));
+impl From<SDiv> for Instruction {
+    fn from(inst: SDiv) -> Instruction {
+        Instruction::SDiv(inst)
+    }
+}
+
+impl TryFrom<Instruction> for SDiv {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::SDiv(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for SDiv {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsBinaryOp for SDiv {
+    fn get_operand0(&self) -> &Operand {
+        &self.operand0
+    }
+    fn get_operand1(&self) -> &Operand {
+        &self.operand1
+    }
+}
+
+impl From<SDiv> for BinaryOp {
+    fn from(inst: SDiv) -> Self {
+        BinaryOp::SDiv(inst)
+    }
+}
+
+impl TryFrom<BinaryOp> for SDiv {
+    type Error = &'static str;
+    fn try_from(bo: BinaryOp) -> Result<Self, Self::Error> {
+        match bo {
+            BinaryOp::SDiv(i) => Ok(i),
+            _ => Err("BinaryOp is not of requested type"),
+        }
+    }
+}
+impl Typed for SDiv {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        let ty = types.type_of(self.get_operand0());
+        debug_assert_eq!(ty, types.type_of(self.get_operand1()));
+        ty
+    }
+}
+impl Display for SDiv {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = sdiv",
+            &self.dest
+        )?;
+
+        write!(
+            f,
+            " {}, {}",
+            &self.operand0, &self.operand1,
+        )?;
+
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct URem {
@@ -829,10 +910,68 @@ pub struct URem {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(URem, URem);
-impl_binop!(URem, URem);
-binop_same_type!(URem);
-binop_display!(URem, "urem");
+impl From<URem> for Instruction {
+    fn from(inst: URem) -> Instruction {
+        Instruction::URem(inst)
+    }
+}
+
+impl TryFrom<Instruction> for URem {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::URem(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for URem {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsBinaryOp for URem {
+    fn get_operand0(&self) -> &Operand {
+        &self.operand0
+    }
+    fn get_operand1(&self) -> &Operand {
+        &self.operand1
+    }
+}
+
+impl From<URem> for BinaryOp {
+    fn from(inst: URem) -> Self {
+        BinaryOp::URem(inst)
+    }
+}
+
+impl TryFrom<BinaryOp> for URem {
+    type Error = &'static str;
+    fn try_from(bo: BinaryOp) -> Result<Self, Self::Error> {
+        match bo {
+            BinaryOp::URem(i) => Ok(i),
+            _ => Err("BinaryOp is not of requested type"),
+        }
+    }
+}
+impl Typed for URem {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        let ty = types.type_of(self.get_operand0());
+        debug_assert_eq!(ty, types.type_of(self.get_operand1()));
+        ty
+    }
+}
+impl Display for URem {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = {} {}, {}",
+            &self.dest, "urem", &self.operand0, &self.operand1,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct SRem {
@@ -842,10 +981,68 @@ pub struct SRem {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(SRem, SRem);
-impl_binop!(SRem, SRem);
-binop_same_type!(SRem);
-binop_display!(SRem, "srem");
+impl From<SRem> for Instruction {
+    fn from(inst: SRem) -> Instruction {
+        Instruction::SRem(inst)
+    }
+}
+
+impl TryFrom<Instruction> for SRem {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::SRem(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for SRem {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsBinaryOp for SRem {
+    fn get_operand0(&self) -> &Operand {
+        &self.operand0
+    }
+    fn get_operand1(&self) -> &Operand {
+        &self.operand1
+    }
+}
+
+impl From<SRem> for BinaryOp {
+    fn from(inst: SRem) -> Self {
+        BinaryOp::SRem(inst)
+    }
+}
+
+impl TryFrom<BinaryOp> for SRem {
+    type Error = &'static str;
+    fn try_from(bo: BinaryOp) -> Result<Self, Self::Error> {
+        match bo {
+            BinaryOp::SRem(i) => Ok(i),
+            _ => Err("BinaryOp is not of requested type"),
+        }
+    }
+}
+impl Typed for SRem {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        let ty = types.type_of(self.get_operand0());
+        debug_assert_eq!(ty, types.type_of(self.get_operand1()));
+        ty
+    }
+}
+impl Display for SRem {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = {} {}, {}",
+            &self.dest, "srem", &self.operand0, &self.operand1,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct And {
@@ -855,10 +1052,68 @@ pub struct And {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(And, And);
-impl_binop!(And, And);
-binop_same_type!(And);
-binop_display!(And, "and");
+impl From<And> for Instruction {
+    fn from(inst: And) -> Instruction {
+        Instruction::And(inst)
+    }
+}
+
+impl TryFrom<Instruction> for And {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::And(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for And {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsBinaryOp for And {
+    fn get_operand0(&self) -> &Operand {
+        &self.operand0
+    }
+    fn get_operand1(&self) -> &Operand {
+        &self.operand1
+    }
+}
+
+impl From<And> for BinaryOp {
+    fn from(inst: And) -> Self {
+        BinaryOp::And(inst)
+    }
+}
+
+impl TryFrom<BinaryOp> for And {
+    type Error = &'static str;
+    fn try_from(bo: BinaryOp) -> Result<Self, Self::Error> {
+        match bo {
+            BinaryOp::And(i) => Ok(i),
+            _ => Err("BinaryOp is not of requested type"),
+        }
+    }
+}
+impl Typed for And {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        let ty = types.type_of(self.get_operand0());
+        debug_assert_eq!(ty, types.type_of(self.get_operand1()));
+        ty
+    }
+}
+impl Display for And {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = {} {}, {}",
+            &self.dest, "and", &self.operand0, &self.operand1,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Or {
@@ -869,10 +1124,75 @@ pub struct Or {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(Or, Or);
-impl_binop!(Or, Or);
-binop_same_type!(Or);
-binop_display_with_flags!(Or, "or", ("disjoint" ; disjoint ; "llvm-18-or-greater"));
+impl From<Or> for Instruction {
+    fn from(inst: Or) -> Instruction {
+        Instruction::Or(inst)
+    }
+}
+
+impl TryFrom<Instruction> for Or {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::Or(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for Or {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsBinaryOp for Or {
+    fn get_operand0(&self) -> &Operand {
+        &self.operand0
+    }
+    fn get_operand1(&self) -> &Operand {
+        &self.operand1
+    }
+}
+
+impl From<Or> for BinaryOp {
+    fn from(inst: Or) -> Self {
+        BinaryOp::Or(inst)
+    }
+}
+
+impl TryFrom<BinaryOp> for Or {
+    type Error = &'static str;
+    fn try_from(bo: BinaryOp) -> Result<Self, Self::Error> {
+        match bo {
+            BinaryOp::Or(i) => Ok(i),
+            _ => Err("BinaryOp is not of requested type"),
+        }
+    }
+}
+impl Typed for Or {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        let ty = types.type_of(self.get_operand0());
+        debug_assert_eq!(ty, types.type_of(self.get_operand1()));
+        ty
+    }
+}
+impl Display for Or {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = or",
+            &self.dest
+        )?;
+
+        write!(
+            f,
+            " {}, {}",
+            &self.operand0, &self.operand1,
+        )?;
+
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Xor {
@@ -882,10 +1202,68 @@ pub struct Xor {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(Xor, Xor);
-impl_binop!(Xor, Xor);
-binop_same_type!(Xor);
-binop_display!(Xor, "xor");
+impl From<Xor> for Instruction {
+    fn from(inst: Xor) -> Instruction {
+        Instruction::Xor(inst)
+    }
+}
+
+impl TryFrom<Instruction> for Xor {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::Xor(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for Xor {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsBinaryOp for Xor {
+    fn get_operand0(&self) -> &Operand {
+        &self.operand0
+    }
+    fn get_operand1(&self) -> &Operand {
+        &self.operand1
+    }
+}
+
+impl From<Xor> for BinaryOp {
+    fn from(inst: Xor) -> Self {
+        BinaryOp::Xor(inst)
+    }
+}
+
+impl TryFrom<BinaryOp> for Xor {
+    type Error = &'static str;
+    fn try_from(bo: BinaryOp) -> Result<Self, Self::Error> {
+        match bo {
+            BinaryOp::Xor(i) => Ok(i),
+            _ => Err("BinaryOp is not of requested type"),
+        }
+    }
+}
+impl Typed for Xor {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        let ty = types.type_of(self.get_operand0());
+        debug_assert_eq!(ty, types.type_of(self.get_operand1()));
+        ty
+    }
+}
+impl Display for Xor {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = {} {}, {}",
+            &self.dest, "xor", &self.operand0, &self.operand1,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Shl {
@@ -897,10 +1275,73 @@ pub struct Shl {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(Shl, Shl);
-impl_binop!(Shl, Shl);
-binop_left_type!(Shl);
-binop_display_with_flags!(Shl, "shl", ("nuw" ; nuw ; "llvm-17-or-greater", "nsw" ; nsw ; "llvm-17-or-greater"));
+impl From<Shl> for Instruction {
+    fn from(inst: Shl) -> Instruction {
+        Instruction::Shl(inst)
+    }
+}
+
+impl TryFrom<Instruction> for Shl {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::Shl(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for Shl {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsBinaryOp for Shl {
+    fn get_operand0(&self) -> &Operand {
+        &self.operand0
+    }
+    fn get_operand1(&self) -> &Operand {
+        &self.operand1
+    }
+}
+
+impl From<Shl> for BinaryOp {
+    fn from(inst: Shl) -> Self {
+        BinaryOp::Shl(inst)
+    }
+}
+
+impl TryFrom<BinaryOp> for Shl {
+    type Error = &'static str;
+    fn try_from(bo: BinaryOp) -> Result<Self, Self::Error> {
+        match bo {
+            BinaryOp::Shl(i) => Ok(i),
+            _ => Err("BinaryOp is not of requested type"),
+        }
+    }
+}
+impl Typed for Shl {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        types.type_of(self.get_operand0())
+    }
+}
+impl Display for Shl {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = shl",
+            &self.dest
+        )?;
+
+        write!(
+            f,
+            " {}, {}",
+            &self.operand0, &self.operand1,
+        )?;
+
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct LShr {
@@ -911,10 +1352,73 @@ pub struct LShr {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(LShr, LShr);
-impl_binop!(LShr, LShr);
-binop_left_type!(LShr);
-binop_display_with_flags!(LShr, "lshr", ("exact" ; exact ; "llvm-17-or-greater"));
+impl From<LShr> for Instruction {
+    fn from(inst: LShr) -> Instruction {
+        Instruction::LShr(inst)
+    }
+}
+
+impl TryFrom<Instruction> for LShr {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::LShr(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for LShr {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsBinaryOp for LShr {
+    fn get_operand0(&self) -> &Operand {
+        &self.operand0
+    }
+    fn get_operand1(&self) -> &Operand {
+        &self.operand1
+    }
+}
+
+impl From<LShr> for BinaryOp {
+    fn from(inst: LShr) -> Self {
+        BinaryOp::LShr(inst)
+    }
+}
+
+impl TryFrom<BinaryOp> for LShr {
+    type Error = &'static str;
+    fn try_from(bo: BinaryOp) -> Result<Self, Self::Error> {
+        match bo {
+            BinaryOp::LShr(i) => Ok(i),
+            _ => Err("BinaryOp is not of requested type"),
+        }
+    }
+}
+impl Typed for LShr {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        types.type_of(self.get_operand0())
+    }
+}
+impl Display for LShr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = lshr",
+            &self.dest
+        )?;
+
+        write!(
+            f,
+            " {}, {}",
+            &self.operand0, &self.operand1,
+        )?;
+
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct AShr {
@@ -925,10 +1429,73 @@ pub struct AShr {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(AShr, AShr);
-impl_binop!(AShr, AShr);
-binop_left_type!(AShr);
-binop_display_with_flags!(AShr, "ashr", ("exact" ; exact ; "llvm-17-or-greater"));
+impl From<AShr> for Instruction {
+    fn from(inst: AShr) -> Instruction {
+        Instruction::AShr(inst)
+    }
+}
+
+impl TryFrom<Instruction> for AShr {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::AShr(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for AShr {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsBinaryOp for AShr {
+    fn get_operand0(&self) -> &Operand {
+        &self.operand0
+    }
+    fn get_operand1(&self) -> &Operand {
+        &self.operand1
+    }
+}
+
+impl From<AShr> for BinaryOp {
+    fn from(inst: AShr) -> Self {
+        BinaryOp::AShr(inst)
+    }
+}
+
+impl TryFrom<BinaryOp> for AShr {
+    type Error = &'static str;
+    fn try_from(bo: BinaryOp) -> Result<Self, Self::Error> {
+        match bo {
+            BinaryOp::AShr(i) => Ok(i),
+            _ => Err("BinaryOp is not of requested type"),
+        }
+    }
+}
+impl Typed for AShr {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        types.type_of(self.get_operand0())
+    }
+}
+impl Display for AShr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = ashr",
+            &self.dest
+        )?;
+
+        write!(
+            f,
+            " {}, {}",
+            &self.operand0, &self.operand1,
+        )?;
+
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FAdd {
@@ -938,10 +1505,68 @@ pub struct FAdd {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(FAdd, FAdd);
-impl_binop!(FAdd, FAdd);
-binop_same_type!(FAdd);
-binop_display!(FAdd, "fadd");
+impl From<FAdd> for Instruction {
+    fn from(inst: FAdd) -> Instruction {
+        Instruction::FAdd(inst)
+    }
+}
+
+impl TryFrom<Instruction> for FAdd {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::FAdd(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for FAdd {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsBinaryOp for FAdd {
+    fn get_operand0(&self) -> &Operand {
+        &self.operand0
+    }
+    fn get_operand1(&self) -> &Operand {
+        &self.operand1
+    }
+}
+
+impl From<FAdd> for BinaryOp {
+    fn from(inst: FAdd) -> Self {
+        BinaryOp::FAdd(inst)
+    }
+}
+
+impl TryFrom<BinaryOp> for FAdd {
+    type Error = &'static str;
+    fn try_from(bo: BinaryOp) -> Result<Self, Self::Error> {
+        match bo {
+            BinaryOp::FAdd(i) => Ok(i),
+            _ => Err("BinaryOp is not of requested type"),
+        }
+    }
+}
+impl Typed for FAdd {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        let ty = types.type_of(self.get_operand0());
+        debug_assert_eq!(ty, types.type_of(self.get_operand1()));
+        ty
+    }
+}
+impl Display for FAdd {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = {} {}, {}",
+            &self.dest, "fadd", &self.operand0, &self.operand1,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FSub {
@@ -951,10 +1576,68 @@ pub struct FSub {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(FSub, FSub);
-impl_binop!(FSub, FSub);
-binop_same_type!(FSub);
-binop_display!(FSub, "fsub");
+impl From<FSub> for Instruction {
+    fn from(inst: FSub) -> Instruction {
+        Instruction::FSub(inst)
+    }
+}
+
+impl TryFrom<Instruction> for FSub {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::FSub(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for FSub {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsBinaryOp for FSub {
+    fn get_operand0(&self) -> &Operand {
+        &self.operand0
+    }
+    fn get_operand1(&self) -> &Operand {
+        &self.operand1
+    }
+}
+
+impl From<FSub> for BinaryOp {
+    fn from(inst: FSub) -> Self {
+        BinaryOp::FSub(inst)
+    }
+}
+
+impl TryFrom<BinaryOp> for FSub {
+    type Error = &'static str;
+    fn try_from(bo: BinaryOp) -> Result<Self, Self::Error> {
+        match bo {
+            BinaryOp::FSub(i) => Ok(i),
+            _ => Err("BinaryOp is not of requested type"),
+        }
+    }
+}
+impl Typed for FSub {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        let ty = types.type_of(self.get_operand0());
+        debug_assert_eq!(ty, types.type_of(self.get_operand1()));
+        ty
+    }
+}
+impl Display for FSub {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = {} {}, {}",
+            &self.dest, "fsub", &self.operand0, &self.operand1,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FMul {
@@ -964,10 +1647,68 @@ pub struct FMul {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(FMul, FMul);
-impl_binop!(FMul, FMul);
-binop_same_type!(FMul);
-binop_display!(FMul, "fmul");
+impl From<FMul> for Instruction {
+    fn from(inst: FMul) -> Instruction {
+        Instruction::FMul(inst)
+    }
+}
+
+impl TryFrom<Instruction> for FMul {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::FMul(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for FMul {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsBinaryOp for FMul {
+    fn get_operand0(&self) -> &Operand {
+        &self.operand0
+    }
+    fn get_operand1(&self) -> &Operand {
+        &self.operand1
+    }
+}
+
+impl From<FMul> for BinaryOp {
+    fn from(inst: FMul) -> Self {
+        BinaryOp::FMul(inst)
+    }
+}
+
+impl TryFrom<BinaryOp> for FMul {
+    type Error = &'static str;
+    fn try_from(bo: BinaryOp) -> Result<Self, Self::Error> {
+        match bo {
+            BinaryOp::FMul(i) => Ok(i),
+            _ => Err("BinaryOp is not of requested type"),
+        }
+    }
+}
+impl Typed for FMul {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        let ty = types.type_of(self.get_operand0());
+        debug_assert_eq!(ty, types.type_of(self.get_operand1()));
+        ty
+    }
+}
+impl Display for FMul {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = {} {}, {}",
+            &self.dest, "fmul", &self.operand0, &self.operand1,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FDiv {
@@ -977,10 +1718,68 @@ pub struct FDiv {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(FDiv, FDiv);
-impl_binop!(FDiv, FDiv);
-binop_same_type!(FDiv);
-binop_display!(FDiv, "fdiv");
+impl From<FDiv> for Instruction {
+    fn from(inst: FDiv) -> Instruction {
+        Instruction::FDiv(inst)
+    }
+}
+
+impl TryFrom<Instruction> for FDiv {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::FDiv(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for FDiv {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsBinaryOp for FDiv {
+    fn get_operand0(&self) -> &Operand {
+        &self.operand0
+    }
+    fn get_operand1(&self) -> &Operand {
+        &self.operand1
+    }
+}
+
+impl From<FDiv> for BinaryOp {
+    fn from(inst: FDiv) -> Self {
+        BinaryOp::FDiv(inst)
+    }
+}
+
+impl TryFrom<BinaryOp> for FDiv {
+    type Error = &'static str;
+    fn try_from(bo: BinaryOp) -> Result<Self, Self::Error> {
+        match bo {
+            BinaryOp::FDiv(i) => Ok(i),
+            _ => Err("BinaryOp is not of requested type"),
+        }
+    }
+}
+impl Typed for FDiv {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        let ty = types.type_of(self.get_operand0());
+        debug_assert_eq!(ty, types.type_of(self.get_operand1()));
+        ty
+    }
+}
+impl Display for FDiv {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = {} {}, {}",
+            &self.dest, "fdiv", &self.operand0, &self.operand1,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FRem {
@@ -990,10 +1789,68 @@ pub struct FRem {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(FRem, FRem);
-impl_binop!(FRem, FRem);
-binop_same_type!(FRem);
-binop_display!(FRem, "frem");
+impl From<FRem> for Instruction {
+    fn from(inst: FRem) -> Instruction {
+        Instruction::FRem(inst)
+    }
+}
+
+impl TryFrom<Instruction> for FRem {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::FRem(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for FRem {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsBinaryOp for FRem {
+    fn get_operand0(&self) -> &Operand {
+        &self.operand0
+    }
+    fn get_operand1(&self) -> &Operand {
+        &self.operand1
+    }
+}
+
+impl From<FRem> for BinaryOp {
+    fn from(inst: FRem) -> Self {
+        BinaryOp::FRem(inst)
+    }
+}
+
+impl TryFrom<BinaryOp> for FRem {
+    type Error = &'static str;
+    fn try_from(bo: BinaryOp) -> Result<Self, Self::Error> {
+        match bo {
+            BinaryOp::FRem(i) => Ok(i),
+            _ => Err("BinaryOp is not of requested type"),
+        }
+    }
+}
+impl Typed for FRem {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        let ty = types.type_of(self.get_operand0());
+        debug_assert_eq!(ty, types.type_of(self.get_operand1()));
+        ty
+    }
+}
+impl Display for FRem {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = {} {}, {}",
+            &self.dest, "frem", &self.operand0, &self.operand1,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FNeg {
@@ -1002,8 +1859,45 @@ pub struct FNeg {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(FNeg, FNeg);
-unop_same_type!(FNeg, "fneg");
+impl From<FNeg> for Instruction {
+    fn from(inst: FNeg) -> Instruction {
+        Instruction::FNeg(inst)
+    }
+}
+
+impl TryFrom<Instruction> for FNeg {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::FNeg(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for FNeg {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsUnaryOp for FNeg {
+    fn get_operand(&self) -> &Operand {
+        &self.operand
+    }
+}
+
+impl Typed for FNeg {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        types.type_of(self.get_operand())
+    }
+}
+
+impl Display for FNeg {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} = fneg {}", &self.dest, &self.operand)?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct ExtractElement {
@@ -1013,8 +1907,26 @@ pub struct ExtractElement {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(ExtractElement, ExtractElement);
-impl_hasresult!(ExtractElement);
+impl From<ExtractElement> for Instruction {
+    fn from(inst: ExtractElement) -> Instruction {
+        Instruction::ExtractElement(inst)
+    }
+}
+
+impl TryFrom<Instruction> for ExtractElement {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::ExtractElement(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for ExtractElement {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
 
 impl Typed for ExtractElement {
     fn get_type(&self, types: &Types) -> TypeRef {
@@ -1051,8 +1963,26 @@ pub struct InsertElement {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(InsertElement, InsertElement);
-impl_hasresult!(InsertElement);
+impl From<InsertElement> for Instruction {
+    fn from(inst: InsertElement) -> Instruction {
+        Instruction::InsertElement(inst)
+    }
+}
+
+impl TryFrom<Instruction> for InsertElement {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::InsertElement(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for InsertElement {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
 
 impl Typed for InsertElement {
     fn get_type(&self, types: &Types) -> TypeRef {
@@ -1083,8 +2013,26 @@ pub struct ShuffleVector {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(ShuffleVector, ShuffleVector);
-impl_hasresult!(ShuffleVector);
+impl From<ShuffleVector> for Instruction {
+    fn from(inst: ShuffleVector) -> Instruction {
+        Instruction::ShuffleVector(inst)
+    }
+}
+
+impl TryFrom<Instruction> for ShuffleVector {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::ShuffleVector(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for ShuffleVector {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
 
 impl Typed for ShuffleVector {
     fn get_type(&self, types: &Types) -> TypeRef {
@@ -1132,8 +2080,26 @@ pub struct ExtractValue {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(ExtractValue, ExtractValue);
-impl_hasresult!(ExtractValue);
+impl From<ExtractValue> for Instruction {
+    fn from(inst: ExtractValue) -> Instruction {
+        Instruction::ExtractValue(inst)
+    }
+}
+
+impl TryFrom<Instruction> for ExtractValue {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::ExtractValue(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for ExtractValue {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
 
 impl Typed for ExtractValue {
     fn get_type(&self, types: &Types) -> TypeRef {
@@ -1189,8 +2155,26 @@ pub struct InsertValue {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(InsertValue, InsertValue);
-impl_hasresult!(InsertValue);
+impl From<InsertValue> for Instruction {
+    fn from(inst: InsertValue) -> Instruction {
+        Instruction::InsertValue(inst)
+    }
+}
+
+impl TryFrom<Instruction> for InsertValue {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::InsertValue(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for InsertValue {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
 
 impl Typed for InsertValue {
     fn get_type(&self, types: &Types) -> TypeRef {
@@ -1227,8 +2211,26 @@ pub struct Alloca {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(Alloca, Alloca);
-impl_hasresult!(Alloca);
+impl From<Alloca> for Instruction {
+    fn from(inst: Alloca) -> Instruction {
+        Instruction::Alloca(inst)
+    }
+}
+
+impl TryFrom<Instruction> for Alloca {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::Alloca(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for Alloca {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
 
 impl Typed for Alloca {
     fn get_type(&self, types: &Types) -> TypeRef {
@@ -1262,8 +2264,26 @@ pub struct Load {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(Load, Load);
-impl_hasresult!(Load);
+impl From<Load> for Instruction {
+    fn from(inst: Load) -> Instruction {
+        Instruction::Load(inst)
+    }
+}
+
+impl TryFrom<Instruction> for Load {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::Load(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for Load {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
 
 impl Typed for Load {
     fn get_type(&self, _types: &Types) -> TypeRef {
@@ -1305,8 +2325,26 @@ pub struct Store {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(Store, Store);
-void_typed!(Store);
+impl From<Store> for Instruction {
+    fn from(inst: Store) -> Instruction {
+        Instruction::Store(inst)
+    }
+}
+
+impl TryFrom<Instruction> for Store {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::Store(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl Typed for Store {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        types.void()
+    }
+}
 
 impl Display for Store {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -1335,8 +2373,26 @@ pub struct Fence {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(Fence, Fence);
-void_typed!(Fence);
+impl From<Fence> for Instruction {
+    fn from(inst: Fence) -> Instruction {
+        Instruction::Fence(inst)
+    }
+}
+
+impl TryFrom<Instruction> for Fence {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::Fence(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl Typed for Fence {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        types.void()
+    }
+}
 
 impl Display for Fence {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -1361,8 +2417,26 @@ pub struct CmpXchg {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(CmpXchg, CmpXchg);
-impl_hasresult!(CmpXchg);
+impl From<CmpXchg> for Instruction {
+    fn from(inst: CmpXchg) -> Instruction {
+        Instruction::CmpXchg(inst)
+    }
+}
+
+impl TryFrom<Instruction> for CmpXchg {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::CmpXchg(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for CmpXchg {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
 
 impl Typed for CmpXchg {
     fn get_type(&self, types: &Types) -> TypeRef {
@@ -1408,8 +2482,26 @@ pub struct AtomicRMW {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(AtomicRMW, AtomicRMW);
-impl_hasresult!(AtomicRMW);
+impl From<AtomicRMW> for Instruction {
+    fn from(inst: AtomicRMW) -> Instruction {
+        Instruction::AtomicRMW(inst)
+    }
+}
+
+impl TryFrom<Instruction> for AtomicRMW {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::AtomicRMW(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for AtomicRMW {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
 
 impl Typed for AtomicRMW {
     fn get_type(&self, types: &Types) -> TypeRef {
@@ -1442,15 +2534,32 @@ pub struct GetElementPtr {
     pub source_element_type: TypeRef, // --TODO not yet implemented-- pub metadata: InstructionMetadata,
 }
 
-impl_inst!(GetElementPtr, GetElementPtr);
-impl_hasresult!(GetElementPtr);
+impl From<GetElementPtr> for Instruction {
+    fn from(inst: GetElementPtr) -> Instruction {
+        Instruction::GetElementPtr(inst)
+    }
+}
+
+impl TryFrom<Instruction> for GetElementPtr {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::GetElementPtr(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for GetElementPtr {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
 
 impl Typed for GetElementPtr {
     fn get_type(&self, types: &Types) -> TypeRef {
         types.pointer()
     }
 }
-
 
 impl Display for GetElementPtr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -1477,8 +2586,49 @@ pub struct Trunc {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(Trunc, Trunc);
-unop_explicitly_typed!(Trunc, "trunc");
+impl From<Trunc> for Instruction {
+    fn from(inst: Trunc) -> Instruction {
+        Instruction::Trunc(inst)
+    }
+}
+
+impl TryFrom<Instruction> for Trunc {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::Trunc(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for Trunc {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsUnaryOp for Trunc {
+    fn get_operand(&self) -> &Operand {
+        &self.operand
+    }
+}
+
+impl Typed for Trunc {
+    fn get_type(&self, _types: &Types) -> TypeRef {
+        self.to_type.clone()
+    }
+}
+
+impl Display for Trunc {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = trunc {} to {}",
+            &self.dest, &self.operand, &self.to_type,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct ZExt {
@@ -1489,10 +2639,54 @@ pub struct ZExt {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(ZExt, ZExt);
-impl_unop!(ZExt);
-explicitly_typed!(ZExt);
-unop_typed_display_with_flags!(ZExt, "zext", ("nneg" ; nneg ; "llvm-18-or-greater"));
+impl From<ZExt> for Instruction {
+    fn from(inst: ZExt) -> Instruction {
+        Instruction::ZExt(inst)
+    }
+}
+
+impl TryFrom<Instruction> for ZExt {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::ZExt(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for ZExt {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsUnaryOp for ZExt {
+    fn get_operand(&self) -> &Operand {
+        &self.operand
+    }
+}
+impl Typed for ZExt {
+    fn get_type(&self, _types: &Types) -> TypeRef {
+        self.to_type.clone()
+    }
+}
+impl Display for ZExt {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = zext",
+            &self.dest
+        )?;
+
+        write!(
+            f,
+            " {} to {}",
+            &self.operand, &self.to_type
+        )?;
+
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct SExt {
@@ -1502,8 +2696,49 @@ pub struct SExt {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(SExt, SExt);
-unop_explicitly_typed!(SExt, "sext");
+impl From<SExt> for Instruction {
+    fn from(inst: SExt) -> Instruction {
+        Instruction::SExt(inst)
+    }
+}
+
+impl TryFrom<Instruction> for SExt {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::SExt(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for SExt {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsUnaryOp for SExt {
+    fn get_operand(&self) -> &Operand {
+        &self.operand
+    }
+}
+
+impl Typed for SExt {
+    fn get_type(&self, _types: &Types) -> TypeRef {
+        self.to_type.clone()
+    }
+}
+
+impl Display for SExt {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = sext {} to {}",
+            &self.dest, &self.operand, &self.to_type,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FPTrunc {
@@ -1513,8 +2748,49 @@ pub struct FPTrunc {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(FPTrunc, FPTrunc);
-unop_explicitly_typed!(FPTrunc, "fptrunc");
+impl From<FPTrunc> for Instruction {
+    fn from(inst: FPTrunc) -> Instruction {
+        Instruction::FPTrunc(inst)
+    }
+}
+
+impl TryFrom<Instruction> for FPTrunc {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::FPTrunc(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for FPTrunc {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsUnaryOp for FPTrunc {
+    fn get_operand(&self) -> &Operand {
+        &self.operand
+    }
+}
+
+impl Typed for FPTrunc {
+    fn get_type(&self, _types: &Types) -> TypeRef {
+        self.to_type.clone()
+    }
+}
+
+impl Display for FPTrunc {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = fptrunc {} to {}",
+            &self.dest, &self.operand, &self.to_type,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FPExt {
@@ -1524,8 +2800,49 @@ pub struct FPExt {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(FPExt, FPExt);
-unop_explicitly_typed!(FPExt, "fpext");
+impl From<FPExt> for Instruction {
+    fn from(inst: FPExt) -> Instruction {
+        Instruction::FPExt(inst)
+    }
+}
+
+impl TryFrom<Instruction> for FPExt {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::FPExt(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for FPExt {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsUnaryOp for FPExt {
+    fn get_operand(&self) -> &Operand {
+        &self.operand
+    }
+}
+
+impl Typed for FPExt {
+    fn get_type(&self, _types: &Types) -> TypeRef {
+        self.to_type.clone()
+    }
+}
+
+impl Display for FPExt {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = fpext {} to {}",
+            &self.dest, &self.operand, &self.to_type,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FPToUI {
@@ -1535,8 +2852,49 @@ pub struct FPToUI {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(FPToUI, FPToUI);
-unop_explicitly_typed!(FPToUI, "fptoui");
+impl From<FPToUI> for Instruction {
+    fn from(inst: FPToUI) -> Instruction {
+        Instruction::FPToUI(inst)
+    }
+}
+
+impl TryFrom<Instruction> for FPToUI {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::FPToUI(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for FPToUI {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsUnaryOp for FPToUI {
+    fn get_operand(&self) -> &Operand {
+        &self.operand
+    }
+}
+
+impl Typed for FPToUI {
+    fn get_type(&self, _types: &Types) -> TypeRef {
+        self.to_type.clone()
+    }
+}
+
+impl Display for FPToUI {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = fptoui {} to {}",
+            &self.dest, &self.operand, &self.to_type,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FPToSI {
@@ -1546,8 +2904,49 @@ pub struct FPToSI {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(FPToSI, FPToSI);
-unop_explicitly_typed!(FPToSI, "fptosi");
+impl From<FPToSI> for Instruction {
+    fn from(inst: FPToSI) -> Instruction {
+        Instruction::FPToSI(inst)
+    }
+}
+
+impl TryFrom<Instruction> for FPToSI {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::FPToSI(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for FPToSI {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsUnaryOp for FPToSI {
+    fn get_operand(&self) -> &Operand {
+        &self.operand
+    }
+}
+
+impl Typed for FPToSI {
+    fn get_type(&self, _types: &Types) -> TypeRef {
+        self.to_type.clone()
+    }
+}
+
+impl Display for FPToSI {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = fptosi {} to {}",
+            &self.dest, &self.operand, &self.to_type,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct UIToFP {
@@ -1557,8 +2956,49 @@ pub struct UIToFP {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(UIToFP, UIToFP);
-unop_explicitly_typed!(UIToFP, "uitofp");
+impl From<UIToFP> for Instruction {
+    fn from(inst: UIToFP) -> Instruction {
+        Instruction::UIToFP(inst)
+    }
+}
+
+impl TryFrom<Instruction> for UIToFP {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::UIToFP(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for UIToFP {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsUnaryOp for UIToFP {
+    fn get_operand(&self) -> &Operand {
+        &self.operand
+    }
+}
+
+impl Typed for UIToFP {
+    fn get_type(&self, _types: &Types) -> TypeRef {
+        self.to_type.clone()
+    }
+}
+
+impl Display for UIToFP {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = uitofp {} to {}",
+            &self.dest, &self.operand, &self.to_type,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct SIToFP {
@@ -1568,8 +3008,49 @@ pub struct SIToFP {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(SIToFP, SIToFP);
-unop_explicitly_typed!(SIToFP, "sitofp");
+impl From<SIToFP> for Instruction {
+    fn from(inst: SIToFP) -> Instruction {
+        Instruction::SIToFP(inst)
+    }
+}
+
+impl TryFrom<Instruction> for SIToFP {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::SIToFP(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for SIToFP {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsUnaryOp for SIToFP {
+    fn get_operand(&self) -> &Operand {
+        &self.operand
+    }
+}
+
+impl Typed for SIToFP {
+    fn get_type(&self, _types: &Types) -> TypeRef {
+        self.to_type.clone()
+    }
+}
+
+impl Display for SIToFP {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = sitofp {} to {}",
+            &self.dest, &self.operand, &self.to_type,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct PtrToInt {
@@ -1579,8 +3060,49 @@ pub struct PtrToInt {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(PtrToInt, PtrToInt);
-unop_explicitly_typed!(PtrToInt, "ptrtoint");
+impl From<PtrToInt> for Instruction {
+    fn from(inst: PtrToInt) -> Instruction {
+        Instruction::PtrToInt(inst)
+    }
+}
+
+impl TryFrom<Instruction> for PtrToInt {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::PtrToInt(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for PtrToInt {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsUnaryOp for PtrToInt {
+    fn get_operand(&self) -> &Operand {
+        &self.operand
+    }
+}
+
+impl Typed for PtrToInt {
+    fn get_type(&self, _types: &Types) -> TypeRef {
+        self.to_type.clone()
+    }
+}
+
+impl Display for PtrToInt {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = ptrtoint {} to {}",
+            &self.dest, &self.operand, &self.to_type,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct IntToPtr {
@@ -1590,8 +3112,49 @@ pub struct IntToPtr {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(IntToPtr, IntToPtr);
-unop_explicitly_typed!(IntToPtr, "inttoptr");
+impl From<IntToPtr> for Instruction {
+    fn from(inst: IntToPtr) -> Instruction {
+        Instruction::IntToPtr(inst)
+    }
+}
+
+impl TryFrom<Instruction> for IntToPtr {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::IntToPtr(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for IntToPtr {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsUnaryOp for IntToPtr {
+    fn get_operand(&self) -> &Operand {
+        &self.operand
+    }
+}
+
+impl Typed for IntToPtr {
+    fn get_type(&self, _types: &Types) -> TypeRef {
+        self.to_type.clone()
+    }
+}
+
+impl Display for IntToPtr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = inttoptr {} to {}",
+            &self.dest, &self.operand, &self.to_type,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct BitCast {
@@ -1601,8 +3164,49 @@ pub struct BitCast {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(BitCast, BitCast);
-unop_explicitly_typed!(BitCast, "bitcast");
+impl From<BitCast> for Instruction {
+    fn from(inst: BitCast) -> Instruction {
+        Instruction::BitCast(inst)
+    }
+}
+
+impl TryFrom<Instruction> for BitCast {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::BitCast(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for BitCast {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsUnaryOp for BitCast {
+    fn get_operand(&self) -> &Operand {
+        &self.operand
+    }
+}
+
+impl Typed for BitCast {
+    fn get_type(&self, _types: &Types) -> TypeRef {
+        self.to_type.clone()
+    }
+}
+
+impl Display for BitCast {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = bitcast {} to {}",
+            &self.dest, &self.operand, &self.to_type,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct AddrSpaceCast {
@@ -1612,8 +3216,49 @@ pub struct AddrSpaceCast {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(AddrSpaceCast, AddrSpaceCast);
-unop_explicitly_typed!(AddrSpaceCast, "addrspacecast");
+impl From<AddrSpaceCast> for Instruction {
+    fn from(inst: AddrSpaceCast) -> Instruction {
+        Instruction::AddrSpaceCast(inst)
+    }
+}
+
+impl TryFrom<Instruction> for AddrSpaceCast {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::AddrSpaceCast(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for AddrSpaceCast {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsUnaryOp for AddrSpaceCast {
+    fn get_operand(&self) -> &Operand {
+        &self.operand
+    }
+}
+
+impl Typed for AddrSpaceCast {
+    fn get_type(&self, _types: &Types) -> TypeRef {
+        self.to_type.clone()
+    }
+}
+
+impl Display for AddrSpaceCast {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} = addrspacecast {} to {}",
+            &self.dest, &self.operand, &self.to_type,
+        )?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct ICmp {
@@ -1624,8 +3269,26 @@ pub struct ICmp {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(ICmp, ICmp);
-impl_hasresult!(ICmp);
+impl From<ICmp> for Instruction {
+    fn from(inst: ICmp) -> Instruction {
+        Instruction::ICmp(inst)
+    }
+}
+
+impl TryFrom<Instruction> for ICmp {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::ICmp(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for ICmp {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
 
 impl Typed for ICmp {
     fn get_type(&self, types: &Types) -> TypeRef {
@@ -1665,8 +3328,26 @@ pub struct FCmp {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(FCmp, FCmp);
-impl_hasresult!(FCmp);
+impl From<FCmp> for Instruction {
+    fn from(inst: FCmp) -> Instruction {
+        Instruction::FCmp(inst)
+    }
+}
+
+impl TryFrom<Instruction> for FCmp {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::FCmp(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for FCmp {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
 
 impl Typed for FCmp {
     fn get_type(&self, types: &Types) -> TypeRef {
@@ -1705,9 +3386,31 @@ pub struct Phi {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(Phi, Phi);
-impl_hasresult!(Phi);
-explicitly_typed!(Phi);
+impl From<Phi> for Instruction {
+    fn from(inst: Phi) -> Instruction {
+        Instruction::Phi(inst)
+    }
+}
+
+impl TryFrom<Instruction> for Phi {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::Phi(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for Phi {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+impl Typed for Phi {
+    fn get_type(&self, _types: &Types) -> TypeRef {
+        self.to_type.clone()
+    }
+}
 
 impl Display for Phi {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -1739,8 +3442,26 @@ pub struct Select {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(Select, Select);
-impl_hasresult!(Select);
+impl From<Select> for Instruction {
+    fn from(inst: Select) -> Instruction {
+        Instruction::Select(inst)
+    }
+}
+
+impl TryFrom<Instruction> for Select {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::Select(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for Select {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
 
 impl Typed for Select {
     fn get_type(&self, types: &Types) -> TypeRef {
@@ -1771,8 +3492,45 @@ pub struct Freeze {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(Freeze, Freeze);
-unop_same_type!(Freeze, "freeze");
+impl From<Freeze> for Instruction {
+    fn from(inst: Freeze) -> Instruction {
+        Instruction::Freeze(inst)
+    }
+}
+
+impl TryFrom<Instruction> for Freeze {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::Freeze(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for Freeze {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
+
+impl IsUnaryOp for Freeze {
+    fn get_operand(&self) -> &Operand {
+        &self.operand
+    }
+}
+
+impl Typed for Freeze {
+    fn get_type(&self, types: &Types) -> TypeRef {
+        types.type_of(self.get_operand())
+    }
+}
+
+impl Display for Freeze {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} = freeze {}", &self.dest, &self.operand)?;
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Call {
@@ -1787,7 +3545,21 @@ pub struct Call {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(Call, Call);
+impl From<Call> for Instruction {
+    fn from(inst: Call) -> Instruction {
+        Instruction::Call(inst)
+    }
+}
+
+impl TryFrom<Instruction> for Call {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::Call(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
 
 impl Typed for Call {
     fn get_type(&self, _types: &Types) -> TypeRef {
@@ -1837,8 +3609,26 @@ pub struct VAArg {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(VAArg, VAArg);
-impl_hasresult!(VAArg);
+impl From<VAArg> for Instruction {
+    fn from(inst: VAArg) -> Instruction {
+        Instruction::VAArg(inst)
+    }
+}
+
+impl TryFrom<Instruction> for VAArg {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::VAArg(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for VAArg {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
 
 impl Typed for VAArg {
     fn get_type(&self, _types: &Types) -> TypeRef {
@@ -1869,8 +3659,26 @@ pub struct LandingPad {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(LandingPad, LandingPad);
-impl_hasresult!(LandingPad);
+impl From<LandingPad> for Instruction {
+    fn from(inst: LandingPad) -> Instruction {
+        Instruction::LandingPad(inst)
+    }
+}
+
+impl TryFrom<Instruction> for LandingPad {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::LandingPad(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for LandingPad {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
 
 impl Typed for LandingPad {
     fn get_type(&self, _types: &Types) -> TypeRef {
@@ -1899,8 +3707,26 @@ pub struct CatchPad {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(CatchPad, CatchPad);
-impl_hasresult!(CatchPad);
+impl From<CatchPad> for Instruction {
+    fn from(inst: CatchPad) -> Instruction {
+        Instruction::CatchPad(inst)
+    }
+}
+
+impl TryFrom<Instruction> for CatchPad {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::CatchPad(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for CatchPad {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
 
 impl Typed for CatchPad {
     fn get_type(&self, types: &Types) -> TypeRef {
@@ -1938,8 +3764,26 @@ pub struct CleanupPad {
     // pub debugloc: Option<DebugLoc>,
 }
 
-impl_inst!(CleanupPad, CleanupPad);
-impl_hasresult!(CleanupPad);
+impl From<CleanupPad> for Instruction {
+    fn from(inst: CleanupPad) -> Instruction {
+        Instruction::CleanupPad(inst)
+    }
+}
+
+impl TryFrom<Instruction> for CleanupPad {
+    type Error = &'static str;
+    fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
+        match inst {
+            Instruction::CleanupPad(inst) => Ok(inst),
+            _ => Err("Instruction is not of requested type"),
+        }
+    }
+}
+impl HasResult for CleanupPad {
+    fn get_result(&self) -> &Name {
+        &self.dest
+    }
+}
 
 impl Typed for CleanupPad {
     fn get_type(&self, types: &Types) -> TypeRef {

@@ -2,12 +2,14 @@ use crate::llvm_ir::constant::ConstantRef;
 // use crate::llvm_ir::debugloc::*;
 use crate::llvm_ir::function::{Function, FunctionAttribute, FunctionDeclaration, GroupID};
 use crate::llvm_ir::name::Name;
+use crate::llvm_ir::show::Show;
 use crate::llvm_ir::types::{FPType, LLVMType, TypeRef, Typed, Types};
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::fmt::{self, Display};
 use std::io::Error;
 use std::path::PathBuf;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Module {
     pub name: String,
     pub source_file_name: String,
@@ -50,9 +52,9 @@ impl Module {
             .iter()
             .find(|global| global.name == *name)
     }
-    
+
     pub fn to_string(&self) -> String {
-        todo!()
+        self.show(&self.types)
     }
     
     pub fn print_to_file(&self, output: &PathBuf) -> Result<(), Error> {
@@ -79,10 +81,10 @@ pub struct GlobalVariable {
     pub unnamed_addr: Option<UnnamedAddr>,
     pub initializer: Option<ConstantRef>,
     pub section: Option<String>,
-    pub comdat: Option<Comdat>, // llvm-hs-pure has Option<String> for some reason
+    pub comdat: Option<Comdat>,
     pub alignment: u32,
     // pub debugloc: Option<DebugLoc>,
-    pub value_type: TypeRef, // --TODO not yet implemented-- pub metadata: Vec<(String, MetadataRef<MetadataNode>)>,
+    pub value_type: TypeRef,
 }
 
 impl Typed for GlobalVariable {
@@ -96,6 +98,53 @@ impl Typed for GlobalVariable {
 //         &self.debugloc
 //     }
 // }
+
+impl Display for GlobalVariable {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "@{} = ", self.name)?;
+        if self.linkage != Linkage::External {
+            write!(f, "{} ", self.linkage)?;
+        }
+        if self.visibility != Visibility::Default {
+            write!(f, "{} ", self.visibility)?;
+        }
+        if self.dll_storage_class != DLLStorageClass::Default {
+            write!(f, "{} ", self.dll_storage_class)?;
+        }
+        if self.thread_local_mode != ThreadLocalMode::NotThreadLocal {
+            write!(f, "{} ", self.thread_local_mode)?;
+        }
+        if let Some(ref unnamed_addr) = self.unnamed_addr {
+            write!(f, "{} ", unnamed_addr)?;
+        }
+        if self.addr_space != 0 {
+            write!(f, "addrspace({}) ", self.addr_space)?;
+        }
+        write!(
+            f,
+            "{} ",
+            if self.is_constant {
+                "constant"
+            } else {
+                "global"
+            }
+        )?;
+        write!(f, "{}", self.ty)?;
+        if let Some(ref init) = self.initializer {
+            write!(f, " {}", init)?;
+        }
+        if let Some(ref section) = self.section {
+            write!(f, ", section \"{}\"", section)?;
+        }
+        if let Some(ref comdat) = self.comdat {
+            write!(f, ", {}", comdat)?;
+        }
+        if self.alignment > 0 {
+            write!(f, ", align {}", self.alignment)?;
+        }
+        Ok(())
+    }
+}
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct GlobalAlias {
@@ -116,6 +165,32 @@ impl Typed for GlobalAlias {
     }
 }
 
+impl Display for GlobalAlias {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "@{} = ", self.name)?;
+        if self.linkage != Linkage::External {
+            write!(f, "{} ", self.linkage)?;
+        }
+        if self.visibility != Visibility::Default {
+            write!(f, "{} ", self.visibility)?;
+        }
+        if self.dll_storage_class != DLLStorageClass::Default {
+            write!(f, "{} ", self.dll_storage_class)?;
+        }
+        if self.thread_local_mode != ThreadLocalMode::NotThreadLocal {
+            write!(f, "{} ", self.thread_local_mode)?;
+        }
+        if let Some(ref unnamed_addr) = self.unnamed_addr {
+            write!(f, "{} ", unnamed_addr)?;
+        }
+        write!(f, "alias {}", self.ty)?;
+        if self.addr_space != 0 {
+            write!(f, ", addrspace({})", self.addr_space)?;
+        }
+        write!(f, ", {}", self.aliasee)
+    }
+}
+
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct GlobalIFunc {
     pub name: Name,
@@ -131,10 +206,32 @@ impl Typed for GlobalIFunc {
     }
 }
 
+impl Display for GlobalIFunc {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "@{} = ", self.name)?;
+        if self.linkage != Linkage::External {
+            write!(f, "{} ", self.linkage)?;
+        }
+        if self.visibility != Visibility::Default {
+            write!(f, "{} ", self.visibility)?;
+        }
+        write!(f, "ifunc {}, {}", self.ty, self.resolver_fn)
+    }
+}
+
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
 pub enum UnnamedAddr {
     Local,
     Global,
+}
+
+impl Display for UnnamedAddr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            UnnamedAddr::Local => write!(f, "local_unnamed_addr"),
+            UnnamedAddr::Global => write!(f, "unnamed_addr"),
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
@@ -158,11 +255,45 @@ pub enum Linkage {
     LinkerPrivateWeak,
 }
 
+impl Display for Linkage {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Linkage::Private => write!(f, "private"),
+            Linkage::Internal => write!(f, "internal"),
+            Linkage::External => Ok(()),
+            Linkage::ExternalWeak => write!(f, "extern_weak"),
+            Linkage::AvailableExternally => write!(f, "available_externally"),
+            Linkage::LinkOnceAny => write!(f, "linkonce"),
+            Linkage::LinkOnceODR => write!(f, "linkonce_odr"),
+            Linkage::LinkOnceODRAutoHide => write!(f, "linkonce_odr auto_hide"),
+            Linkage::WeakAny => write!(f, "weak"),
+            Linkage::WeakODR => write!(f, "weak_odr"),
+            Linkage::Common => write!(f, "common"),
+            Linkage::Appending => write!(f, "appending"),
+            Linkage::DLLImport => write!(f, "dllimport"),
+            Linkage::DLLExport => write!(f, "dllexport"),
+            Linkage::Ghost => write!(f, "ghost"),
+            Linkage::LinkerPrivate => write!(f, "linker_private"),
+            Linkage::LinkerPrivateWeak => write!(f, "linker_private_weak"),
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
 pub enum Visibility {
     Default,
     Hidden,
     Protected,
+}
+
+impl Display for Visibility {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Visibility::Default => Ok(()),
+            Visibility::Hidden => write!(f, "hidden"),
+            Visibility::Protected => write!(f, "protected"),
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
@@ -172,6 +303,16 @@ pub enum DLLStorageClass {
     Export,
 }
 
+impl Display for DLLStorageClass {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DLLStorageClass::Default => Ok(()),
+            DLLStorageClass::Import => write!(f, "dllimport"),
+            DLLStorageClass::Export => write!(f, "dllexport"),
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
 pub enum ThreadLocalMode {
     NotThreadLocal,
@@ -179,6 +320,18 @@ pub enum ThreadLocalMode {
     LocalDynamic,
     InitialExec,
     LocalExec,
+}
+
+impl Display for ThreadLocalMode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ThreadLocalMode::NotThreadLocal => Ok(()),
+            ThreadLocalMode::GeneralDynamic => write!(f, "thread_local"),
+            ThreadLocalMode::LocalDynamic => write!(f, "thread_local(localdynamic)"),
+            ThreadLocalMode::InitialExec => write!(f, "thread_local(initialexec)"),
+            ThreadLocalMode::LocalExec => write!(f, "thread_local(localexec)"),
+        }
+    }
 }
 
 pub type AddrSpace = u32;
@@ -212,6 +365,24 @@ pub enum SelectionKind {
     SameSize,
 }
 
+impl Display for Comdat {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "comdat({})", self.name)
+    }
+}
+
+impl Display for SelectionKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            SelectionKind::Any => write!(f, "any"),
+            SelectionKind::ExactMatch => write!(f, "exactmatch"),
+            SelectionKind::Largest => write!(f, "largest"),
+            SelectionKind::NoDuplicates => write!(f, "noduplicates"),
+            SelectionKind::SameSize => write!(f, "samesize"),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct DataLayout {
     pub layout_str: String,
@@ -233,18 +404,42 @@ impl DataLayout {
         int_alignments.insert(16, Alignment { abi: 16, pref: 16 });
         int_alignments.insert(32, Alignment { abi: 32, pref: 32 });
         int_alignments.insert(64, Alignment { abi: 64, pref: 64 });
-        int_alignments.insert(128, Alignment { abi: 128, pref: 128 });
+        int_alignments.insert(
+            128,
+            Alignment {
+                abi: 128,
+                pref: 128,
+            },
+        );
 
         let mut vec_alignments = BTreeMap::new();
         vec_alignments.insert(64, Alignment { abi: 64, pref: 64 });
-        vec_alignments.insert(128, Alignment { abi: 128, pref: 128 });
+        vec_alignments.insert(
+            128,
+            Alignment {
+                abi: 128,
+                pref: 128,
+            },
+        );
 
         let mut fp_alignments = HashMap::new();
         fp_alignments.insert(16, Alignment { abi: 16, pref: 16 });
         fp_alignments.insert(32, Alignment { abi: 32, pref: 32 });
         fp_alignments.insert(64, Alignment { abi: 64, pref: 64 });
-        fp_alignments.insert(80, Alignment { abi: 128, pref: 128 });
-        fp_alignments.insert(128, Alignment { abi: 128, pref: 128 });
+        fp_alignments.insert(
+            80,
+            Alignment {
+                abi: 128,
+                pref: 128,
+            },
+        );
+        fp_alignments.insert(
+            128,
+            Alignment {
+                abi: 128,
+                pref: 128,
+            },
+        );
 
         let mut pointer_layouts = HashMap::new();
         pointer_layouts.insert(
@@ -260,7 +455,7 @@ impl DataLayout {
         non_integral_ptr_types.insert(0);
 
         Self {
-            layout_str: "e-m:e-p:64:64-i64:64-n8:16:32:64-S128".to_string(),
+            layout_str: "".to_string(),
             endianness: Endianness::LittleEndian,
             stack_alignment: Some(16),
             program_address_space: 0,
@@ -270,7 +465,10 @@ impl DataLayout {
                 vec_alignments,
                 fp_alignments,
                 agg_alignment: Alignment { abi: 64, pref: 64 },
-                fptr_alignment: FunctionPtrAlignment { independent: false, abi: 8 },
+                fptr_alignment: FunctionPtrAlignment {
+                    independent: false,
+                    abi: 8,
+                },
                 fptr_alignment_as_alignment: Alignment { abi: 8, pref: 8 },
                 pointer_layouts,
             },
@@ -289,10 +487,25 @@ impl PartialEq for DataLayout {
 
 impl Eq for DataLayout {}
 
+impl Display for DataLayout {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.layout_str)
+    }
+}
+
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
 pub enum Endianness {
     LittleEndian,
     BigEndian,
+}
+
+impl Display for Endianness {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Endianness::LittleEndian => write!(f, "little"),
+            Endianness::BigEndian => write!(f, "big"),
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
@@ -342,9 +555,9 @@ impl Alignments {
                 self.vec_alignment(element_size_bits * (*num_elements as u32))
             }
             LLVMType::FPType(fpt) => self.fp_alignment(*fpt),
-            LLVMType::StructType { .. } | LLVMType::NamedStructType { .. } | LLVMType::ArrayType { .. } => {
-                self.agg_alignment()
-            }
+            LLVMType::StructType { .. }
+            | LLVMType::NamedStructType { .. }
+            | LLVMType::ArrayType { .. } => self.agg_alignment(),
             LLVMType::PointerType { addr_space } => &self.ptr_alignment(*addr_space).alignment,
             _ => panic!("Don't know how to get the alignment of {:?}", ty),
         }
@@ -357,13 +570,12 @@ impl Alignments {
         let next_largest_entry = self.int_alignments.iter().find(|(k, _)| **k > size);
         match next_largest_entry {
             Some((_, alignment)) => alignment,
-            None => {
-                self.int_alignments
-                    .values()
-                    .rev()
-                    .next()
-                    .expect("Should have at least one explicit entry")
-            }
+            None => self
+                .int_alignments
+                .values()
+                .rev()
+                .next()
+                .expect("Should have at least one explicit entry"),
         }
     }
 
@@ -374,12 +586,11 @@ impl Alignments {
         let next_smaller_entry = self.vec_alignments.iter().find(|(k, _)| **k < size);
         match next_smaller_entry {
             Some((_, alignment)) => alignment,
-            None => {
-                self.vec_alignments
-                    .values()
-                    .next()
-                    .expect("Should have at least one explicit entry")
-            }
+            None => self
+                .vec_alignments
+                .values()
+                .next()
+                .expect("Should have at least one explicit entry"),
         }
     }
 
@@ -433,4 +644,17 @@ pub enum Mangling {
     WindowsX86COFF,
     WindowsCOFF,
     XCOFF,
+}
+
+impl Display for Mangling {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Mangling::ELF => write!(f, "e"),
+            Mangling::MIPS => write!(f, "m"),
+            Mangling::MachO => write!(f, "o"),
+            Mangling::WindowsX86COFF => write!(f, "w"),
+            Mangling::WindowsCOFF => write!(f, "x"),
+            Mangling::XCOFF => write!(f, "y"),
+        }
+    }
 }

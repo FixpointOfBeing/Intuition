@@ -2,6 +2,7 @@
 use crate::llvm_ir::module::{Comdat, DLLStorageClass, Linkage, Visibility};
 use crate::llvm_ir::types::{TypeRef, Typed, Types};
 use crate::llvm_ir::{BasicBlock, ConstantRef, Name};
+use std::fmt::{self, Display};
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Function {
@@ -10,14 +11,14 @@ pub struct Function {
     pub is_var_arg: bool,
     pub return_type: TypeRef,
     pub basic_blocks: Vec<BasicBlock>,
-    pub function_attributes: Vec<FunctionAttribute>, // llvm-hs-pure has Vec<Either<GroupID, FunctionAttribute>>, but I'm not sure how the GroupID ones come about
+    pub function_attributes: Vec<FunctionAttribute>,
     pub return_attributes: Vec<ParameterAttribute>,
     pub linkage: Linkage,
     pub visibility: Visibility,
-    pub dll_storage_class: DLLStorageClass, // llvm-hs-pure has Option<DLLStorageClass>, but the llvm_sys api doesn't look like it can fail
+    pub dll_storage_class: DLLStorageClass,
     pub calling_convention: CallingConvention,
     pub section: Option<String>,
-    pub comdat: Option<Comdat>, // llvm-hs-pure has Option<String>, I'm not sure why
+    pub comdat: Option<Comdat>,
     pub alignment: u32,
     pub garbage_collector_name: Option<String>,
     pub personality_function: Option<ConstantRef>,
@@ -34,37 +35,59 @@ impl Typed for Function {
     }
 }
 
-/* impl HasDebugLoc for Function {
-    fn get_debug_loc(&self) -> &Option<DebugLoc> {
-        &self.debugloc
-    }
-} */
-
-impl Function {
-    pub fn get_bb_by_name(&self, name: &Name) -> Option<&BasicBlock> {
-        self.basic_blocks.iter().find(|bb| &bb.name == name)
-    }
-
-    pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            parameters: vec![],
-            is_var_arg: false,
-            return_type: Types::new().void(),
-            basic_blocks: vec![],
-            function_attributes: vec![],
-            return_attributes: vec![],
-            linkage: Linkage::Private,
-            visibility: Visibility::Default,
-            dll_storage_class: DLLStorageClass::Default,
-            calling_convention: CallingConvention::C,
-            section: None,
-            comdat: None,
-            alignment: 4,
-            garbage_collector_name: None,
-            personality_function: None,
-            // debugloc: None,
+impl Display for Function {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for attr in &self.function_attributes {
+            match attr {
+                FunctionAttribute::UnknownAttribute => {}
+                _ => write!(f, "{} ", attr)?,
+            }
         }
+        write!(f, "define ")?;
+        if self.linkage != Linkage::External {
+            write!(f, "{} ", self.linkage)?;
+        }
+        if self.visibility != Visibility::Default {
+            write!(f, "{} ", self.visibility)?;
+        }
+        if self.dll_storage_class != DLLStorageClass::Default {
+            write!(f, "{} ", self.dll_storage_class)?;
+        }
+        if self.calling_convention != CallingConvention::C {
+            write!(f, "{} ", self.calling_convention)?;
+        }
+        write!(f, "{} @{}(", self.return_type, self.name)?;
+        for (i, param) in self.parameters.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}", param)?;
+        }
+        if self.is_var_arg {
+            if !self.parameters.is_empty() {
+                write!(f, ", ")?;
+            }
+            write!(f, "...")?;
+        }
+        write!(f, ")")?;
+        if let Some(ref gc) = self.garbage_collector_name {
+            write!(f, " gc \"{}\"", gc)?;
+        }
+        if let Some(ref pers) = self.personality_function {
+            write!(f, " personality {}", pers)?;
+        }
+        writeln!(f, " {{")?;
+        for bb in &self.basic_blocks {
+            match &bb.name {
+                Name::Name(s) => write!(f, "{}:\n", s)?,
+                Name::Number(n) => write!(f, "{}:\n", n)?,
+            }
+            for instr in &bb.instrs {
+                writeln!(f, "  {}", instr)?;
+            }
+            writeln!(f, "  {}", bb.term)?;
+        }
+        write!(f, "}}")
     }
 }
 
@@ -84,6 +107,34 @@ pub struct FunctionDeclaration {
     // pub debugloc: Option<DebugLoc>,
 }
 
+impl Display for FunctionDeclaration {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "declare ")?;
+        if self.return_attributes.is_empty() {
+            write!(f, "{}", self.return_type)?;
+        } else {
+            write!(f, "{}", self.return_type)?;
+            for attr in &self.return_attributes {
+                write!(f, " {}", attr)?;
+            }
+        }
+        write!(f, " @{}(", self.name)?;
+        for (i, param) in self.parameters.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}", param)?;
+        }
+        if self.is_var_arg {
+            if !self.parameters.is_empty() {
+                write!(f, ", ")?;
+            }
+            write!(f, "...")?;
+        }
+        writeln!(f, ")")
+    }
+}
+
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Parameter {
     pub name: Name,
@@ -94,6 +145,16 @@ pub struct Parameter {
 impl Typed for Parameter {
     fn get_type(&self, _types: &Types) -> TypeRef {
         self.ty.clone()
+    }
+}
+
+impl Display for Parameter {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} {}", self.ty, self.name)?;
+        for attr in &self.attributes {
+            write!(f, " {}", attr)?;
+        }
+        Ok(())
     }
 }
 
@@ -143,6 +204,56 @@ pub enum CallingConvention {
     AMDGPU_VS,
     AMDGPU_Kernel,
     Numbered(u32),
+}
+
+impl Display for CallingConvention {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            CallingConvention::C => write!(f, "ccc"),
+            CallingConvention::Fast => write!(f, "fastcc"),
+            CallingConvention::Cold => write!(f, "coldcc"),
+            CallingConvention::GHC => write!(f, "ghccc"),
+            CallingConvention::HiPE => write!(f, "cc 11"),
+            CallingConvention::WebKit_JS => write!(f, "webkit_jscc"),
+            CallingConvention::AnyReg => write!(f, "anyregcc"),
+            CallingConvention::PreserveMost => write!(f, "preserve_mostcc"),
+            CallingConvention::PreserveAll => write!(f, "preserve_allcc"),
+            CallingConvention::Swift => write!(f, "swiftcc"),
+            CallingConvention::CXX_FastTLS => write!(f, "cxx_fast_tlscc"),
+            CallingConvention::X86_StdCall => write!(f, "x86_stdcallcc"),
+            CallingConvention::X86_FastCall => write!(f, "x86_fastcallcc"),
+            CallingConvention::X86_RegCall => write!(f, "x86_regcallcc"),
+            CallingConvention::X86_ThisCall => write!(f, "x86_thiscallcc"),
+            CallingConvention::X86_VectorCall => write!(f, "x86_vectorcallcc"),
+            CallingConvention::X86_Intr => write!(f, "x86_intrcc"),
+            CallingConvention::X86_64_SysV => write!(f, "x86_64_sysvcc"),
+            CallingConvention::ARM_APCS => write!(f, "arm_apcscc"),
+            CallingConvention::ARM_AAPCS => write!(f, "arm_aapcscc"),
+            CallingConvention::ARM_AAPCS_VFP => write!(f, "arm_aapcs_vfpcc"),
+            CallingConvention::MSP430_INTR => write!(f, "msp430_intrcc"),
+            CallingConvention::MSP430_Builtin => write!(f, "msp430_builtincc"),
+            CallingConvention::PTX_Kernel => write!(f, "ptx_kernel"),
+            CallingConvention::PTX_Device => write!(f, "ptx_device"),
+            CallingConvention::SPIR_FUNC => write!(f, "spir_func"),
+            CallingConvention::SPIR_KERNEL => write!(f, "spir_kernel"),
+            CallingConvention::Intel_OCL_BI => write!(f, "intel_ocl_bicc"),
+            CallingConvention::Win64 => write!(f, "win64cc"),
+            CallingConvention::HHVM => write!(f, "hhvmcc"),
+            CallingConvention::HHVM_C => write!(f, "hhvm_c"),
+            CallingConvention::AVR_Intr => write!(f, "avr_intrcc"),
+            CallingConvention::AVR_Signal => write!(f, "avr_signcc"),
+            CallingConvention::AVR_Builtin => write!(f, "avr_builtincc"),
+            CallingConvention::AMDGPU_CS => write!(f, "amdgpu_cs"),
+            CallingConvention::AMDGPU_ES => write!(f, "amdgpu_es"),
+            CallingConvention::AMDGPU_GS => write!(f, "amdgpu_gs"),
+            CallingConvention::AMDGPU_HS => write!(f, "amdgpu_hs"),
+            CallingConvention::AMDGPU_LS => write!(f, "amdgpu_ls"),
+            CallingConvention::AMDGPU_PS => write!(f, "amdgpu_ps"),
+            CallingConvention::AMDGPU_VS => write!(f, "amdgpu_vs"),
+            CallingConvention::AMDGPU_Kernel => write!(f, "amdgpu_kernel"),
+            CallingConvention::Numbered(n) => write!(f, "cc {}", n),
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
@@ -259,6 +370,141 @@ pub enum ParameterAttribute {
     },
     UnknownAttribute, // this is used if we get an EnumAttribute not in the above list; or, for LLVM 11 or lower, also for some TypeAttributes (due to C API limitations)
     UnknownTypeAttribute(TypeRef), // this is used if we get a TypeAttribute not in the above list
+}
+
+impl Display for FunctionAttribute {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            FunctionAttribute::AlignStack(n) => write!(f, "alignstack({})", n),
+            FunctionAttribute::AllocSize { elt_size, num_elts } => {
+                if let Some(n) = num_elts {
+                    write!(f, "allocsize({}, {})", elt_size, n)
+                } else {
+                    write!(f, "allocsize({})", elt_size)
+                }
+            }
+            FunctionAttribute::AlwaysInline => write!(f, "alwaysinline"),
+            FunctionAttribute::Builtin => write!(f, "builtin"),
+            FunctionAttribute::Cold => write!(f, "cold"),
+            FunctionAttribute::Convergent => write!(f, "convergent"),
+            FunctionAttribute::InaccessibleMemOnly => write!(f, "inaccessiblememonly"),
+            FunctionAttribute::InaccessibleMemOrArgMemOnly => write!(f, "inaccessiblemem_or_argmemonly"),
+            FunctionAttribute::InlineHint => write!(f, "inlinehint"),
+            FunctionAttribute::JumpTable => write!(f, "jumptable"),
+            FunctionAttribute::MinimizeSize => write!(f, "minsize"),
+            FunctionAttribute::Naked => write!(f, "naked"),
+            FunctionAttribute::NoBuiltin => write!(f, "nobuiltin"),
+            FunctionAttribute::NoCFCheck => write!(f, "nocf_check"),
+            FunctionAttribute::NoDuplicate => write!(f, "noduplicate"),
+            FunctionAttribute::NoFree => write!(f, "nofree"),
+            FunctionAttribute::NoImplicitFloat => write!(f, "noimplicitfloat"),
+            FunctionAttribute::NoInline => write!(f, "noinline"),
+            FunctionAttribute::NoMerge => write!(f, "nomerge"),
+            FunctionAttribute::NonLazyBind => write!(f, "nonlazybind"),
+            FunctionAttribute::NoRedZone => write!(f, "noredzone"),
+            FunctionAttribute::NoReturn => write!(f, "noreturn"),
+            FunctionAttribute::NoRecurse => write!(f, "norecurse"),
+            FunctionAttribute::WillReturn => write!(f, "willreturn"),
+            FunctionAttribute::ReturnsTwice => write!(f, "returns_twice"),
+            FunctionAttribute::NoSync => write!(f, "nosync"),
+            FunctionAttribute::NoUnwind => write!(f, "nounwind"),
+            FunctionAttribute::NullPointerIsValid => write!(f, "null_pointer_is_valid"),
+            FunctionAttribute::OptForFuzzing => write!(f, "optforfuzzing"),
+            FunctionAttribute::OptNone => write!(f, "optnone"),
+            FunctionAttribute::OptSize => write!(f, "optsize"),
+            FunctionAttribute::ReadNone => write!(f, "readnone"),
+            FunctionAttribute::ReadOnly => write!(f, "readonly"),
+            FunctionAttribute::WriteOnly => write!(f, "writeonly"),
+            FunctionAttribute::ArgMemOnly => write!(f, "argmemonly"),
+            FunctionAttribute::SafeStack => write!(f, "safestack"),
+            FunctionAttribute::SanitizeAddress => write!(f, "sanitize_address"),
+            FunctionAttribute::SanitizeMemory => write!(f, "sanitize_memory"),
+            FunctionAttribute::SanitizeThread => write!(f, "sanitize_thread"),
+            FunctionAttribute::SanitizeHWAddress => write!(f, "sanitize_hwaddress"),
+            FunctionAttribute::SanitizeMemTag => write!(f, "sanitize_memtag"),
+            FunctionAttribute::ShadowCallStack => write!(f, "shadowcallstack"),
+            FunctionAttribute::SpeculativeLoadHardening => write!(f, "speculative_load_hardening"),
+            FunctionAttribute::Speculatable => write!(f, "speculatable"),
+            FunctionAttribute::StackProtect => write!(f, "ssp"),
+            FunctionAttribute::StackProtectReq => write!(f, "sspreq"),
+            FunctionAttribute::StackProtectStrong => write!(f, "sspstrong"),
+            FunctionAttribute::StrictFP => write!(f, "strictfp"),
+            FunctionAttribute::UWTable => write!(f, "uwtable"),
+            FunctionAttribute::Memory { default, argmem, inaccessible_mem } => {
+                write!(f, "memory(")?;
+                let mut first = true;
+                let write_part = |w: &mut fmt::Formatter, first: &mut bool, pre: &str, me: &MemoryEffect| -> fmt::Result {
+                    match me {
+                        MemoryEffect::None => {}
+                        MemoryEffect::Read => {
+                            if !*first { write!(w, ", ")?; }
+                            write!(w, "{}read", pre)?;
+                            *first = false;
+                        }
+                        MemoryEffect::Write => {
+                            if !*first { write!(w, ", ")?; }
+                            write!(w, "{}write", pre)?;
+                            *first = false;
+                        }
+                        MemoryEffect::ReadWrite => {
+                            if !*first { write!(w, ", ")?; }
+                            write!(w, "{}readwrite", pre)?;
+                            *first = false;
+                        }
+                    }
+                    Ok(())
+                };
+                write_part(f, &mut first, "", default)?;
+                write_part(f, &mut first, "argmem: ", argmem)?;
+                write_part(f, &mut first, "inaccessiblemem: ", inaccessible_mem)?;
+                write!(f, ")")
+            }
+            FunctionAttribute::StringAttribute { kind, value } => {
+                if value.is_empty() {
+                    write!(f, "\"{}\"", kind)
+                } else {
+                    write!(f, "\"{}\"=\"{}\"", kind, value)
+                }
+            }
+            FunctionAttribute::UnknownAttribute => write!(f, ""),
+        }
+    }
+}
+
+impl Display for ParameterAttribute {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ParameterAttribute::ZeroExt => write!(f, "zeroext"),
+            ParameterAttribute::SignExt => write!(f, "signext"),
+            ParameterAttribute::InReg => write!(f, "inreg"),
+            ParameterAttribute::ByVal(ty) => write!(f, "byval({})", ty),
+            ParameterAttribute::Preallocated(ty) => write!(f, "preallocated({})", ty),
+            ParameterAttribute::InAlloca(ty) => write!(f, "inalloca({})", ty),
+            ParameterAttribute::SRet(ty) => write!(f, "sret({})", ty),
+            ParameterAttribute::Alignment(n) => write!(f, "align {}", n),
+            ParameterAttribute::NoAlias => write!(f, "noalias"),
+            ParameterAttribute::NoCapture => write!(f, "nocapture"),
+            ParameterAttribute::NoFree => write!(f, "nofree"),
+            ParameterAttribute::Nest => write!(f, "nest"),
+            ParameterAttribute::Returned => write!(f, "returned"),
+            ParameterAttribute::NonNull => write!(f, "nonnull"),
+            ParameterAttribute::Dereferenceable(n) => write!(f, "dereferenceable({})", n),
+            ParameterAttribute::DereferenceableOrNull(n) => write!(f, "dereferenceable_or_null({})", n),
+            ParameterAttribute::SwiftSelf => write!(f, "swiftself"),
+            ParameterAttribute::SwiftError => write!(f, "swifterror"),
+            ParameterAttribute::ImmArg => write!(f, "immarg"),
+            ParameterAttribute::NoUndef => write!(f, "noundef"),
+            ParameterAttribute::StringAttribute { kind, value } => {
+                if value.is_empty() {
+                    write!(f, "\"{}\"", kind)
+                } else {
+                    write!(f, "\"{}\"=\"{}\"", kind, value)
+                }
+            }
+            ParameterAttribute::UnknownAttribute => write!(f, ""),
+            ParameterAttribute::UnknownTypeAttribute(ty) => write!(f, "{}", ty),
+        }
+    }
 }
 
 pub type GroupID = usize;

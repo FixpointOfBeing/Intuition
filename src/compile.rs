@@ -3,11 +3,7 @@ use std::{
 };
 
 use crate::{
-    a_normal_form::anf_convert,
-    closure_conversion::{ClosFnDef, closure_convert},
-    emit_llvm::emit_module,
-    explicate_control::explicate_control_convert,
-    uniquify::uniquify_convert,
+    a_normal_form::anf_convert, closure_conversion::{closure_convert, ClosFnDef}, emit_llvm::emit_module, explicate_control::explicate_control_convert, llvm_ir::Show, uniquify::uniquify_convert
 };
 
 pub fn compile_file(file_path: &Path, output: &Option<PathBuf>) -> Result<(), String> {
@@ -57,6 +53,7 @@ pub fn compile_file(file_path: &Path, output: &Option<PathBuf>) -> Result<(), St
                 .map_err(|e| e.to_string())?;
         }
         None => {
+            // println!("{:?}", module);
             println!("{}", module.to_string());
         }
     }
