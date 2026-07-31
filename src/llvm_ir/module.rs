@@ -4,6 +4,8 @@ use crate::llvm_ir::function::{Function, FunctionAttribute, FunctionDeclaration,
 use crate::llvm_ir::name::Name;
 use crate::llvm_ir::types::{FPType, LLVMType, TypeRef, Typed, Types};
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::io::Error;
+use std::path::PathBuf;
 
 #[derive(Clone)]
 pub struct Module {
@@ -47,6 +49,20 @@ impl Module {
         self.global_ifuncs
             .iter()
             .find(|global| global.name == *name)
+    }
+    
+    pub fn to_string(&self) -> String {
+        todo!()
+    }
+    
+    pub fn print_to_file(&self, output: &PathBuf) -> Result<(), Error> {
+        use std::fs::File;
+        use std::io::Write;
+
+        let mut file = File::create(output)?;
+        let module_str = self.to_string();
+        file.write_all(module_str.as_bytes())?;
+        Ok(())
     }
 }
 

@@ -3,6 +3,7 @@ use std::fmt::{self, Write};
 
 use either::Either;
 
+use crate::closure_conversion::ClosFnDef;
 use crate::explicate_control::{CAtom, CExpr, CStmt, CTail};
 use crate::gensym::Gensym;
 use crate::llvm_ir::basicblock::BasicBlock;
@@ -18,7 +19,12 @@ use crate::llvm_ir::terminator::*;
 use crate::llvm_ir::types::{LLVMType, TypeRef, Types};
 use crate::syntax::{BinOp, Ident, Type, UnaryOp};
 
-pub fn emit_module(body: CTail, return_type: Type, module_name: &str) -> Module {
+pub fn emit_module(
+    body: CTail,
+    return_type: Type,
+    module_name: &str,
+    fn_defs: &[(ClosFnDef, CTail)],
+) -> Module {
     let types = Types::new();
     let mut gensym = Gensym::new();
     let env = HashMap::new();
@@ -62,20 +68,92 @@ pub fn emit_module(body: CTail, return_type: Type, module_name: &str) -> Module 
         personality_function: None,
     };
 
+    let mut lifted_fns: Vec<Function> = Vec::new();
+    for (fn_def, fn_ctail) in fn_defs {
+        let lfn = compile_lifted_fn(
+            fn_def,
+            fn_ctail,
+            &types,
+            &mut gensym,
+            &mut func_declarations,
+        );
+        lifted_fns.push(lfn);
+    }
+
     let main_fn = create_c_main(&types, &program_fn_ty, &mut gensym);
+
+    let mut all_fns = vec![program_fn];
+    all_fns.extend(lifted_fns);
+    all_fns.push(main_fn);
 
     Module {
         name: module_name.to_string(),
         source_file_name: String::new(),
         data_layout: DataLayout::minimal(),
         target_triple: None,
-        functions: vec![program_fn, main_fn],
+        functions: all_fns,
         func_declarations,
         global_vars: vec![],
         global_aliases: vec![],
         global_ifuncs: vec![],
         inline_assembly: String::new(),
         types,
+    }
+}
+
+fn compile_lifted_fn(
+    fn_def: &ClosFnDef,
+    ctail: &CTail,
+    types: &Types,
+    gensym: &mut Gensym,
+    func_decls: &mut Vec<FunctionDeclaration>,
+) -> Function {
+    let env_param = Parameter {
+        name: Name::Name(Box::new(fn_def.env_param.clone())),
+        ty: types.pointer(),
+        attributes: vec![],
+    };
+
+    let params: Vec<Parameter> = std::iter::once(env_param)
+        .chain(fn_def.params.iter().enumerate().map(|(i, (name, ty))| Parameter {
+            name: Name::Name(Box::new(name.clone())),
+            ty: llvm_type(ty, types),
+            attributes: vec![],
+        }))
+        .collect();
+
+    let ret_ty = llvm_type(&fn_def.return_type, types);
+
+    let env = HashMap::new();
+    let body_blocks = compile_tail(ctail, types, gensym, &env, func_decls);
+
+    let mut blocks = Vec::with_capacity(1 + body_blocks.len());
+    let mut entry = BasicBlock::new(nn("entry"));
+    if let Some(first) = body_blocks.first() {
+        entry.term = Terminator::Br(Br {
+            dest: first.name.clone(),
+        });
+    }
+    blocks.push(entry);
+    blocks.extend(body_blocks);
+
+    Function {
+        name: fn_def.name.clone(),
+        parameters: params,
+        is_var_arg: false,
+        return_type: ret_ty,
+        basic_blocks: blocks,
+        function_attributes: vec![],
+        return_attributes: vec![],
+        linkage: Linkage::External,
+        visibility: Visibility::Default,
+        dll_storage_class: DLLStorageClass::Default,
+        calling_convention: CallingConvention::C,
+        section: None,
+        comdat: None,
+        alignment: 0,
+        garbage_collector_name: None,
+        personality_function: None,
     }
 }
 
@@ -178,7 +256,190 @@ fn compile_cexpr(
                 },
             )
         }
+        CExpr::MakeClosure(fn_ptr, captured, _closure_type) => {
+            compile_make_closure(fn_ptr, captured, types, gensym, env, func_decls)
+        }
+        CExpr::Project(env_val, idx, field_type) => {
+            compile_project(env_val, *idx, field_type, types, gensym, env)
+        }
     }
+}
+
+fn compile_make_closure(
+    fn_ptr: &CAtom,
+    captured: &[CAtom],
+    types: &Types,
+    gensym: &mut Gensym,
+    env: &HashMap<Ident, Operand>,
+    func_decls: &mut Vec<FunctionDeclaration>,
+) -> (Vec<Instruction>, Operand) {
+    let mut instrs = Vec::new();
+
+    let fn_ptr_op = compile_catom(fn_ptr, types, env);
+    let fn_ptr_cast_dest = fresh_name(gensym);
+    let fn_ptr_ty = types.type_of(&fn_ptr_op);
+    instrs.push(Instruction::BitCast(BitCast {
+        operand: fn_ptr_op,
+        to_type: types.pointer(),
+        dest: fn_ptr_cast_dest.clone(),
+    }));
+
+    let mut struct_fields = vec![types.pointer()];
+    for cap in captured {
+        let cap_op = compile_catom(cap, types, env);
+        struct_fields.push(types.type_of(&cap_op));
+    }
+    let closure_struct_ty = types.struct_of(struct_fields, false);
+
+    let alloca_dest = fresh_name(gensym);
+    instrs.push(Instruction::Alloca(Alloca {
+        allocated_type: closure_struct_ty.clone(),
+        num_elements: Operand::ConstantOperand(ConstantRef::new(Constant::Int {
+            bits: 64,
+            value: 1,
+        })),
+        dest: alloca_dest.clone(),
+        alignment: 8,
+    }));
+
+    let fn_field_dest = fresh_name(gensym);
+    let gep0 = GetElementPtr {
+        address: Operand::LocalOperand {
+            name: alloca_dest.clone(),
+            ty: types.pointer(),
+        },
+        indices: vec![
+            Operand::ConstantOperand(ConstantRef::new(Constant::Int {
+                bits: 32,
+                value: 0,
+            })),
+            Operand::ConstantOperand(ConstantRef::new(Constant::Int {
+                bits: 32,
+                value: 0,
+            })),
+        ],
+        dest: fn_field_dest.clone(),
+        in_bounds: true,
+        source_element_type: closure_struct_ty.clone(),
+    };
+    instrs.push(Instruction::GetElementPtr(gep0));
+
+    instrs.push(Instruction::Store(Store {
+        address: Operand::LocalOperand {
+            name: fn_field_dest,
+            ty: types.pointer(),
+        },
+        value: Operand::LocalOperand {
+            name: fn_ptr_cast_dest,
+            ty: types.pointer(),
+        },
+        volatile: false,
+        atomicity: None,
+        alignment: 8,
+    }));
+
+    for (i, cap) in captured.iter().enumerate() {
+        let cap_op = compile_catom(cap, types, env);
+        let cap_ty = types.type_of(&cap_op);
+
+        let field_idx = (i + 1) as u64;
+        let field_dest = fresh_name(gensym);
+        let gep = GetElementPtr {
+            address: Operand::LocalOperand {
+                name: alloca_dest.clone(),
+                ty: types.pointer(),
+            },
+            indices: vec![
+                Operand::ConstantOperand(ConstantRef::new(Constant::Int {
+                    bits: 32,
+                    value: 0,
+                })),
+                Operand::ConstantOperand(ConstantRef::new(Constant::Int {
+                    bits: 32,
+                    value: field_idx,
+                })),
+            ],
+            dest: field_dest.clone(),
+            in_bounds: true,
+            source_element_type: closure_struct_ty.clone(),
+        };
+        instrs.push(Instruction::GetElementPtr(gep));
+
+        instrs.push(Instruction::Store(Store {
+            address: Operand::LocalOperand {
+                name: field_dest,
+                ty: types.pointer(),
+            },
+            value: cap_op,
+            volatile: false,
+            atomicity: None,
+            alignment: 8,
+        }));
+    }
+
+    let result = Operand::LocalOperand {
+        name: alloca_dest,
+        ty: types.pointer(),
+    };
+
+    (instrs, result)
+}
+
+fn compile_project(
+    env_val: &CAtom,
+    idx: usize,
+    field_type: &Type,
+    types: &Types,
+    gensym: &mut Gensym,
+    env: &HashMap<Ident, Operand>,
+) -> (Vec<Instruction>, Operand) {
+    let mut instrs = Vec::new();
+
+    let env_op = compile_catom(env_val, types, env);
+
+    let field_llvm_ty = llvm_type(field_type, types);
+
+    let gep_dest = fresh_name(gensym);
+
+    let struct_ty = types.pointer();
+
+    let gep = GetElementPtr {
+        address: env_op,
+        indices: vec![
+            Operand::ConstantOperand(ConstantRef::new(Constant::Int {
+                bits: 32,
+                value: 0,
+            })),
+            Operand::ConstantOperand(ConstantRef::new(Constant::Int {
+                bits: 32,
+                value: idx as u64,
+            })),
+        ],
+        dest: gep_dest.clone(),
+        in_bounds: true,
+        source_element_type: struct_ty,
+    };
+    instrs.push(Instruction::GetElementPtr(gep));
+
+    let load_dest = fresh_name(gensym);
+    instrs.push(Instruction::Load(Load {
+        address: Operand::LocalOperand {
+            name: gep_dest,
+            ty: types.pointer(),
+        },
+        dest: load_dest.clone(),
+        loaded_ty: field_llvm_ty.clone(),
+        volatile: false,
+        atomicity: None,
+        alignment: 8,
+    }));
+
+    let result = Operand::LocalOperand {
+        name: load_dest,
+        ty: field_llvm_ty,
+    };
+
+    (instrs, result)
 }
 
 fn compile_binop(
@@ -832,10 +1093,16 @@ mod tests {
 
     fn emit_and_print(src: &str) -> String {
         let ast = parser::ExprParser::new().parse(src).unwrap();
-        let (return_ty, typed_ast) = typecheck(&ast).expect("typecheck failed");
-        let anf = crate::a_normal_form::convert(&typed_ast);
-        let ctail = crate::explicate_control::explicate_tail(anf);
-        let module = emit_module(ctail, return_ty, "test_module");
+        let (return_ty, typed_ast) = typecheck(*ast).expect("typecheck failed");
+        let anf = crate::a_normal_form::anf_convert(typed_ast);
+        let clos_prog = crate::closure_conversion::closure_convert(anf);
+        let body_ctail = crate::explicate_control::explicate_control_convert(clos_prog.body);
+        let fn_ctails: Vec<(crate::closure_conversion::ClosFnDef, _)> = clos_prog
+            .fn_defs
+            .iter()
+            .map(|d| (d.clone(), crate::explicate_control::explicate_control_convert(d.body.clone())))
+            .collect();
+        let module = emit_module(body_ctail, return_ty, "test_module", &fn_ctails);
         module_to_string(&module)
     }
 

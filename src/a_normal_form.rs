@@ -52,51 +52,52 @@ fn expr_type(expr: &TypedExpr) -> Type {
     }
 }
 
-fn to_atom(expr: &TypedExpr, gs: &mut Gensym, bindings: &mut Bindings) -> AExpr {
+fn to_atom(expr: TypedExpr, gs: &mut Gensym, bindings: &mut Bindings) -> AExpr {
     match expr {
         TypedExpr::Unit => AExpr::Unit,
-        TypedExpr::Bool(b) => AExpr::Bool(*b),
-        TypedExpr::Int(i) => AExpr::Int(*i),
-        TypedExpr::Float(f) => AExpr::Float(*f),
-        TypedExpr::Var(name, ty) => AExpr::Var(name.clone(), ty.clone()),
+        TypedExpr::Bool(b) => AExpr::Bool(b),
+        TypedExpr::Int(i) => AExpr::Int(i),
+        TypedExpr::Float(f) => AExpr::Float(f),
+        TypedExpr::Var(name, ty) => AExpr::Var(name, ty),
         _ => {
+            let ty = expr_type(&expr);
+
             let c = collect_bindings(expr, gs, bindings);
             if let CompExpr::Atom(a) = c {
                 return a;
             }
             let name = gs.fresh();
-            let ty = expr_type(expr);
             bindings.push(Binding::Let(name.clone(), c));
             AExpr::Var(name, ty)
         }
     }
 }
 
-fn collect_bindings(expr: &TypedExpr, gs: &mut Gensym, bindings: &mut Bindings) -> CompExpr {
+fn collect_bindings(expr: TypedExpr, gs: &mut Gensym, bindings: &mut Bindings) -> CompExpr {
     match expr {
         TypedExpr::Unit => CompExpr::Atom(AExpr::Unit),
-        TypedExpr::Bool(b) => CompExpr::Atom(AExpr::Bool(*b)),
-        TypedExpr::Int(i) => CompExpr::Atom(AExpr::Int(*i)),
-        TypedExpr::Float(f) => CompExpr::Atom(AExpr::Float(*f)),
-        TypedExpr::Var(name, ty) => CompExpr::Atom(AExpr::Var(name.clone(), ty.clone())),
+        TypedExpr::Bool(b) => CompExpr::Atom(AExpr::Bool(b)),
+        TypedExpr::Int(i) => CompExpr::Atom(AExpr::Int(i)),
+        TypedExpr::Float(f) => CompExpr::Atom(AExpr::Float(f)),
+        TypedExpr::Var(name, ty) => CompExpr::Atom(AExpr::Var(name, ty)),
         TypedExpr::BinOp(op, left, right, _) => {
-            let left_atom = to_atom(left, gs, bindings);
-            let right_atom = to_atom(right, gs, bindings);
-            CompExpr::BinOp((*op).clone(), left_atom, right_atom)
+            let left_atom = to_atom(*left, gs, bindings);
+            let right_atom = to_atom(*right, gs, bindings);
+            CompExpr::BinOp(op, left_atom, right_atom)
         }
         TypedExpr::UnaryOp(op, operand, _) => {
-            let operand_atom = to_atom(operand, gs, bindings);
-            CompExpr::UnaryOp((*op).clone(), operand_atom)
+            let operand_atom = to_atom(*operand, gs, bindings);
+            CompExpr::UnaryOp(op, operand_atom)
         }
-        TypedExpr::Ann(inner, _) => collect_bindings(inner, gs, bindings),
+        TypedExpr::Ann(inner, _) => collect_bindings(*inner, gs, bindings),
         TypedExpr::If(cond, thn, els, _) => {
-            let cond_atom = to_atom(cond, gs, bindings);
-            let then_anf = normalize(thn, gs);
-            let else_anf = normalize(els, gs);
+            let cond_atom = to_atom(*cond, gs, bindings);
+            let then_anf = normalize(*thn, gs);
+            let else_anf = normalize(*els, gs);
             CompExpr::If(cond_atom, Box::new(then_anf), Box::new(else_anf))
         }
         TypedExpr::App(func, args, _) => {
-            let func_atom = to_atom(func, gs, bindings);
+            let func_atom = to_atom(*func, gs, bindings);
             let mut args_atom = Vec::with_capacity(args.len());
             for arg in args {
                 let arg_atom = to_atom(arg, gs, bindings);
@@ -105,23 +106,23 @@ fn collect_bindings(expr: &TypedExpr, gs: &mut Gensym, bindings: &mut Bindings) 
             CompExpr::App(func_atom, args_atom)
         }
         TypedExpr::Lambda(params, ret_ty, body, _) => {
-            let body_anf = normalize(body, gs);
-            CompExpr::Lambda((*params).clone(), (*ret_ty).clone(), Box::new(body_anf))
+            let body_anf = normalize(*body, gs);
+            CompExpr::Lambda(params, ret_ty, Box::new(body_anf))
         }
         TypedExpr::Let(name, _, rhs, body, _) => {
-            let rhs_comp = collect_bindings(rhs, gs, bindings);
-            bindings.push(Binding::Let(name.clone(), rhs_comp));
-            collect_bindings(body, gs, bindings)
+            let rhs_comp = collect_bindings(*rhs, gs, bindings);
+            bindings.push(Binding::Let(name, rhs_comp));
+            collect_bindings(*body, gs, bindings)
         }
         TypedExpr::LetRec(fname, fparams, fty, fbody, body, _) => {
-            let fbody_anf = normalize(fbody, gs);
+            let fbody_anf = normalize(*fbody, gs);
             bindings.push(Binding::LetRec(
-                fname.clone(),
-                fparams.clone(),
-                fty.clone(),
+                fname,
+                fparams,
+                fty,
                 fbody_anf,
             ));
-            collect_bindings(body, gs, bindings)
+            collect_bindings(*body, gs, bindings)
         }
     }
 }
@@ -135,14 +136,14 @@ fn bindings_to_lets(bindings: Bindings, tail: AnfExpr) -> AnfExpr {
     })
 }
 
-fn normalize(expr: &TypedExpr, gs: &mut Gensym) -> AnfExpr {
+fn normalize(expr: TypedExpr, gs: &mut Gensym) -> AnfExpr {
     let mut bindings = Bindings::new();
     let c_expr = collect_bindings(expr, gs, &mut bindings);
     let tail = AnfExpr::Complex(c_expr);
     bindings_to_lets(bindings, tail)
 }
 
-pub fn convert(expr: &TypedExpr) -> AnfExpr {
+pub fn anf_convert(expr: TypedExpr) -> AnfExpr {
     let mut gs = Gensym::new();
     normalize(expr, &mut gs)
 }
@@ -188,7 +189,7 @@ mod tests {
             )),
             Type::Int,
         );
-        let anf = convert(&e);
+        let anf = anf_convert(e);
 
         assert_eq!(
             anf,
@@ -211,7 +212,7 @@ mod tests {
     #[test]
     fn test_atom_alone() {
         let e = int(5);
-        let anf = convert(&e);
+        let anf = anf_convert(e);
         assert_eq!(anf, AnfExpr::Complex(CompExpr::Atom(AExpr::Int(5))));
     }
 
@@ -233,7 +234,7 @@ mod tests {
             Type::Int,
         );
 
-        let anf = convert(&e);
+        let anf = anf_convert(e);
         assert_eq!(
             anf,
             AnfExpr::Let(
@@ -269,7 +270,7 @@ mod tests {
             Type::Int,
         );
 
-        let anf = convert(&e);
+        let anf = anf_convert(e);
         assert_eq!(
             anf,
             AnfExpr::Let(
@@ -306,7 +307,7 @@ mod tests {
             Type::Int,
         );
 
-        let anf = convert(&e);
+        let anf = anf_convert(e);
         assert_eq!(
             anf,
             AnfExpr::Let(
@@ -373,7 +374,7 @@ mod tests {
             Type::Int,
         );
 
-        let anf = convert(&e);
+        let anf = anf_convert(e);
         
         assert_eq!(
             anf,
@@ -436,7 +437,7 @@ mod tests {
             Type::Int,
         );
 
-        let anf = convert(&e);
+        let anf = anf_convert(e);
 
         assert_eq!(
             anf,
@@ -468,7 +469,7 @@ mod tests {
             Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)),
         );
 
-        let anf = convert(&e);
+        let anf = anf_convert(e);
 
         assert_eq!(
             anf,
@@ -503,7 +504,7 @@ mod tests {
             Type::Int,
         );
 
-        let anf = convert(&e);
+        let anf = anf_convert(e);
 
         assert_eq!(
             anf,
@@ -529,7 +530,7 @@ mod tests {
             Type::Int,
         );
 
-        let anf = convert(&e);
+        let anf = anf_convert(e);
 
         assert_eq!(
             anf,
@@ -559,7 +560,7 @@ mod tests {
             Type::Int,
         );
 
-        let anf = convert(&e);
+        let anf = anf_convert(e);
 
         assert_eq!(
             anf,

@@ -1,3 +1,4 @@
+// pub mod compile_llvm;
 pub mod compile;
 pub mod eval;
 pub mod repl;
@@ -7,6 +8,7 @@ pub mod uniquify;
 pub mod explicate_control;
 pub mod env;
 pub mod a_normal_form;
+pub mod closure_conversion;
 pub mod gensym;
 pub mod select_instructions;
 pub mod assign_homes;

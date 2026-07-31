@@ -5,114 +5,114 @@ use std::collections::HashMap;
 
 type NameEnv = HashMap<Ident, Ident>;
 
-fn bind(gensym: &mut Gensym, env: &mut NameEnv, name: &Ident) -> (Ident, Option<Ident>) {
-    let new_name = gensym.inc_fresh(name);
-    let old = env.insert(name.clone(), new_name.clone());
+fn bind(gensym: &mut Gensym, env: &mut NameEnv, name: Ident) -> (Ident, Option<Ident>) {
+    let new_name = gensym.inc_fresh(&name);
+    let old = env.insert(name, new_name.clone());
     (new_name, old)
 }
 
-fn unbind(env: &mut NameEnv, name: &Ident, old: Option<Ident>) {
+fn unbind(env: &mut NameEnv, name: Ident, old: Option<Ident>) {
     match old {
         Some(prev) => {
-            env.insert(name.clone(), prev);
+            env.insert(name, prev);
         }
         None => {
-            env.remove(name);
+            env.remove(&name);
         }
     }
 }
 
-pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: &TypedExpr) -> TypedExpr {
+pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: TypedExpr) -> TypedExpr {
     match expr {
-        TypedExpr::Unit => TypedExpr::Unit,
-        TypedExpr::Bool(b) => TypedExpr::Bool(*b),
-        TypedExpr::Int(i) => TypedExpr::Int(*i),
-        TypedExpr::Float(f) => TypedExpr::Float(*f),
+        TypedExpr::Unit => expr,
+        TypedExpr::Bool(b) => expr,
+        TypedExpr::Int(i) => expr,
+        TypedExpr::Float(f) => expr,
         TypedExpr::BinOp(op, left, right, ty) => {
-            let left = rename(gensym, env, left);
-            let right = rename(gensym, env, right);
-            TypedExpr::BinOp(op.clone(), Box::new(left), Box::new(right), ty.clone())
+            let left = rename(gensym, env, *left);
+            let right = rename(gensym, env, *right);
+            TypedExpr::BinOp(op, Box::new(left), Box::new(right), ty)
         }
         TypedExpr::UnaryOp(op, expr, ty) => {
-            let expr = rename(gensym, env, expr);
-            TypedExpr::UnaryOp(op.clone(), Box::new(expr), ty.clone())
+            let expr = rename(gensym, env, *expr);
+            TypedExpr::UnaryOp(op, Box::new(expr), ty)
         }
         TypedExpr::Ann(expr, ty) => {
-            let expr = rename(gensym, env, expr);
-            TypedExpr::Ann(Box::new(expr), ty.clone())
+            let expr = rename(gensym, env, *expr);
+            TypedExpr::Ann(Box::new(expr), ty)
         }
         TypedExpr::If(cond, thn, els, ty) => {
-            let cond = rename(gensym, env, cond);
-            let thn = rename(gensym, env, thn);
-            let els = rename(gensym, env, els);
-            TypedExpr::If(Box::new(cond), Box::new(thn), Box::new(els), ty.clone())
+            let cond = rename(gensym, env, *cond);
+            let thn = rename(gensym, env, *thn);
+            let els = rename(gensym, env, *els);
+            TypedExpr::If(Box::new(cond), Box::new(thn), Box::new(els), ty)
         }
         TypedExpr::Let(name, ty, rhs, body, let_ty) => {
-            let rhs = rename(gensym, env, rhs);
-            let (new_name, old) = bind(gensym, env, name);
-            let body = rename(gensym, env, body);
+            let rhs = rename(gensym, env, *rhs);
+            let (new_name, old) = bind(gensym, env, name.clone());
+            let body = rename(gensym, env, *body);
             unbind(env, name, old);
-            TypedExpr::Let(new_name, ty.clone(), Box::new(rhs), Box::new(body), let_ty.clone())
+            TypedExpr::Let(new_name, ty, Box::new(rhs), Box::new(body), let_ty)
         }
         TypedExpr::Var(name, ty) => {
-            let new_name = env.get(name).expect("unbound variable");
-            TypedExpr::Var(new_name.clone(), ty.clone())
+            let new_name = env.get(&name).expect("unbound variable");
+            TypedExpr::Var(new_name.to_string(), ty)
         }
         TypedExpr::LetRec(fname, fparams, fty, fbody, body, letrec_ty) => {
-            let (new_fname, old_fname) = bind(gensym, env, fname);
+            let (new_fname, old_fname) = bind(gensym, env, fname.clone());
 
             let mut new_fparams = vec![];
             let mut old_fparams = vec![];
             for (name, param_ty) in fparams {
-                let (new_name, old) = bind(gensym, env, name);
+                let (new_name, old) = bind(gensym, env, name.clone());
                 old_fparams.push((name, old));
-                new_fparams.push((new_name, param_ty.clone()));
+                new_fparams.push((new_name, param_ty));
             }
 
-            let fbody = rename(gensym, env, fbody);
+            let fbody = rename(gensym, env, *fbody);
 
             for (name, old) in old_fparams.into_iter().rev() {
                 unbind(env, name, old);
             }
 
-            let body = rename(gensym, env, body);
+            let body = rename(gensym, env, *body);
             unbind(env, fname, old_fname);
 
             TypedExpr::LetRec(
                 new_fname,
                 new_fparams,
-                fty.clone(),
+                fty,
                 Box::new(fbody),
                 Box::new(body),
-                letrec_ty.clone(),
+                letrec_ty,
             )
         }
         TypedExpr::App(func, args, ty) => {
-            let func = rename(gensym, env, func);
-            let args = args.iter().map(|e| rename(gensym, env, e)).collect();
-            TypedExpr::App(Box::new(func), args, ty.clone())
+            let func = rename(gensym, env, *func);
+            let args = args.into_iter().map(|e| rename(gensym, env, e)).collect();
+            TypedExpr::App(Box::new(func), args, ty)
         }
         TypedExpr::Lambda(param, ty, body, lambda_ty) => {
             let mut new_params = vec![];
             let mut old_params = vec![];
             for (name, param_ty) in param {
-                let (new_name, old) = bind(gensym, env, name);
+                let (new_name, old) = bind(gensym, env, name.clone());
                 old_params.push((name, old));
-                new_params.push((new_name, param_ty.clone()));
+                new_params.push((new_name, param_ty));
             }
 
-            let body = rename(gensym, env, body);
+            let body = rename(gensym, env, *body);
 
             for (name, old) in old_params.into_iter().rev() {
                 unbind(env, name, old);
             }
 
-            TypedExpr::Lambda(new_params, ty.clone(), Box::new(body), lambda_ty.clone())
+            TypedExpr::Lambda(new_params, ty, Box::new(body), lambda_ty)
         }
     }
 }
 
-pub fn rename_top(expr: &TypedExpr) -> TypedExpr {
+pub fn uniquify_convert(expr: TypedExpr) -> TypedExpr {
     let mut gensym = Gensym::new();
     let mut env = NameEnv::new();
     rename(&mut gensym, &mut env, expr)
@@ -147,29 +147,29 @@ mod tests {
 
     #[test]
     fn unit_is_unchanged() {
-        assert_eq!(rename_top(&TypedExpr::Unit), TypedExpr::Unit);
+        assert_eq!(uniquify_convert(TypedExpr::Unit), TypedExpr::Unit);
     }
 
     #[test]
     fn bool_is_unchanged() {
-        assert_eq!(rename_top(&TypedExpr::Bool(true)), TypedExpr::Bool(true));
-        assert_eq!(rename_top(&TypedExpr::Bool(false)), TypedExpr::Bool(false));
+        assert_eq!(uniquify_convert(TypedExpr::Bool(true)), TypedExpr::Bool(true));
+        assert_eq!(uniquify_convert(TypedExpr::Bool(false)), TypedExpr::Bool(false));
     }
 
     #[test]
     fn int_is_unchanged() {
-        assert_eq!(rename_top(&TypedExpr::Int(42)), TypedExpr::Int(42));
+        assert_eq!(uniquify_convert(TypedExpr::Int(42)), TypedExpr::Int(42));
     }
 
     #[test]
     fn float_is_unchanged() {
-        assert_eq!(rename_top(&TypedExpr::Float(3.14)), TypedExpr::Float(3.14));
+        assert_eq!(uniquify_convert(TypedExpr::Float(3.14)), TypedExpr::Float(3.14));
     }
 
     #[test]
     fn let_renames_var_in_body() {
         let expr = TypedExpr::Let("x".to_string(), Type::Int, int(1), v("x"), Type::Int);
-        let renamed = rename_top(&expr);
+        let renamed = uniquify_convert(expr);
         let (bound_name, _, body) = expect_let(&renamed);
         let used_name = expect_var(body);
         assert_eq!(bound_name, used_name);
@@ -185,7 +185,7 @@ mod tests {
             Box::new(TypedExpr::Let("x".to_string(), Type::Int, int(2), v("x"), Type::Int)),
             Type::Int,
         );
-        let renamed = rename_top(&expr);
+        let renamed = uniquify_convert(expr);
         let (outer_name, _, outer_body) = expect_let(&renamed);
         let (inner_name, _, inner_body) = expect_let(outer_body);
         let used_name = expect_var(inner_body);
@@ -217,7 +217,7 @@ mod tests {
             Type::Int,
         );
 
-        let renamed = rename_top(&expr);
+        let renamed = uniquify_convert(expr);
         let (outer_name, _, outer_body) = expect_let(&renamed);
         let (_, lambda_rhs, final_body) = expect_let(outer_body);
 
@@ -262,7 +262,7 @@ mod tests {
             Type::Int,
         );
 
-        let renamed = rename_top(&expr);
+        let renamed = uniquify_convert(expr);
         let (outer_x, _, letrec) = expect_let(&renamed);
 
         match letrec {
@@ -291,7 +291,7 @@ mod tests {
             v("fact"),
             Type::Int,
         );
-        let renamed = rename_top(&expr);
+        let renamed = uniquify_convert(expr);
         match renamed {
             TypedExpr::LetRec(new_fname, _, _, _, cont, _) => {
                 let cont_name = expect_var(&cont);
@@ -312,7 +312,7 @@ mod tests {
             Box::new(TypedExpr::BinOp(BinOp::Add, v("x"), v("y"), Type::Int)),
             Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)),
         );
-        let renamed = rename_top(&expr);
+        let renamed = uniquify_convert(expr);
         match renamed {
             TypedExpr::Lambda(params, _, body, _) => {
                 assert_ne!(params[0].0, params[1].0);
@@ -343,7 +343,7 @@ mod tests {
             )),
             Type::Int,
         );
-        let renamed = rename_top(&expr);
+        let renamed = uniquify_convert(expr);
         let (x_name, _, body1) = expect_let(&renamed);
         let (y_name, _, body2) = expect_let(body1);
         match body2 {
@@ -364,7 +364,7 @@ mod tests {
             Box::new(TypedExpr::UnaryOp(UnaryOp::Neg, v("x"), Type::Int)),
             Type::Int,
         );
-        let renamed = rename_top(&expr);
+        let renamed = uniquify_convert(expr);
         let (x_name, _, body) = expect_let(&renamed);
         match body {
             TypedExpr::UnaryOp(UnaryOp::Neg, inner, _) => assert_eq!(expect_var(inner), x_name),
@@ -381,7 +381,7 @@ mod tests {
             Box::new(TypedExpr::If(v("x"), v("x"), v("x"), Type::Int)),
             Type::Int,
         );
-        let renamed = rename_top(&expr);
+        let renamed = uniquify_convert(expr);
         let (x_name, _, body) = expect_let(&renamed);
         match body {
             TypedExpr::If(c, t, e, _) => {
@@ -412,7 +412,7 @@ mod tests {
             )),
             Type::Int,
         );
-        let renamed = rename_top(&expr);
+        let renamed = uniquify_convert(expr);
         let (f_name, _, body1) = expect_let(&renamed);
         let (x_name, _, body2) = expect_let(body1);
         match body2 {
@@ -435,7 +435,7 @@ mod tests {
             Box::new(TypedExpr::Ann(v("x"), Type::Int)),
             Type::Int,
         );
-        let renamed = rename_top(&expr);
+        let renamed = uniquify_convert(expr);
         let (x_name, _, body) = expect_let(&renamed);
         match body {
             TypedExpr::Ann(inner, ty) => {
@@ -458,7 +458,7 @@ mod tests {
             Box::new(TypedExpr::Ann(v("x"), Type::Int)),
             Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)),
         );
-        let renamed = rename_top(&expr);
+        let renamed = uniquify_convert(expr);
         match renamed {
             TypedExpr::Lambda(params, _, body, _) => match *body {
                 TypedExpr::Ann(inner, _) => assert_eq!(expect_var(&inner), &params[0].0),
@@ -498,7 +498,7 @@ mod tests {
             Type::Int,
         );
 
-        let renamed = rename_top(&expr);
+        let renamed = uniquify_convert(expr);
         match renamed {
             TypedExpr::LetRec(new_fname, fparams, _, fbody, cont, _) => {
                 let n_name = &fparams[0].0;

@@ -47,7 +47,11 @@ impl std::fmt::Display for TypeError {
                 write!(f, "Unbound variable: {}", name)
             }
             TypeError::Mismatch { expected, found } => {
-                write!(f, "Type mismatch: expected {:?}, found {:?}", expected, found)
+                write!(
+                    f,
+                    "Type mismatch: expected {:?}, found {:?}",
+                    expected, found
+                )
             }
             TypeError::ReturnTypeMismatch { expected, found } => {
                 write!(
@@ -60,7 +64,11 @@ impl std::fmt::Display for TypeError {
                 write!(f, "Not a function: {:?}", ty)
             }
             TypeError::ArityMismatch { expected, found } => {
-                write!(f, "Arity mismatch: expected {} args, got {}", expected, found)
+                write!(
+                    f,
+                    "Arity mismatch: expected {} args, got {}",
+                    expected, found
+                )
             }
             TypeError::BranchMismatch { then_ty, else_ty } => {
                 write!(
@@ -112,22 +120,22 @@ impl Context {
     }
 }
 
-pub fn typecheck(expr: &Expr) -> Result<(Type, TypedExpr), TypeError> {
+pub fn typecheck(expr: Expr) -> Result<(Type, TypedExpr), TypeError> {
     infer(&Context::new(), expr)
 }
 
-pub fn typecheck_with_ctx(ctx: &Context, expr: &Expr) -> Result<(Type, TypedExpr), TypeError> {
+pub fn typecheck_with_ctx(ctx: &Context, expr: Expr) -> Result<(Type, TypedExpr), TypeError> {
     infer(ctx, expr)
 }
 
-fn infer(ctx: &Context, expr: &Expr) -> Result<(Type, TypedExpr), TypeError> {
+fn infer(ctx: &Context, expr: Expr) -> Result<(Type, TypedExpr), TypeError> {
     match expr {
         Expr::Unit => Ok((Type::Unit, TypedExpr::Unit)),
-        Expr::Bool(b) => Ok((Type::Bool, TypedExpr::Bool(*b))),
-        Expr::Int(i) => Ok((Type::Int, TypedExpr::Int(*i))),
-        Expr::Float(f) => Ok((Type::Float, TypedExpr::Float(*f))),
+        Expr::Bool(b) => Ok((Type::Bool, TypedExpr::Bool(b))),
+        Expr::Int(i) => Ok((Type::Int, TypedExpr::Int(i))),
+        Expr::Float(f) => Ok((Type::Float, TypedExpr::Float(f))),
 
-        Expr::Var(name) => match ctx.lookup(name) {
+        Expr::Var(name) => match ctx.lookup(&name) {
             Some(ty) => Ok((
                 (*ty).clone(),
                 TypedExpr::Var(name.to_string(), (*ty).clone()),
@@ -136,11 +144,11 @@ fn infer(ctx: &Context, expr: &Expr) -> Result<(Type, TypedExpr), TypeError> {
         },
 
         Expr::Ann(inner, ann_ty) => {
-            let res = infer(ctx, inner)?;
+            let res = infer(ctx, *inner)?;
             let inferred = res.0.clone();
-            if &inferred != ann_ty {
+            if inferred != ann_ty {
                 return Err(TypeError::AnnotationMismatch {
-                    annotated: (*ann_ty).clone(),
+                    annotated: ann_ty,
                     inferred,
                 });
             }
@@ -148,7 +156,7 @@ fn infer(ctx: &Context, expr: &Expr) -> Result<(Type, TypedExpr), TypeError> {
         }
 
         Expr::UnaryOp(op, operand) => {
-            let res = infer(ctx, operand)?;
+            let res = infer(ctx, *operand)?;
             let ty = res.0.clone();
             match op {
                 UnaryOp::Neg => match ty {
@@ -169,17 +177,17 @@ fn infer(ctx: &Context, expr: &Expr) -> Result<(Type, TypedExpr), TypeError> {
         }
 
         Expr::BinOp(op, lhs, rhs) => {
-            let (left_ty, left_ty_e) = infer(ctx, lhs)?;
-            let (right_ty, right_ty_e) = infer(ctx, rhs)?;
+            let (left_ty, left_ty_e) = infer(ctx, *lhs)?;
+            let (right_ty, right_ty_e) = infer(ctx, *rhs)?;
             infer_binop(op, left_ty, left_ty_e, right_ty, right_ty_e)
         }
 
         Expr::If(cond, thn, els) => {
-            let (cond_ty, typed_cond_expr) = infer(ctx, cond)?;
-            check(ctx, cond, &Type::Bool, cond_ty)?;
+            let (cond_ty, typed_cond_expr) = infer(ctx, *cond)?;
+            check(&Type::Bool, &cond_ty)?;
 
-            let (then_ty, typed_then_expr) = infer(ctx, thn)?;
-            let (else_ty, typed_else_expr) = infer(ctx, els)?;
+            let (then_ty, typed_then_expr) = infer(ctx, *thn)?;
+            let (else_ty, typed_else_expr) = infer(ctx, *els)?;
 
             if then_ty != else_ty {
                 return Err(TypeError::BranchMismatch { then_ty, else_ty });
@@ -196,23 +204,23 @@ fn infer(ctx: &Context, expr: &Expr) -> Result<(Type, TypedExpr), TypeError> {
         }
 
         Expr::Let(name, ann, rhs, body) => {
-            let (rhs_ty, typed_rhs) = infer(ctx, rhs)?;
+            let (rhs_ty, typed_rhs) = infer(ctx, *rhs)?;
 
             if let Some(ann_ty) = ann {
-                if &rhs_ty != ann_ty {
+                if rhs_ty != ann_ty {
                     return Err(TypeError::AnnotationMismatch {
-                        annotated: ann_ty.clone(),
+                        annotated: ann_ty,
                         inferred: rhs_ty,
                     });
                 }
             }
 
             let ctx2 = ctx.extend(name.clone(), rhs_ty.clone());
-            let (body_ty, typed_body) = infer(&ctx2, body)?;
+            let (body_ty, typed_body) = infer(&ctx2, *body)?;
             Ok((
                 body_ty.clone(),
                 TypedExpr::Let(
-                    name.to_string(),
+                    name,
                     rhs_ty,
                     Box::new(typed_rhs),
                     Box::new(typed_body),
@@ -228,24 +236,24 @@ fn infer(ctx: &Context, expr: &Expr) -> Result<(Type, TypedExpr), TypeError> {
             );
 
             let mut body_ctx = ctx.extend(fname.clone(), fn_ty.clone());
-            for (param_name, param_ty) in fparams {
-                body_ctx = body_ctx.extend(param_name.clone(), param_ty.clone());
+            for (param_name, param_ty) in fparams.clone() {
+                body_ctx = body_ctx.extend(param_name, param_ty);
             }
 
-            let (fbody_ty, typed_fbody) = infer(&body_ctx, body)?;
-            if &fbody_ty != fret_ty {
+            let (fbody_ty, typed_fbody) = infer(&body_ctx, *body)?;
+            if fbody_ty != fret_ty {
                 return Err(TypeError::AnnotationMismatch {
-                    annotated: fret_ty.clone(),
+                    annotated: fret_ty,
                     inferred: fbody_ty,
                 });
             }
 
             let rest_ctx = ctx.extend(fname.clone(), fn_ty);
-            let (body_ty, typed_body) = infer(&rest_ctx, rest)?;
+            let (body_ty, typed_body) = infer(&rest_ctx, *rest)?;
             let typed_letrec = TypedExpr::LetRec(
-                fname.to_string(),
-                (*fparams).clone(),
-                (*fret_ty).clone(),
+                fname,
+                fparams,
+                fret_ty,
                 Box::new(typed_fbody),
                 Box::new(typed_body),
                 body_ty.clone(),
@@ -256,22 +264,22 @@ fn infer(ctx: &Context, expr: &Expr) -> Result<(Type, TypedExpr), TypeError> {
         Expr::Lambda(params, opty, body) => {
             let mut lam_ctx = ctx.clone();
             let mut param_tys = Vec::new();
-            for (pname, pty) in params {
-                lam_ctx = lam_ctx.extend(pname.clone(), pty.clone());
-                param_tys.push(pty.clone());
+            for (pname, pty) in params.clone() {
+                lam_ctx = lam_ctx.extend(pname, pty.clone());
+                param_tys.push(pty);
             }
-            let (body_ty, typed_body) = infer(&lam_ctx, body)?;
+            let (body_ty, typed_body) = infer(&lam_ctx, *body)?;
             if let Some(rt_ty) = opty {
-                if body_ty != *rt_ty {
+                if body_ty != rt_ty {
                     return Err(TypeError::ReturnTypeMismatch {
-                        expected: (*rt_ty).clone(),
+                        expected: rt_ty,
                         found: body_ty,
                     });
                 }
             }
             let lambda_ty = build_arrow(param_tys, body_ty.clone());
             let typed_lambda = TypedExpr::Lambda(
-                (*params).clone(),
+                params,
                 body_ty,
                 Box::new(typed_body),
                 lambda_ty.clone(),
@@ -280,7 +288,7 @@ fn infer(ctx: &Context, expr: &Expr) -> Result<(Type, TypedExpr), TypeError> {
         }
 
         Expr::App(func, args) => {
-            let (fn_ty, typed_fn) = infer(ctx, func)?;
+            let (fn_ty, typed_fn) = infer(ctx, *func)?;
             let mut typed_args = vec![];
             let mut curr_ty = fn_ty;
             for arg in args {
@@ -307,11 +315,11 @@ fn infer(ctx: &Context, expr: &Expr) -> Result<(Type, TypedExpr), TypeError> {
     }
 }
 
-fn check(_ctx: &Context, _expr: &Expr, expected: &Type, inferred: Type) -> Result<(), TypeError> {
-    if &inferred != expected {
+fn check(expected: &Type, inferred: &Type) -> Result<(), TypeError> {
+    if inferred != expected {
         Err(TypeError::Mismatch {
             expected: expected.clone(),
-            found: inferred,
+            found: inferred.clone(),
         })
     } else {
         Ok(())
@@ -326,7 +334,7 @@ fn build_arrow(params: Vec<Type>, ret: Type) -> Type {
 }
 
 fn infer_binop(
-    op: &BinOp,
+    op: BinOp,
     left_ty: Type,
     left_ty_e: TypedExpr,
     right_ty: Type,
@@ -334,7 +342,7 @@ fn infer_binop(
 ) -> Result<(Type, TypedExpr), TypeError> {
     let op_str = format!("{:?}", op);
     let make_ty_expr =
-        |ty: Type| TypedExpr::BinOp((*op).clone(), Box::new(left_ty_e), Box::new(right_ty_e), ty);
+        |ty: Type| TypedExpr::BinOp(op.clone(), Box::new(left_ty_e), Box::new(right_ty_e), ty);
     match op {
         BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div => match (&left_ty, &right_ty) {
             (Type::Int, Type::Int) => Ok((Type::Int, make_ty_expr(Type::Int))),
@@ -391,7 +399,7 @@ mod tests {
         let expr = parser::ExprParser::new()
             .parse(src)
             .unwrap_or_else(|e| panic!("failed to parse `{}`: {:?}", src, e));
-        match typecheck(&expr) {
+        match typecheck(*expr) {
             Ok((ty, _)) => Ok(ty),
             Err(e) => Err(e),
         }

@@ -21,7 +21,7 @@ pub fn repl() {
                 rl.add_history_entry(line.as_str()).unwrap();
                 match parser::ExprParser::new().parse(line.trim()) {
                     Ok(expr) => {
-                        match typecheck(&expr) {
+                        match typecheck((*expr).clone()) {
                             Ok(_) => {
                                 match eval_top(&expr) {
                                     Ok(val) => println!("{}", val),

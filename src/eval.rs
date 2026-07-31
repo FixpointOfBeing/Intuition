@@ -210,10 +210,7 @@ fn eval_binop(op: &BinOp, v1: Value, v2: Value) -> EvalResult {
 }
 
 pub fn eval_top(expr: &Expr) -> EvalResult {
-    match typecheck(expr) {
-        Ok(_) => eval(&Env::new(), expr),
-        Err(e) => err!("type error: {}", e),
-    }
+        eval(&Env::new(), expr)
 }
 
 pub fn eval_file(file: &PathBuf) -> EvalResult {
