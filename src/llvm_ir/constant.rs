@@ -99,19 +99,19 @@ impl Typed for Float {
     }
 }
 
-impl Display for Float {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Float::Half => write!(f, "half"),
-            Float::BFloat => write!(f, "bfloat"),
-            Float::Single(s) => write!(f, "float {}", s),
-            Float::Double(d) => write!(f, "double {}", d),
-            Float::Quadruple => write!(f, "quadruple"),
-            Float::X86_FP80 => write!(f, "x86_fp80"),
-            Float::PPC_FP128 => write!(f, "ppc_fp128"),
-        }
-    }
-}
+// impl Display for Float {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         match self {
+//             Float::Half => write!(f, "half"),
+//             Float::BFloat => write!(f, "bfloat"),
+//             Float::Single(s) => write!(f, "float {}", s),
+//             Float::Double(d) => write!(f, "double {}", d),
+//             Float::Quadruple => write!(f, "quadruple"),
+//             Float::X86_FP80 => write!(f, "x86_fp80"),
+//             Float::PPC_FP128 => write!(f, "ppc_fp128"),
+//         }
+//     }
+// }
 
 impl Typed for Constant {
     #[rustfmt::skip] // to keep all the branches more consistent with each other
@@ -157,130 +157,130 @@ impl Typed for Constant {
     }
 }
 
-impl Display for Constant {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Constant::Int { bits, value } => {
-                if *bits == 1 {
-                    if *value == 0 {
-                        write!(f, "i1 false")
-                    } else {
-                        write!(f, "i1 true")
-                    }
-                } else {
-                    match *bits {
-                        16 => {
-                            let signed_val = (*value & 0xFFFF) as i16;
-                            if signed_val > -1000 {
-                                write!(f, "i{} {}", bits, signed_val)
-                            } else {
-                                write!(f, "i{} {}", bits, *value)
-                            }
-                        },
-                        32 => {
-                            let signed_val = (*value & 0xFFFF_FFFF) as i32;
-                            if signed_val > -1000 {
-                                write!(f, "i{} {}", bits, signed_val)
-                            } else {
-                                write!(f, "i{} {}", bits, *value)
-                            }
-                        },
-                        64 => {
-                            let signed_val = *value as i64;
-                            if signed_val > -1000 {
-                                write!(f, "i{} {}", bits, signed_val)
-                            } else {
-                                write!(f, "i{} {}", bits, *value)
-                            }
-                        },
-                        _ => write!(f, "i{} {}", bits, value),
-                    }
-                }
-            },
-            Constant::Float(float) => write!(f, "{}", float),
-            Constant::Null(ty) => write!(f, "{} null", ty),
-            Constant::AggregateZero(ty) => write!(f, "{} zeroinitializer", ty),
-            Constant::Struct {
-                values, is_packed, ..
-            } => {
-                if *is_packed {
-                    write!(f, "<")?;
-                }
-                write!(f, "{{ ")?;
-                for (i, val) in values.iter().enumerate() {
-                    if i == values.len() - 1 {
-                        write!(f, "{}", val)?;
-                    } else {
-                        write!(f, "{}, ", val)?;
-                    }
-                }
-                write!(f, " }}")?;
-                if *is_packed {
-                    write!(f, ">")?;
-                }
-                Ok(())
-            },
-            Constant::Array { elements, .. } => {
-                write!(f, "[ ")?;
-                for (i, elt) in elements.iter().enumerate() {
-                    if i == elements.len() - 1 {
-                        write!(f, "{}", elt)?;
-                    } else {
-                        write!(f, "{}, ", elt)?;
-                    }
-                }
-                write!(f, " ]")?;
-                Ok(())
-            },
-            Constant::Vector(v) => {
-                write!(f, "< ")?;
-                for (i, elt) in v.iter().enumerate() {
-                    if i == v.len() - 1 {
-                        write!(f, "{}", elt)?;
-                    } else {
-                        write!(f, "{}, ", elt)?;
-                    }
-                }
-                write!(f, " >")?;
-                Ok(())
-            },
-            Constant::Undef(ty) => write!(f, "{} undef", ty),
-            Constant::Poison(ty) => write!(f, "{} poison", ty),
-            Constant::BlockAddress => write!(f, "blockaddr"),
-            Constant::GlobalReference { name, ty } => {
-                let name = match name {
-                    Name::Name(n) => String::clone(n),
-                    Name::Number(n) => n.to_string(),
-                };
-                match ty.as_ref() {
-                    LLVMType::FuncType { .. } => {
-                        write!(f, "@{}", name)
-                    },
-                    _ => {
-                        write!(f, "ptr @{}", name)
-                    },
-                }
-            },
-            Constant::TokenNone => write!(f, "none"),
-            Constant::Add(a) => write!(f, "{}", a),
-            Constant::Sub(s) => write!(f, "{}", s),
-            Constant::Mul(m) => write!(f, "{}", m),
-            Constant::Xor(x) => write!(f, "{}", x),
-            Constant::ExtractElement(e) => write!(f, "{}", e),
-            Constant::InsertElement(i) => write!(f, "{}", i),
-            Constant::ShuffleVector(s) => write!(f, "{}", s),
-            Constant::GetElementPtr(g) => write!(f, "{}", g),
-            Constant::Trunc(t) => write!(f, "{}", t),
-            Constant::PtrToInt(p) => write!(f, "{}", p),
-            Constant::IntToPtr(i) => write!(f, "{}", i),
-            Constant::BitCast(b) => write!(f, "{}", b),
-            Constant::AddrSpaceCast(a) => write!(f, "{}", a),
-            Constant::PtrAuth { ptr, key, disc, addr_disc } => {
-                write!(f, "ptrauth({}, {}, {}, {})", ptr, key, disc, addr_disc)
-            }
-        }
-    }
-}
+// impl Display for Constant {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         match self {
+//             Constant::Int { bits, value } => {
+//                 if *bits == 1 {
+//                     if *value == 0 {
+//                         write!(f, "i1 false")
+//                     } else {
+//                         write!(f, "i1 true")
+//                     }
+//                 } else {
+//                     match *bits {
+//                         16 => {
+//                             let signed_val = (*value & 0xFFFF) as i16;
+//                             if signed_val > -1000 {
+//                                 write!(f, "i{} {}", bits, signed_val)
+//                             } else {
+//                                 write!(f, "i{} {}", bits, *value)
+//                             }
+//                         },
+//                         32 => {
+//                             let signed_val = (*value & 0xFFFF_FFFF) as i32;
+//                             if signed_val > -1000 {
+//                                 write!(f, "i{} {}", bits, signed_val)
+//                             } else {
+//                                 write!(f, "i{} {}", bits, *value)
+//                             }
+//                         },
+//                         64 => {
+//                             let signed_val = *value as i64;
+//                             if signed_val > -1000 {
+//                                 write!(f, "i{} {}", bits, signed_val)
+//                             } else {
+//                                 write!(f, "i{} {}", bits, *value)
+//                             }
+//                         },
+//                         _ => write!(f, "i{} {}", bits, value),
+//                     }
+//                 }
+//             },
+//             Constant::Float(float) => write!(f, "{}", float),
+//             Constant::Null(ty) => write!(f, "{} null", ty),
+//             Constant::AggregateZero(ty) => write!(f, "{} zeroinitializer", ty),
+//             Constant::Struct {
+//                 values, is_packed, ..
+//             } => {
+//                 if *is_packed {
+//                     write!(f, "<")?;
+//                 }
+//                 write!(f, "{{ ")?;
+//                 for (i, val) in values.iter().enumerate() {
+//                     if i == values.len() - 1 {
+//                         write!(f, "{}", val)?;
+//                     } else {
+//                         write!(f, "{}, ", val)?;
+//                     }
+//                 }
+//                 write!(f, " }}")?;
+//                 if *is_packed {
+//                     write!(f, ">")?;
+//                 }
+//                 Ok(())
+//             },
+//             Constant::Array { elements, .. } => {
+//                 write!(f, "[ ")?;
+//                 for (i, elt) in elements.iter().enumerate() {
+//                     if i == elements.len() - 1 {
+//                         write!(f, "{}", elt)?;
+//                     } else {
+//                         write!(f, "{}, ", elt)?;
+//                     }
+//                 }
+//                 write!(f, " ]")?;
+//                 Ok(())
+//             },
+//             Constant::Vector(v) => {
+//                 write!(f, "< ")?;
+//                 for (i, elt) in v.iter().enumerate() {
+//                     if i == v.len() - 1 {
+//                         write!(f, "{}", elt)?;
+//                     } else {
+//                         write!(f, "{}, ", elt)?;
+//                     }
+//                 }
+//                 write!(f, " >")?;
+//                 Ok(())
+//             },
+//             Constant::Undef(ty) => write!(f, "{} undef", ty),
+//             Constant::Poison(ty) => write!(f, "{} poison", ty),
+//             Constant::BlockAddress => write!(f, "blockaddr"),
+//             Constant::GlobalReference { name, ty } => {
+//                 let name = match name {
+//                     Name::Name(n) => String::clone(n),
+//                     Name::Number(n) => n.to_string(),
+//                 };
+//                 match ty.as_ref() {
+//                     LLVMType::FuncType { .. } => {
+//                         write!(f, "@{}", name)
+//                     },
+//                     _ => {
+//                         write!(f, "ptr @{}", name)
+//                     },
+//                 }
+//             },
+//             Constant::TokenNone => write!(f, "none"),
+//             Constant::Add(a) => write!(f, "{}", a),
+//             Constant::Sub(s) => write!(f, "{}", s),
+//             Constant::Mul(m) => write!(f, "{}", m),
+//             Constant::Xor(x) => write!(f, "{}", x),
+//             Constant::ExtractElement(e) => write!(f, "{}", e),
+//             Constant::InsertElement(i) => write!(f, "{}", i),
+//             Constant::ShuffleVector(s) => write!(f, "{}", s),
+//             Constant::GetElementPtr(g) => write!(f, "{}", g),
+//             Constant::Trunc(t) => write!(f, "{}", t),
+//             Constant::PtrToInt(p) => write!(f, "{}", p),
+//             Constant::IntToPtr(i) => write!(f, "{}", i),
+//             Constant::BitCast(b) => write!(f, "{}", b),
+//             Constant::AddrSpaceCast(a) => write!(f, "{}", a),
+//             Constant::PtrAuth { ptr, key, disc, addr_disc } => {
+//                 write!(f, "ptrauth({}, {}, {}, {})", ptr, key, disc, addr_disc)
+//             }
+//         }
+//     }
+// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct ConstantRef(Arc<Constant>);
@@ -305,11 +305,11 @@ impl Typed for ConstantRef {
     }
 }
 
-impl Display for ConstantRef {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", &self.0)
-    }
-}
+// impl Display for ConstantRef {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "{}", &self.0)
+//     }
+// }
 
 impl ConstantRef {
     pub fn new(c: Constant) -> Self {
@@ -365,11 +365,11 @@ impl Typed for Add {
     }
 }
 
-impl Display for Add {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "add ({}, {})", &self.operand0, &self.operand1)
-    }
-}
+// impl Display for Add {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "add ({}, {})", &self.operand0, &self.operand1)
+//     }
+// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Sub {
@@ -409,11 +409,11 @@ impl Typed for Sub {
     }
 }
 
-impl Display for Sub {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "sub ({}, {})", &self.operand0, &self.operand1)
-    }
-}
+// impl Display for Sub {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "sub ({}, {})", &self.operand0, &self.operand1)
+//     }
+// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Mul {
@@ -453,11 +453,11 @@ impl Typed for Mul {
     }
 }
 
-impl Display for Mul {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "mul ({}, {})", &self.operand0, &self.operand1)
-    }
-}
+// impl Display for Mul {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "mul ({}, {})", &self.operand0, &self.operand1)
+//     }
+// }
 
 
 #[derive(PartialEq, Clone, Debug, Hash)]
@@ -498,11 +498,11 @@ impl Typed for Xor {
     }
 }
 
-impl Display for Xor {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "xor ({}, {})", &self.operand0, &self.operand1)
-    }
-}
+// impl Display for Xor {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "xor ({}, {})", &self.operand0, &self.operand1)
+//     }
+// }
 
 
 pub struct FRem {
@@ -545,11 +545,11 @@ impl Typed for ExtractElement {
     }
 }
 
-impl Display for ExtractElement {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "extractelement ({}, {})", &self.vector, &self.index)
-    }
-}
+// impl Display for ExtractElement {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "extractelement ({}, {})", &self.vector, &self.index)
+//     }
+// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct InsertElement {
@@ -580,15 +580,15 @@ impl Typed for InsertElement {
     }
 }
 
-impl Display for InsertElement {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "insertelement ({}, {}, {})",
-            &self.vector, &self.element, &self.index,
-        )
-    }
-}
+// impl Display for InsertElement {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(
+//             f,
+//             "insertelement ({}, {}, {})",
+//             &self.vector, &self.element, &self.index,
+//         )
+//     }
+// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct ShuffleVector {
@@ -645,15 +645,15 @@ impl Typed for ShuffleVector {
     }
 }
 
-impl Display for ShuffleVector {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "shufflevector ({}, {}, {})",
-            &self.operand0, &self.operand1, &self.mask,
-        )
-    }
-}
+// impl Display for ShuffleVector {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(
+//             f,
+//             "shufflevector ({}, {}, {})",
+//             &self.operand0, &self.operand1, &self.mask,
+//         )
+//     }
+// }
 
 
 #[derive(PartialEq, Clone, Debug, Hash)]
@@ -686,21 +686,21 @@ impl Typed for GetElementPtr {
 }
 
 
-impl Display for GetElementPtr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "getelementptr{} ({}",
-            if self.in_bounds { " inbounds" } else { "" },
-            &self.address
-        )?;
-        for idx in &self.indices {
-            write!(f, ", {}", idx)?;
-        }
-        write!(f, ")")?;
-        Ok(())
-    }
-}
+// impl Display for GetElementPtr {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(
+//             f,
+//             "getelementptr{} ({}",
+//             if self.in_bounds { " inbounds" } else { "" },
+//             &self.address
+//         )?;
+//         for idx in &self.indices {
+//             write!(f, ", {}", idx)?;
+//         }
+//         write!(f, ")")?;
+//         Ok(())
+//     }
+// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Trunc {
@@ -735,16 +735,16 @@ impl Typed for Trunc {
     }
 }
 
-impl Display for Trunc {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "trunc ({} to {})",
-            &self.get_operand(),
-            &self.to_type,
-        )
-    }
-}
+// impl Display for Trunc {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(
+//             f,
+//             "trunc ({} to {})",
+//             &self.get_operand(),
+//             &self.to_type,
+//         )
+//     }
+// }
 
 
 #[derive(PartialEq, Clone, Debug, Hash)]
@@ -780,16 +780,16 @@ impl Typed for PtrToInt {
     }
 }
 
-impl Display for PtrToInt {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "ptrtoint ({} to {})",
-            &self.get_operand(),
-            &self.to_type,
-        )
-    }
-}
+// impl Display for PtrToInt {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(
+//             f,
+//             "ptrtoint ({} to {})",
+//             &self.get_operand(),
+//             &self.to_type,
+//         )
+//     }
+// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct IntToPtr {
@@ -824,16 +824,16 @@ impl Typed for IntToPtr {
     }
 }
 
-impl Display for IntToPtr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "inttoptr ({} to {})",
-            &self.get_operand(),
-            &self.to_type,
-        )
-    }
-}
+// impl Display for IntToPtr {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(
+//             f,
+//             "inttoptr ({} to {})",
+//             &self.get_operand(),
+//             &self.to_type,
+//         )
+//     }
+// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct BitCast {
@@ -868,16 +868,16 @@ impl Typed for BitCast {
     }
 }
 
-impl Display for BitCast {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "bitcast ({} to {})",
-            &self.get_operand(),
-            &self.to_type,
-        )
-    }
-}
+// impl Display for BitCast {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(
+//             f,
+//             "bitcast ({} to {})",
+//             &self.get_operand(),
+//             &self.to_type,
+//         )
+//     }
+// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct AddrSpaceCast {
@@ -912,15 +912,15 @@ impl Typed for AddrSpaceCast {
     }
 }
 
-impl Display for AddrSpaceCast {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "addrspacecast ({} to {})",
-            &self.get_operand(),
-            &self.to_type,
-        )
-    }
-}
+// impl Display for AddrSpaceCast {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(
+//             f,
+//             "addrspacecast ({} to {})",
+//             &self.get_operand(),
+//             &self.to_type,
+//         )
+//     }
+// }
 
 

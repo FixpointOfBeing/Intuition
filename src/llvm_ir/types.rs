@@ -3,7 +3,6 @@ use either::Either;
 use std::borrow::Borrow;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::fmt::{self, Display};
 use std::hash::Hash;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -48,90 +47,90 @@ pub enum LLVMType {
     TargetExtType, // TODO ideally we want something like TargetExtType { name: String, contained_types: Vec<TypeRef>, contained_ints: Vec<u32> }
 }
 
-impl Display for LLVMType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            LLVMType::VoidType => write!(f, "void"),
-            LLVMType::IntegerType { bits } => write!(f, "i{}", bits),
-            LLVMType::PointerType { .. } => write!(f, "ptr"),
-            LLVMType::FPType(fpt) => write!(f, "{}", fpt),
-            LLVMType::FuncType {
-                result_type,
-                param_types,
-                is_var_arg,
-            } => {
-                write!(f, "{} (", result_type)?;
-                for (i, param_ty) in param_types.iter().enumerate() {
-                    if i == param_types.len() - 1 {
-                        write!(f, "{}", param_ty)?;
-                    } else {
-                        write!(f, "{}, ", param_ty)?;
-                    }
-                }
-                if *is_var_arg {
-                    write!(f, ", ...")?;
-                }
-                write!(f, ")")?;
-                Ok(())
-            },
-            LLVMType::VectorType {
-                element_type,
-                num_elements,
-                scalable,
-            } => {
-                if *scalable {
-                    write!(f, "<vscale x {} x {}>", num_elements, element_type)
-                } else {
-                    write!(f, "<{} x {}>", num_elements, element_type)
-                }
-            },
-            LLVMType::ArrayType {
-                element_type,
-                num_elements,
-            } => write!(f, "[{} x {}]", num_elements, element_type),
-            LLVMType::StructType {
-                element_types,
-                is_packed,
-            } => {
-                if *is_packed {
-                    write!(f, "<")?;
-                }
-                write!(f, "{{ ")?;
-                for (i, element_ty) in element_types.iter().enumerate() {
-                    if i == element_types.len() - 1 {
-                        write!(f, "{}", element_ty)?;
-                    } else {
-                        write!(f, "{}, ", element_ty)?;
-                    }
-                }
-                write!(f, " }}")?;
-                if *is_packed {
-                    write!(f, ">")?;
-                }
-                Ok(())
-            },
-            LLVMType::NamedStructType { name } => write!(f, "%{}", name),
-            LLVMType::X86_MMXType => write!(f, "x86_mmx"),
-            LLVMType::X86_AMXType => write!(f, "x86_amx"),
-            LLVMType::MetadataType => write!(f, "metadata"),
-            LLVMType::LabelType => write!(f, "label"),
-            LLVMType::TokenType => write!(f, "token"),
-            LLVMType::TargetExtType => write!(f, "target()"),
-            /*
-            let members = [name]
-                .iter()
-                .map(|name| format!("\"{name}\""))
-                .chain(contained_types.iter().map(ToString::to_string))
-                .chain(contained_ints.iter().map(ToString::to_string))
-                .collect::<Vec<_>>()
-                .join(", ");
-            write!(f, "target({members})")?;
-
-            Ok(())
-            */
-        }
-    }
-}
+// impl Display for LLVMType {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         match self {
+//             LLVMType::VoidType => write!(f, "void"),
+//             LLVMType::IntegerType { bits } => write!(f, "i{}", bits),
+//             LLVMType::PointerType { .. } => write!(f, "ptr"),
+//             LLVMType::FPType(fpt) => write!(f, "{}", fpt),
+//             LLVMType::FuncType {
+//                 result_type,
+//                 param_types,
+//                 is_var_arg,
+//             } => {
+//                 write!(f, "{} (", result_type)?;
+//                 for (i, param_ty) in param_types.iter().enumerate() {
+//                     if i == param_types.len() - 1 {
+//                         write!(f, "{}", param_ty)?;
+//                     } else {
+//                         write!(f, "{}, ", param_ty)?;
+//                     }
+//                 }
+//                 if *is_var_arg {
+//                     write!(f, ", ...")?;
+//                 }
+//                 write!(f, ")")?;
+//                 Ok(())
+//             },
+//             LLVMType::VectorType {
+//                 element_type,
+//                 num_elements,
+//                 scalable,
+//             } => {
+//                 if *scalable {
+//                     write!(f, "<vscale x {} x {}>", num_elements, element_type)
+//                 } else {
+//                     write!(f, "<{} x {}>", num_elements, element_type)
+//                 }
+//             },
+//             LLVMType::ArrayType {
+//                 element_type,
+//                 num_elements,
+//             } => write!(f, "[{} x {}]", num_elements, element_type),
+//             LLVMType::StructType {
+//                 element_types,
+//                 is_packed,
+//             } => {
+//                 if *is_packed {
+//                     write!(f, "<")?;
+//                 }
+//                 write!(f, "{{ ")?;
+//                 for (i, element_ty) in element_types.iter().enumerate() {
+//                     if i == element_types.len() - 1 {
+//                         write!(f, "{}", element_ty)?;
+//                     } else {
+//                         write!(f, "{}, ", element_ty)?;
+//                     }
+//                 }
+//                 write!(f, " }}")?;
+//                 if *is_packed {
+//                     write!(f, ">")?;
+//                 }
+//                 Ok(())
+//             },
+//             LLVMType::NamedStructType { name } => write!(f, "%{}", name),
+//             LLVMType::X86_MMXType => write!(f, "x86_mmx"),
+//             LLVMType::X86_AMXType => write!(f, "x86_amx"),
+//             LLVMType::MetadataType => write!(f, "metadata"),
+//             LLVMType::LabelType => write!(f, "label"),
+//             LLVMType::TokenType => write!(f, "token"),
+//             LLVMType::TargetExtType => write!(f, "target()"),
+//             /*
+//             let members = [name]
+//                 .iter()
+//                 .map(|name| format!("\"{name}\""))
+//                 .chain(contained_types.iter().map(ToString::to_string))
+//                 .chain(contained_ints.iter().map(ToString::to_string))
+//                 .collect::<Vec<_>>()
+//                 .join(", ");
+//             write!(f, "target({members})")?;
+//
+//             Ok(())
+//             */
+//         }
+//     }
+// }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
 #[allow(non_camel_case_types)]
@@ -151,19 +150,19 @@ impl From<FPType> for LLVMType {
     }
 }
 
-impl Display for FPType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            FPType::Half => write!(f, "half"),
-            FPType::BFloat => write!(f, "bfloat"),
-            FPType::Single => write!(f, "float"),
-            FPType::Double => write!(f, "double"),
-            FPType::FP128 => write!(f, "fp128"),
-            FPType::X86_FP80 => write!(f, "x86_fp80"),
-            FPType::PPC_FP128 => write!(f, "ppc_fp128"),
-        }
-    }
-}
+// impl Display for FPType {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         match self {
+//             FPType::Half => write!(f, "half"),
+//             FPType::BFloat => write!(f, "bfloat"),
+//             FPType::Single => write!(f, "float"),
+//             FPType::Double => write!(f, "double"),
+//             FPType::FP128 => write!(f, "fp128"),
+//             FPType::X86_FP80 => write!(f, "x86_fp80"),
+//             FPType::PPC_FP128 => write!(f, "ppc_fp128"),
+//         }
+//     }
+// }
 
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct TypeRef(Arc<LLVMType>);
@@ -182,11 +181,11 @@ impl Deref for TypeRef {
     }
 }
 
-impl Display for TypeRef {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", &self.0)
-    }
-}
+// impl Display for TypeRef {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "{}", &self.0)
+//     }
+// }
 
 impl TypeRef {
     fn new(ty: LLVMType) -> Self {
@@ -235,14 +234,14 @@ pub enum NamedStructDef {
     Defined(TypeRef),
 }
 
-impl Display for NamedStructDef {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            NamedStructDef::Opaque => write!(f, "type opaque"),
-            NamedStructDef::Defined(ty) => write!(f, "type {}", ty),
-        }
-    }
-}
+// impl Display for NamedStructDef {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         match self {
+//             NamedStructDef::Opaque => write!(f, "type opaque"),
+//             NamedStructDef::Defined(ty) => write!(f, "type {}", ty),
+//         }
+//     }
+// }
 
 #[derive(Clone, Debug)]
 pub struct Types {

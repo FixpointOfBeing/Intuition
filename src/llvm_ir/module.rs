@@ -14,7 +14,7 @@ pub struct Module {
     pub name: String,
     pub source_file_name: String,
     pub data_layout: DataLayout,
-    pub target_triple: Option<String>,
+    pub target_triple: String,
     pub functions: Vec<Function>,
     pub func_declarations: Vec<FunctionDeclaration>,
     pub global_vars: Vec<GlobalVariable>,
@@ -99,52 +99,52 @@ impl Typed for GlobalVariable {
 //     }
 // }
 
-impl Display for GlobalVariable {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "@{} = ", self.name)?;
-        if self.linkage != Linkage::External {
-            write!(f, "{} ", self.linkage)?;
-        }
-        if self.visibility != Visibility::Default {
-            write!(f, "{} ", self.visibility)?;
-        }
-        if self.dll_storage_class != DLLStorageClass::Default {
-            write!(f, "{} ", self.dll_storage_class)?;
-        }
-        if self.thread_local_mode != ThreadLocalMode::NotThreadLocal {
-            write!(f, "{} ", self.thread_local_mode)?;
-        }
-        if let Some(ref unnamed_addr) = self.unnamed_addr {
-            write!(f, "{} ", unnamed_addr)?;
-        }
-        if self.addr_space != 0 {
-            write!(f, "addrspace({}) ", self.addr_space)?;
-        }
-        write!(
-            f,
-            "{} ",
-            if self.is_constant {
-                "constant"
-            } else {
-                "global"
-            }
-        )?;
-        write!(f, "{}", self.ty)?;
-        if let Some(ref init) = self.initializer {
-            write!(f, " {}", init)?;
-        }
-        if let Some(ref section) = self.section {
-            write!(f, ", section \"{}\"", section)?;
-        }
-        if let Some(ref comdat) = self.comdat {
-            write!(f, ", {}", comdat)?;
-        }
-        if self.alignment > 0 {
-            write!(f, ", align {}", self.alignment)?;
-        }
-        Ok(())
-    }
-}
+// impl Display for GlobalVariable {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "@{} = ", self.name)?;
+//         if self.linkage != Linkage::External {
+//             write!(f, "{} ", self.linkage)?;
+//         }
+//         if self.visibility != Visibility::Default {
+//             write!(f, "{} ", self.visibility)?;
+//         }
+//         if self.dll_storage_class != DLLStorageClass::Default {
+//             write!(f, "{} ", self.dll_storage_class)?;
+//         }
+//         if self.thread_local_mode != ThreadLocalMode::NotThreadLocal {
+//             write!(f, "{} ", self.thread_local_mode)?;
+//         }
+//         if let Some(ref unnamed_addr) = self.unnamed_addr {
+//             write!(f, "{} ", unnamed_addr)?;
+//         }
+//         if self.addr_space != 0 {
+//             write!(f, "addrspace({}) ", self.addr_space)?;
+//         }
+//         write!(
+//             f,
+//             "{} ",
+//             if self.is_constant {
+//                 "constant"
+//             } else {
+//                 "global"
+//             }
+//         )?;
+//         write!(f, "{}", self.ty)?;
+//         if let Some(ref init) = self.initializer {
+//             write!(f, " {}", init)?;
+//         }
+//         if let Some(ref section) = self.section {
+//             write!(f, ", section \"{}\"", section)?;
+//         }
+//         if let Some(ref comdat) = self.comdat {
+//             write!(f, ", {}", comdat)?;
+//         }
+//         if self.alignment > 0 {
+//             write!(f, ", align {}", self.alignment)?;
+//         }
+//         Ok(())
+//     }
+// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct GlobalAlias {
@@ -165,31 +165,31 @@ impl Typed for GlobalAlias {
     }
 }
 
-impl Display for GlobalAlias {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "@{} = ", self.name)?;
-        if self.linkage != Linkage::External {
-            write!(f, "{} ", self.linkage)?;
-        }
-        if self.visibility != Visibility::Default {
-            write!(f, "{} ", self.visibility)?;
-        }
-        if self.dll_storage_class != DLLStorageClass::Default {
-            write!(f, "{} ", self.dll_storage_class)?;
-        }
-        if self.thread_local_mode != ThreadLocalMode::NotThreadLocal {
-            write!(f, "{} ", self.thread_local_mode)?;
-        }
-        if let Some(ref unnamed_addr) = self.unnamed_addr {
-            write!(f, "{} ", unnamed_addr)?;
-        }
-        write!(f, "alias {}", self.ty)?;
-        if self.addr_space != 0 {
-            write!(f, ", addrspace({})", self.addr_space)?;
-        }
-        write!(f, ", {}", self.aliasee)
-    }
-}
+// impl Display for GlobalAlias {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "@{} = ", self.name)?;
+//         if self.linkage != Linkage::External {
+//             write!(f, "{} ", self.linkage)?;
+//         }
+//         if self.visibility != Visibility::Default {
+//             write!(f, "{} ", self.visibility)?;
+//         }
+//         if self.dll_storage_class != DLLStorageClass::Default {
+//             write!(f, "{} ", self.dll_storage_class)?;
+//         }
+//         if self.thread_local_mode != ThreadLocalMode::NotThreadLocal {
+//             write!(f, "{} ", self.thread_local_mode)?;
+//         }
+//         if let Some(ref unnamed_addr) = self.unnamed_addr {
+//             write!(f, "{} ", unnamed_addr)?;
+//         }
+//         write!(f, "alias {}", self.ty)?;
+//         if self.addr_space != 0 {
+//             write!(f, ", addrspace({})", self.addr_space)?;
+//         }
+//         write!(f, ", {}", self.aliasee)
+//     }
+// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct GlobalIFunc {
@@ -206,18 +206,18 @@ impl Typed for GlobalIFunc {
     }
 }
 
-impl Display for GlobalIFunc {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "@{} = ", self.name)?;
-        if self.linkage != Linkage::External {
-            write!(f, "{} ", self.linkage)?;
-        }
-        if self.visibility != Visibility::Default {
-            write!(f, "{} ", self.visibility)?;
-        }
-        write!(f, "ifunc {}, {}", self.ty, self.resolver_fn)
-    }
-}
+// impl Display for GlobalIFunc {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "@{} = ", self.name)?;
+//         if self.linkage != Linkage::External {
+//             write!(f, "{} ", self.linkage)?;
+//         }
+//         if self.visibility != Visibility::Default {
+//             write!(f, "{} ", self.visibility)?;
+//         }
+//         write!(f, "ifunc {}, {}", self.ty, self.resolver_fn)
+//     }
+// }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
 pub enum UnnamedAddr {
@@ -225,14 +225,14 @@ pub enum UnnamedAddr {
     Global,
 }
 
-impl Display for UnnamedAddr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            UnnamedAddr::Local => write!(f, "local_unnamed_addr"),
-            UnnamedAddr::Global => write!(f, "unnamed_addr"),
-        }
-    }
-}
+// impl Display for UnnamedAddr {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         match self {
+//             UnnamedAddr::Local => write!(f, "local_unnamed_addr"),
+//             UnnamedAddr::Global => write!(f, "unnamed_addr"),
+//         }
+//     }
+// }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
 pub enum Linkage {
@@ -255,29 +255,29 @@ pub enum Linkage {
     LinkerPrivateWeak,
 }
 
-impl Display for Linkage {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Linkage::Private => write!(f, "private"),
-            Linkage::Internal => write!(f, "internal"),
-            Linkage::External => Ok(()),
-            Linkage::ExternalWeak => write!(f, "extern_weak"),
-            Linkage::AvailableExternally => write!(f, "available_externally"),
-            Linkage::LinkOnceAny => write!(f, "linkonce"),
-            Linkage::LinkOnceODR => write!(f, "linkonce_odr"),
-            Linkage::LinkOnceODRAutoHide => write!(f, "linkonce_odr auto_hide"),
-            Linkage::WeakAny => write!(f, "weak"),
-            Linkage::WeakODR => write!(f, "weak_odr"),
-            Linkage::Common => write!(f, "common"),
-            Linkage::Appending => write!(f, "appending"),
-            Linkage::DLLImport => write!(f, "dllimport"),
-            Linkage::DLLExport => write!(f, "dllexport"),
-            Linkage::Ghost => write!(f, "ghost"),
-            Linkage::LinkerPrivate => write!(f, "linker_private"),
-            Linkage::LinkerPrivateWeak => write!(f, "linker_private_weak"),
-        }
-    }
-}
+// impl Display for Linkage {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         match self {
+//             Linkage::Private => write!(f, "private"),
+//             Linkage::Internal => write!(f, "internal"),
+//             Linkage::External => Ok(()),
+//             Linkage::ExternalWeak => write!(f, "extern_weak"),
+//             Linkage::AvailableExternally => write!(f, "available_externally"),
+//             Linkage::LinkOnceAny => write!(f, "linkonce"),
+//             Linkage::LinkOnceODR => write!(f, "linkonce_odr"),
+//             Linkage::LinkOnceODRAutoHide => write!(f, "linkonce_odr auto_hide"),
+//             Linkage::WeakAny => write!(f, "weak"),
+//             Linkage::WeakODR => write!(f, "weak_odr"),
+//             Linkage::Common => write!(f, "common"),
+//             Linkage::Appending => write!(f, "appending"),
+//             Linkage::DLLImport => write!(f, "dllimport"),
+//             Linkage::DLLExport => write!(f, "dllexport"),
+//             Linkage::Ghost => write!(f, "ghost"),
+//             Linkage::LinkerPrivate => write!(f, "linker_private"),
+//             Linkage::LinkerPrivateWeak => write!(f, "linker_private_weak"),
+//         }
+//     }
+// }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
 pub enum Visibility {
@@ -286,15 +286,15 @@ pub enum Visibility {
     Protected,
 }
 
-impl Display for Visibility {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Visibility::Default => Ok(()),
-            Visibility::Hidden => write!(f, "hidden"),
-            Visibility::Protected => write!(f, "protected"),
-        }
-    }
-}
+// impl Display for Visibility {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         match self {
+//             Visibility::Default => Ok(()),
+//             Visibility::Hidden => write!(f, "hidden"),
+//             Visibility::Protected => write!(f, "protected"),
+//         }
+//     }
+// }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
 pub enum DLLStorageClass {
@@ -303,15 +303,15 @@ pub enum DLLStorageClass {
     Export,
 }
 
-impl Display for DLLStorageClass {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            DLLStorageClass::Default => Ok(()),
-            DLLStorageClass::Import => write!(f, "dllimport"),
-            DLLStorageClass::Export => write!(f, "dllexport"),
-        }
-    }
-}
+// impl Display for DLLStorageClass {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         match self {
+//             DLLStorageClass::Default => Ok(()),
+//             DLLStorageClass::Import => write!(f, "dllimport"),
+//             DLLStorageClass::Export => write!(f, "dllexport"),
+//         }
+//     }
+// }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
 pub enum ThreadLocalMode {
@@ -322,17 +322,17 @@ pub enum ThreadLocalMode {
     LocalExec,
 }
 
-impl Display for ThreadLocalMode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            ThreadLocalMode::NotThreadLocal => Ok(()),
-            ThreadLocalMode::GeneralDynamic => write!(f, "thread_local"),
-            ThreadLocalMode::LocalDynamic => write!(f, "thread_local(localdynamic)"),
-            ThreadLocalMode::InitialExec => write!(f, "thread_local(initialexec)"),
-            ThreadLocalMode::LocalExec => write!(f, "thread_local(localexec)"),
-        }
-    }
-}
+// impl Display for ThreadLocalMode {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         match self {
+//             ThreadLocalMode::NotThreadLocal => Ok(()),
+//             ThreadLocalMode::GeneralDynamic => write!(f, "thread_local"),
+//             ThreadLocalMode::LocalDynamic => write!(f, "thread_local(localdynamic)"),
+//             ThreadLocalMode::InitialExec => write!(f, "thread_local(initialexec)"),
+//             ThreadLocalMode::LocalExec => write!(f, "thread_local(localexec)"),
+//         }
+//     }
+// }
 
 pub type AddrSpace = u32;
 
@@ -365,23 +365,23 @@ pub enum SelectionKind {
     SameSize,
 }
 
-impl Display for Comdat {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "comdat({})", self.name)
-    }
-}
+// impl Display for Comdat {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "comdat({})", self.name)
+//     }
+// }
 
-impl Display for SelectionKind {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            SelectionKind::Any => write!(f, "any"),
-            SelectionKind::ExactMatch => write!(f, "exactmatch"),
-            SelectionKind::Largest => write!(f, "largest"),
-            SelectionKind::NoDuplicates => write!(f, "noduplicates"),
-            SelectionKind::SameSize => write!(f, "samesize"),
-        }
-    }
-}
+// impl Display for SelectionKind {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         match self {
+//             SelectionKind::Any => write!(f, "any"),
+//             SelectionKind::ExactMatch => write!(f, "exactmatch"),
+//             SelectionKind::Largest => write!(f, "largest"),
+//             SelectionKind::NoDuplicates => write!(f, "noduplicates"),
+//             SelectionKind::SameSize => write!(f, "samesize"),
+//         }
+//     }
+// }
 
 #[derive(Clone, Debug)]
 pub struct DataLayout {
@@ -487,11 +487,11 @@ impl PartialEq for DataLayout {
 
 impl Eq for DataLayout {}
 
-impl Display for DataLayout {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.layout_str)
-    }
-}
+// impl Display for DataLayout {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "{}", self.layout_str)
+//     }
+// }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
 pub enum Endianness {
@@ -499,14 +499,14 @@ pub enum Endianness {
     BigEndian,
 }
 
-impl Display for Endianness {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Endianness::LittleEndian => write!(f, "little"),
-            Endianness::BigEndian => write!(f, "big"),
-        }
-    }
-}
+// impl Display for Endianness {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         match self {
+//             Endianness::LittleEndian => write!(f, "little"),
+//             Endianness::BigEndian => write!(f, "big"),
+//         }
+//     }
+// }
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct Alignment {
@@ -646,15 +646,15 @@ pub enum Mangling {
     XCOFF,
 }
 
-impl Display for Mangling {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Mangling::ELF => write!(f, "e"),
-            Mangling::MIPS => write!(f, "m"),
-            Mangling::MachO => write!(f, "o"),
-            Mangling::WindowsX86COFF => write!(f, "w"),
-            Mangling::WindowsCOFF => write!(f, "x"),
-            Mangling::XCOFF => write!(f, "y"),
-        }
-    }
-}
+// impl Display for Mangling {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         match self {
+//             Mangling::ELF => write!(f, "e"),
+//             Mangling::MIPS => write!(f, "m"),
+//             Mangling::MachO => write!(f, "o"),
+//             Mangling::WindowsX86COFF => write!(f, "w"),
+//             Mangling::WindowsCOFF => write!(f, "x"),
+//             Mangling::XCOFF => write!(f, "y"),
+//         }
+//     }
+// }

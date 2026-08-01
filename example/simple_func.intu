@@ -1,0 +1,2 @@
+let add (x : Int) (y : Int) : Int = x + y in
+add 41 1

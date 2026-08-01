@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-
 use either::Either;
+use std::collections::HashMap;
+use target_lexicon::Triple;
 
 use crate::closure_conversion::ClosFnDef;
 use crate::explicate_control::{CAtom, CExpr, CStmt, CTail};
@@ -21,7 +21,8 @@ use crate::syntax::{BinOp, Ident, Type, UnaryOp};
 pub fn emit_module(
     body: CTail,
     return_type: Type,
-    module_name: &str,
+    module_name: String,
+    source_file_name: String,
     fn_defs: &[(ClosFnDef, CTail)],
 ) -> Module {
     let types = Types::new();
@@ -86,10 +87,10 @@ pub fn emit_module(
     all_fns.push(main_fn);
 
     Module {
-        name: module_name.to_string(),
-        source_file_name: String::new(),
+        name: module_name,
+        source_file_name: source_file_name,
         data_layout: DataLayout::minimal(),
-        target_triple: None,
+        target_triple: target_triple(),
         functions: all_fns,
         func_declarations,
         global_vars: vec![],
@@ -99,7 +100,10 @@ pub fn emit_module(
         types,
     }
 }
-
+fn target_triple() -> String {
+    let host_triple = Triple::host();
+    host_triple.to_string()
+}
 fn compile_lifted_fn(
     fn_def: &ClosFnDef,
     ctail: &CTail,
@@ -114,11 +118,17 @@ fn compile_lifted_fn(
     };
 
     let params: Vec<Parameter> = std::iter::once(env_param)
-        .chain(fn_def.params.iter().enumerate().map(|(i, (name, ty))| Parameter {
-            name: Name::Name(Box::new(name.clone())),
-            ty: llvm_type(ty, types),
-            attributes: vec![],
-        }))
+        .chain(
+            fn_def
+                .params
+                .iter()
+                .enumerate()
+                .map(|(_, (name, ty))| Parameter {
+                    name: Name::Name(Box::new(name.clone())),
+                    ty: llvm_type(ty, types),
+                    attributes: vec![],
+                }),
+        )
         .collect();
 
     let ret_ty = llvm_type(&fn_def.return_type, types);
@@ -167,11 +177,7 @@ fn llvm_type(ty: &Type, types: &Types) -> TypeRef {
     }
 }
 
-fn compile_catom(
-    atom: &CAtom,
-    types: &Types,
-    env: &HashMap<Ident, Operand>,
-) -> Operand {
+fn compile_catom(atom: &CAtom, types: &Types, env: &HashMap<Ident, Operand>) -> Operand {
     match atom {
         CAtom::Unit => {
             let unit_ty = types.struct_of(vec![], false);
@@ -185,9 +191,9 @@ fn compile_catom(
             bits: 64,
             value: *i as u64,
         })),
-        CAtom::Float(f) => Operand::ConstantOperand(ConstantRef::new(Constant::Float(
-            Float::Double(*f),
-        ))),
+        CAtom::Float(f) => {
+            Operand::ConstantOperand(ConstantRef::new(Constant::Float(Float::Double(*f))))
+        }
         CAtom::Var(name, ty) => {
             if let Some(op) = env.get(name) {
                 op.clone()
@@ -239,14 +245,22 @@ fn compile_cexpr(
             )
         }
         CExpr::Call(func, args) => {
-            let (func_op, func_ty) =
-                compile_function_operand(func, types, env, func_decls);
+            let (func_op, func_ty) = compile_function_operand(func, types, env, func_decls);
             let ret_ty = match func_ty.as_ref() {
                 LLVMType::FuncType { result_type, .. } => result_type.clone(),
                 _ => types.void(),
             };
             let dest = fresh_name(gensym);
-            let call = compile_call(func_op, func_ty, args, Some(dest.clone()), false, types, env, func_decls);
+            let call = compile_call(
+                func_op,
+                func_ty,
+                args,
+                Some(dest.clone()),
+                false,
+                types,
+                env,
+                func_decls,
+            );
             (
                 vec![Instruction::Call(call)],
                 Operand::LocalOperand {
@@ -308,14 +322,8 @@ fn compile_make_closure(
             ty: types.pointer(),
         },
         indices: vec![
-            Operand::ConstantOperand(ConstantRef::new(Constant::Int {
-                bits: 32,
-                value: 0,
-            })),
-            Operand::ConstantOperand(ConstantRef::new(Constant::Int {
-                bits: 32,
-                value: 0,
-            })),
+            Operand::ConstantOperand(ConstantRef::new(Constant::Int { bits: 32, value: 0 })),
+            Operand::ConstantOperand(ConstantRef::new(Constant::Int { bits: 32, value: 0 })),
         ],
         dest: fn_field_dest.clone(),
         in_bounds: true,
@@ -349,10 +357,7 @@ fn compile_make_closure(
                 ty: types.pointer(),
             },
             indices: vec![
-                Operand::ConstantOperand(ConstantRef::new(Constant::Int {
-                    bits: 32,
-                    value: 0,
-                })),
+                Operand::ConstantOperand(ConstantRef::new(Constant::Int { bits: 32, value: 0 })),
                 Operand::ConstantOperand(ConstantRef::new(Constant::Int {
                     bits: 32,
                     value: field_idx,
@@ -405,10 +410,7 @@ fn compile_project(
     let gep = GetElementPtr {
         address: env_op,
         indices: vec![
-            Operand::ConstantOperand(ConstantRef::new(Constant::Int {
-                bits: 32,
-                value: 0,
-            })),
+            Operand::ConstantOperand(ConstantRef::new(Constant::Int { bits: 32, value: 0 })),
             Operand::ConstantOperand(ConstantRef::new(Constant::Int {
                 bits: 32,
                 value: idx as u64,
@@ -635,12 +637,7 @@ fn compile_binop(
     }
 }
 
-fn compile_unaryop(
-    op: &UnaryOp,
-    operand: Operand,
-    dest: Name,
-    types: &Types,
-) -> Instruction {
+fn compile_unaryop(op: &UnaryOp, operand: Operand, dest: Name, types: &Types) -> Instruction {
     let op_ty = types.type_of(&operand);
     let is_float = matches!(op_ty.as_ref(), LLVMType::FPType(_));
 
@@ -685,12 +682,11 @@ fn compile_function_operand(
                 (op.clone(), func_ty)
             } else {
                 ensure_func_decl(name, arrow_ty, types, func_decls);
-                let global_ref = Operand::ConstantOperand(ConstantRef::new(
-                    Constant::GlobalReference {
+                let global_ref =
+                    Operand::ConstantOperand(ConstantRef::new(Constant::GlobalReference {
                         name: Name::Name(Box::new(name.clone())),
                         ty: func_ty.clone(),
-                    },
-                ));
+                    }));
                 (global_ref, func_ty)
             }
         }
@@ -820,8 +816,7 @@ fn compile_tail(
 ) -> Vec<BasicBlock> {
     match tail {
         CTail::Return(cexpr) => {
-            let (instrs, result) =
-                compile_cexpr(cexpr, types, gensym, env, func_decls);
+            let (instrs, result) = compile_cexpr(cexpr, types, gensym, env, func_decls);
             let mut bb = BasicBlock::new(block_name(gensym, "ret"));
             bb.instrs = instrs;
             bb.term = Terminator::Ret(Ret {
@@ -830,8 +825,7 @@ fn compile_tail(
             vec![bb]
         }
         CTail::TailCall(func, args) => {
-            let (func_op, func_ty) =
-                compile_function_operand(func, types, env, func_decls);
+            let (func_op, func_ty) = compile_function_operand(func, types, env, func_decls);
             let call_dest = fresh_name(gensym);
             let call = compile_call(
                 func_op,
@@ -859,8 +853,7 @@ fn compile_tail(
         }
         CTail::Seq(stmt, cont) => {
             let CStmt::Assign(name, cexpr, _ty) = stmt;
-            let (instrs, result) =
-                compile_cexpr(cexpr, types, gensym, env, func_decls);
+            let (instrs, result) = compile_cexpr(cexpr, types, gensym, env, func_decls);
             let mut env_with = env.clone();
             env_with.insert(name.clone(), result);
             let mut blocks = compile_tail(cont, types, gensym, &env_with, func_decls);
@@ -998,9 +991,20 @@ mod tests {
         let fn_ctails: Vec<(crate::closure_conversion::ClosFnDef, _)> = clos_prog
             .fn_defs
             .iter()
-            .map(|d| (d.clone(), crate::explicate_control::explicate_control_convert(d.body.clone())))
+            .map(|d| {
+                (
+                    d.clone(),
+                    crate::explicate_control::explicate_control_convert(d.body.clone()),
+                )
+            })
             .collect();
-        let module = emit_module(body_ctail, return_ty, "test_module", &fn_ctails);
+        let module = emit_module(
+            body_ctail,
+            return_ty,
+            "test_module".to_string(),
+            "test_module.intu".to_string(),
+            &fn_ctails,
+        );
         module.to_string()
     }
 

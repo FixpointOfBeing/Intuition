@@ -1,13 +1,11 @@
+use crate::llvm_ir::constant::{Constant, ConstantRef};
+use crate::llvm_ir::name::Name;
 use crate::llvm_ir::types::{TypeRef, Typed, Types};
-use crate::llvm_ir::{Constant, ConstantRef, Name};
 use std::fmt::{self, Display};
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub enum Operand {
-    LocalOperand {
-        name: Name,
-        ty: TypeRef,
-    },
+    LocalOperand { name: Name, ty: TypeRef },
     ConstantOperand(ConstantRef),
     MetadataOperand, // --TODO not yet implemented-- MetadataOperand(Box<Metadata>),
 }
@@ -31,12 +29,12 @@ impl Operand {
     }
 }
 
-impl Display for Operand {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Operand::LocalOperand { name, ty } => write!(f, "{} {}", ty, name),
-            Operand::ConstantOperand(cref) => write!(f, "{}", &cref),
-            Operand::MetadataOperand => write!(f, "<metadata>"),
-        }
-    }
-}
+// impl Display for Operand {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         match self {
+//             Operand::LocalOperand { name, ty } => write!(f, "{} {}", ty, name),
+//             Operand::ConstantOperand(cref) => write!(f, "{}", &cref),
+//             Operand::MetadataOperand => write!(f, "<metadata>"),
+//         }
+//     }
+// }
