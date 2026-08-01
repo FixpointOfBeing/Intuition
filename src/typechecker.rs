@@ -166,18 +166,17 @@ fn infer(
         },
 
         Expr::UnaryOp(op, operand) => {
-            let res = infer(ctx, *operand)?;
-            let ty = res.0.clone();
+            let (ty, typed_operand) = infer(ctx, *operand)?;
             match op {
-                UnaryOp::Neg => match ty {
-                    Type::Int | Type::Float => Ok(res),
+                UnaryOp::Neg => match &ty {
+                Type::Int | Type::Float => Ok((ty.clone(), (TypedExpr::UnaryOp(op, Box::new(typed_operand), ty)))),
                     _ => Err(TypeError::InvalidUnary {
                         op: "-".to_string(),
                         ty,
                     }),
                 },
-                UnaryOp::Not => match ty {
-                    Type::Bool => Ok(res),
+                UnaryOp::Not => match &ty {
+                    Type::Bool => Ok((ty.clone(), (TypedExpr::UnaryOp(op, Box::new(typed_operand), ty)))),
                     _ => Err(TypeError::InvalidUnary {
                         op: "!".to_string(),
                         ty,
