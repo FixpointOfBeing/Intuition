@@ -1,19 +1,19 @@
 // pub mod compile_llvm;
+pub mod a_normal_form;
+pub mod assign_homes;
+pub mod closure_conversion;
 pub mod compile;
+pub mod emit_llvm;
+pub mod env;
 pub mod eval;
+pub mod explicate_control;
+pub mod gensym;
+pub mod llvm_ir;
 pub mod repl;
+pub mod select_instructions;
 pub mod syntax;
 pub mod typechecker;
 pub mod uniquify;
-pub mod explicate_control;
-pub mod env;
-pub mod a_normal_form;
-pub mod closure_conversion;
-pub mod gensym;
-pub mod select_instructions;
-pub mod assign_homes;
-pub mod llvm_ir;
-pub mod emit_llvm;
 
 use crate::compile::compile_file;
 use crate::eval::eval_file;
@@ -50,19 +50,19 @@ fn main() {
     match &cli.command {
         None | Some(Commands::Repl) => {
             repl();
-        }
+        },
         Some(Commands::Compile { file, output }) => {
             compile_file(file, output).unwrap_or_else(|e| {
                 println!("Error: {}", e);
-            }); 
-        }
+            });
+        },
         Some(Commands::Eval { file }) => match eval_file(file) {
             Ok(v) => {
                 println!("{}", v);
-            }
+            },
             Err(e) => {
                 println!("{}", e)
-            }
+            },
         },
     }
 }

@@ -8,6 +8,6 @@ pub mod module;
 pub mod name;
 pub mod operand;
 pub mod predicates;
+pub mod show;
 pub mod terminator;
 pub mod types;
-pub mod show;

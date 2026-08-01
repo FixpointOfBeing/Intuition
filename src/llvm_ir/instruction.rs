@@ -1,6 +1,8 @@
 use crate::llvm_ir::constant::ConstantRef;
 // use crate::llvm_ir::debugloc::{DebugLoc, HasDebugLoc};
-use crate::llvm_ir::function::{CallingConvention, FunctionAttribute, ParameterAttribute};
+use crate::llvm_ir::function::{
+    CallingConvention, FunctionAttribute, ParameterAttribute,
+};
 use crate::llvm_ir::name::Name;
 use crate::llvm_ir::operand::Operand;
 use crate::llvm_ir::predicates::FPPredicate;
@@ -444,67 +446,6 @@ impl Instruction {
     }
 }
 
-// impl Display for Instruction {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         match self {
-//             Instruction::Add(i) => write!(f, "{}", i),
-//             Instruction::Sub(i) => write!(f, "{}", i),
-//             Instruction::Mul(i) => write!(f, "{}", i),
-//             Instruction::UDiv(i) => write!(f, "{}", i),
-//             Instruction::SDiv(i) => write!(f, "{}", i),
-//             Instruction::URem(i) => write!(f, "{}", i),
-//             Instruction::SRem(i) => write!(f, "{}", i),
-//             Instruction::And(i) => write!(f, "{}", i),
-//             Instruction::Or(i) => write!(f, "{}", i),
-//             Instruction::Xor(i) => write!(f, "{}", i),
-//             Instruction::Shl(i) => write!(f, "{}", i),
-//             Instruction::LShr(i) => write!(f, "{}", i),
-//             Instruction::AShr(i) => write!(f, "{}", i),
-//             Instruction::FAdd(i) => write!(f, "{}", i),
-//             Instruction::FSub(i) => write!(f, "{}", i),
-//             Instruction::FMul(i) => write!(f, "{}", i),
-//             Instruction::FDiv(i) => write!(f, "{}", i),
-//             Instruction::FRem(i) => write!(f, "{}", i),
-//             Instruction::FNeg(i) => write!(f, "{}", i),
-//             Instruction::ExtractElement(i) => write!(f, "{}", i),
-//             Instruction::InsertElement(i) => write!(f, "{}", i),
-//             Instruction::ShuffleVector(i) => write!(f, "{}", i),
-//             Instruction::ExtractValue(i) => write!(f, "{}", i),
-//             Instruction::InsertValue(i) => write!(f, "{}", i),
-//             Instruction::Alloca(i) => write!(f, "{}", i),
-//             Instruction::Load(i) => write!(f, "{}", i),
-//             Instruction::Store(i) => write!(f, "{}", i),
-//             Instruction::Fence(i) => write!(f, "{}", i),
-//             Instruction::CmpXchg(i) => write!(f, "{}", i),
-//             Instruction::AtomicRMW(i) => write!(f, "{}", i),
-//             Instruction::GetElementPtr(i) => write!(f, "{}", i),
-//             Instruction::Trunc(i) => write!(f, "{}", i),
-//             Instruction::ZExt(i) => write!(f, "{}", i),
-//             Instruction::SExt(i) => write!(f, "{}", i),
-//             Instruction::FPTrunc(i) => write!(f, "{}", i),
-//             Instruction::FPExt(i) => write!(f, "{}", i),
-//             Instruction::FPToUI(i) => write!(f, "{}", i),
-//             Instruction::FPToSI(i) => write!(f, "{}", i),
-//             Instruction::UIToFP(i) => write!(f, "{}", i),
-//             Instruction::SIToFP(i) => write!(f, "{}", i),
-//             Instruction::PtrToInt(i) => write!(f, "{}", i),
-//             Instruction::IntToPtr(i) => write!(f, "{}", i),
-//             Instruction::BitCast(i) => write!(f, "{}", i),
-//             Instruction::AddrSpaceCast(i) => write!(f, "{}", i),
-//             Instruction::ICmp(i) => write!(f, "{}", i),
-//             Instruction::FCmp(i) => write!(f, "{}", i),
-//             Instruction::Phi(i) => write!(f, "{}", i),
-//             Instruction::Select(i) => write!(f, "{}", i),
-//             Instruction::Freeze(i) => write!(f, "{}", i),
-//             Instruction::Call(i) => write!(f, "{}", i),
-//             Instruction::VAArg(i) => write!(f, "{}", i),
-//             Instruction::LandingPad(i) => write!(f, "{}", i),
-//             Instruction::CatchPad(i) => write!(f, "{}", i),
-//             Instruction::CleanupPad(i) => write!(f, "{}", i),
-//         }
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Add {
     pub operand0: Operand,
@@ -512,7 +453,7 @@ pub struct Add {
     pub dest: Name,
     pub nuw: bool, // prior to LLVM 17, no getter for this was exposed in the LLVM C API, only in the C++ one
     pub nsw: bool, // prior to LLVM 17, no getter for this was exposed in the LLVM C API, only in the C++ one
-    // pub debugloc: Option<DebugLoc>,
+                   // pub debugloc: Option<DebugLoc>,
 }
 
 impl From<Add> for Instruction {
@@ -567,23 +508,6 @@ impl Typed for Add {
         ty
     }
 }
-// impl Display for Add {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = add",
-//             &self.dest
-//         )?;
-//
-//         write!(
-//             f,
-//             " {}, {}",
-//             &self.operand0, &self.operand1,
-//         )?;
-//
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Sub {
@@ -592,7 +516,7 @@ pub struct Sub {
     pub dest: Name,
     pub nuw: bool, // prior to LLVM 17, no getter for this was exposed in the LLVM C API, only in the C++ one
     pub nsw: bool, // prior to LLVM 17, no getter for this was exposed in the LLVM C API, only in the C++ one
-    // pub debugloc: Option<DebugLoc>,
+                   // pub debugloc: Option<DebugLoc>,
 }
 
 impl From<Sub> for Instruction {
@@ -647,23 +571,6 @@ impl Typed for Sub {
         ty
     }
 }
-// impl Display for Sub {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = sub",
-//             &self.dest
-//         )?;
-//
-//         write!(
-//             f,
-//             " {}, {}",
-//             &self.operand0, &self.operand1,
-//         )?;
-//
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Mul {
@@ -672,7 +579,7 @@ pub struct Mul {
     pub dest: Name,
     pub nuw: bool, // prior to LLVM 17, no getter for this was exposed in the LLVM C API, only in the C++ one
     pub nsw: bool, // prior to LLVM 17, no getter for this was exposed in the LLVM C API, only in the C++ one
-    // pub debugloc: Option<DebugLoc>,
+                   // pub debugloc: Option<DebugLoc>,
 }
 
 impl From<Mul> for Instruction {
@@ -727,23 +634,6 @@ impl Typed for Mul {
         ty
     }
 }
-// impl Display for Mul {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = mul",
-//             &self.dest
-//         )?;
-//
-//         write!(
-//             f,
-//             " {}, {}",
-//             &self.operand0, &self.operand1,
-//         )?;
-//
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct UDiv {
@@ -751,7 +641,7 @@ pub struct UDiv {
     pub operand1: Operand,
     pub dest: Name,
     pub exact: bool, // prior to LLVM 17, no getter for this was exposed in the LLVM C API, only in the C++ one
-    // pub debugloc: Option<DebugLoc>,
+                     // pub debugloc: Option<DebugLoc>,
 }
 
 impl From<UDiv> for Instruction {
@@ -806,23 +696,6 @@ impl Typed for UDiv {
         ty
     }
 }
-// impl Display for UDiv {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = udiv",
-//             &self.dest
-//         )?;
-//
-//         write!(
-//             f,
-//             " {}, {}",
-//             &self.operand0, &self.operand1,
-//         )?;
-//
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct SDiv {
@@ -830,7 +703,7 @@ pub struct SDiv {
     pub operand1: Operand,
     pub dest: Name,
     pub exact: bool, // prior to LLVM 17, no getter for this was exposed in the LLVM C API, only in the C++ one
-    // pub debugloc: Option<DebugLoc>,
+                     // pub debugloc: Option<DebugLoc>,
 }
 
 impl From<SDiv> for Instruction {
@@ -885,23 +758,6 @@ impl Typed for SDiv {
         ty
     }
 }
-// impl Display for SDiv {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = sdiv",
-//             &self.dest
-//         )?;
-//
-//         write!(
-//             f,
-//             " {}, {}",
-//             &self.operand0, &self.operand1,
-//         )?;
-//
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct URem {
@@ -963,16 +819,6 @@ impl Typed for URem {
         ty
     }
 }
-// impl Display for URem {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = {} {}, {}",
-//             &self.dest, "urem", &self.operand0, &self.operand1,
-//         )?;
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct SRem {
@@ -1034,16 +880,6 @@ impl Typed for SRem {
         ty
     }
 }
-// impl Display for SRem {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = {} {}, {}",
-//             &self.dest, "srem", &self.operand0, &self.operand1,
-//         )?;
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct And {
@@ -1105,16 +941,6 @@ impl Typed for And {
         ty
     }
 }
-// impl Display for And {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = {} {}, {}",
-//             &self.dest, "and", &self.operand0, &self.operand1,
-//         )?;
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Or {
@@ -1177,23 +1003,6 @@ impl Typed for Or {
         ty
     }
 }
-// impl Display for Or {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = or",
-//             &self.dest
-//         )?;
-//
-//         write!(
-//             f,
-//             " {}, {}",
-//             &self.operand0, &self.operand1,
-//         )?;
-//
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Xor {
@@ -1255,16 +1064,6 @@ impl Typed for Xor {
         ty
     }
 }
-// impl Display for Xor {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = {} {}, {}",
-//             &self.dest, "xor", &self.operand0, &self.operand1,
-//         )?;
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Shl {
@@ -1273,7 +1072,7 @@ pub struct Shl {
     pub dest: Name,
     pub nuw: bool, // prior to LLVM 17, no getter for this was exposed in the LLVM C API, only in the C++ one
     pub nsw: bool, // prior to LLVM 17, no getter for this was exposed in the LLVM C API, only in the C++ one
-    // pub debugloc: Option<DebugLoc>,
+                   // pub debugloc: Option<DebugLoc>,
 }
 
 impl From<Shl> for Instruction {
@@ -1326,23 +1125,6 @@ impl Typed for Shl {
         types.type_of(self.get_operand0())
     }
 }
-// impl Display for Shl {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = shl",
-//             &self.dest
-//         )?;
-//
-//         write!(
-//             f,
-//             " {}, {}",
-//             &self.operand0, &self.operand1,
-//         )?;
-//
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct LShr {
@@ -1350,7 +1132,7 @@ pub struct LShr {
     pub operand1: Operand,
     pub dest: Name,
     pub exact: bool, // prior to LLVM 17, no getter for this was exposed in the LLVM C API, only in the C++ one
-    // pub debugloc: Option<DebugLoc>,
+                     // pub debugloc: Option<DebugLoc>,
 }
 
 impl From<LShr> for Instruction {
@@ -1403,23 +1185,6 @@ impl Typed for LShr {
         types.type_of(self.get_operand0())
     }
 }
-// impl Display for LShr {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = lshr",
-//             &self.dest
-//         )?;
-//
-//         write!(
-//             f,
-//             " {}, {}",
-//             &self.operand0, &self.operand1,
-//         )?;
-//
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct AShr {
@@ -1427,7 +1192,7 @@ pub struct AShr {
     pub operand1: Operand,
     pub dest: Name,
     pub exact: bool, // prior to LLVM 17, no getter for this was exposed in the LLVM C API, only in the C++ one
-    // pub debugloc: Option<DebugLoc>,
+                     // pub debugloc: Option<DebugLoc>,
 }
 
 impl From<AShr> for Instruction {
@@ -1480,23 +1245,6 @@ impl Typed for AShr {
         types.type_of(self.get_operand0())
     }
 }
-// impl Display for AShr {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = ashr",
-//             &self.dest
-//         )?;
-//
-//         write!(
-//             f,
-//             " {}, {}",
-//             &self.operand0, &self.operand1,
-//         )?;
-//
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FAdd {
@@ -1558,16 +1306,6 @@ impl Typed for FAdd {
         ty
     }
 }
-// impl Display for FAdd {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = {} {}, {}",
-//             &self.dest, "fadd", &self.operand0, &self.operand1,
-//         )?;
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FSub {
@@ -1629,16 +1367,6 @@ impl Typed for FSub {
         ty
     }
 }
-// impl Display for FSub {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = {} {}, {}",
-//             &self.dest, "fsub", &self.operand0, &self.operand1,
-//         )?;
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FMul {
@@ -1700,16 +1428,6 @@ impl Typed for FMul {
         ty
     }
 }
-// impl Display for FMul {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = {} {}, {}",
-//             &self.dest, "fmul", &self.operand0, &self.operand1,
-//         )?;
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FDiv {
@@ -1771,16 +1489,6 @@ impl Typed for FDiv {
         ty
     }
 }
-// impl Display for FDiv {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = {} {}, {}",
-//             &self.dest, "fdiv", &self.operand0, &self.operand1,
-//         )?;
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FRem {
@@ -1842,16 +1550,6 @@ impl Typed for FRem {
         ty
     }
 }
-// impl Display for FRem {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = {} {}, {}",
-//             &self.dest, "frem", &self.operand0, &self.operand1,
-//         )?;
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FNeg {
@@ -1893,13 +1591,6 @@ impl Typed for FNeg {
     }
 }
 
-// impl Display for FNeg {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "{} = fneg {}", &self.dest, &self.operand)?;
-//         Ok(())
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct ExtractElement {
     pub vector: Operand,
@@ -1932,7 +1623,9 @@ impl HasResult for ExtractElement {
 impl Typed for ExtractElement {
     fn get_type(&self, types: &Types) -> TypeRef {
         match types.type_of(&self.vector).as_ref() {
-            LLVMType::VectorType { element_type, .. } => element_type.clone(),
+            LLVMType::VectorType { element_type, .. } => {
+                element_type.clone()
+            },
             ty => panic!(
                 "Expected an ExtractElement vector to be VectorType, got {:?}",
                 ty
@@ -1940,20 +1633,6 @@ impl Typed for ExtractElement {
         }
     }
 }
-
-// impl Display for ExtractElement {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = extractelement {}, {}",
-//             &self.dest, &self.vector, &self.index,
-//         )?;
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct InsertElement {
@@ -1991,20 +1670,6 @@ impl Typed for InsertElement {
     }
 }
 
-// impl Display for InsertElement {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = insertelement {}, {}, {}",
-//             &self.dest, &self.vector, &self.element, &self.index,
-//         )?;
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct ShuffleVector {
     pub operand0: Operand,
@@ -2040,16 +1705,22 @@ impl Typed for ShuffleVector {
         let ty = types.type_of(&self.operand0);
         debug_assert_eq!(ty, types.type_of(&self.operand1));
         match ty.as_ref() {
-            LLVMType::VectorType { element_type, .. } => match types.type_of(&self.mask).as_ref() {
-                LLVMType::VectorType {
-                    num_elements,
-                    scalable,
-                    ..
-                } => types.vector_of(element_type.clone(), *num_elements, *scalable),
-                ty => panic!(
-                    "Expected a ShuffleVector mask to be VectorType, got {:?}",
-                    ty
-                ),
+            LLVMType::VectorType { element_type, .. } => {
+                match types.type_of(&self.mask).as_ref() {
+                    LLVMType::VectorType {
+                        num_elements,
+                        scalable,
+                        ..
+                    } => types.vector_of(
+                        element_type.clone(),
+                        *num_elements,
+                        *scalable,
+                    ),
+                    ty => panic!(
+                        "Expected a ShuffleVector mask to be VectorType, got {:?}",
+                        ty
+                    ),
+                }
             },
             _ => panic!(
                 "Expected a ShuffleVector operand to be VectorType, got {:?}",
@@ -2058,20 +1729,6 @@ impl Typed for ShuffleVector {
         }
     }
 }
-
-// impl Display for ShuffleVector {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = shufflevector {}, {}, {}",
-//             &self.dest, &self.operand0, &self.operand1, &self.mask,
-//         )?;
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct ExtractValue {
@@ -2104,15 +1761,23 @@ impl HasResult for ExtractValue {
 
 impl Typed for ExtractValue {
     fn get_type(&self, types: &Types) -> TypeRef {
-        ev_type(types.type_of(&self.aggregate), self.indices.iter().copied())
+        ev_type(
+            types.type_of(&self.aggregate),
+            self.indices.iter().copied(),
+        )
     }
 }
 
-fn ev_type(cur_type: TypeRef, mut indices: impl Iterator<Item = u32>) -> TypeRef {
+fn ev_type(
+    cur_type: TypeRef,
+    mut indices: impl Iterator<Item = u32>,
+) -> TypeRef {
     match indices.next() {
         None => cur_type,
         Some(index) => match cur_type.as_ref() {
-            LLVMType::ArrayType { element_type, .. } => ev_type(element_type.clone(), indices),
+            LLVMType::ArrayType { element_type, .. } => {
+                ev_type(element_type.clone(), indices)
+            },
             LLVMType::StructType { element_types, .. } => ev_type(
                 element_types
                     .get(index as usize)
@@ -2127,25 +1792,6 @@ fn ev_type(cur_type: TypeRef, mut indices: impl Iterator<Item = u32>) -> TypeRef
         },
     }
 }
-
-// impl Display for ExtractValue {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = extractvalue {}, {}",
-//             &self.dest,
-//             &self.aggregate,
-//             &self.indices.first().expect("ExtractValue with no indices")
-//         )?;
-//         for idx in &self.indices[1 ..] {
-//             write!(f, ", {idx}")?;
-//         }
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct InsertValue {
@@ -2183,30 +1829,10 @@ impl Typed for InsertValue {
     }
 }
 
-// impl Display for InsertValue {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = insertvalue {}, {}, {}",
-//             &self.dest,
-//             &self.aggregate,
-//             &self.element,
-//             &self.indices.first().expect("InsertValue with no indices"),
-//         )?;
-//         for idx in &self.indices[1 ..] {
-//             write!(f, ", {idx}")?;
-//         }
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Alloca {
     pub allocated_type: TypeRef,
-    pub num_elements: Operand, // llvm-hs-pure has Option<Operand>
+    pub num_elements: Operand,
     pub dest: Name,
     pub alignment: u32,
     // pub debugloc: Option<DebugLoc>,
@@ -2238,21 +1864,6 @@ impl Typed for Alloca {
         types.pointer()
     }
 }
-
-// impl Display for Alloca {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "{} = alloca {}", &self.dest, &self.allocated_type)?;
-//         if let Some(Constant::Int { value: 1, .. }) = self.num_elements.as_constant() {
-//         } else {
-//             write!(f, ", {}", &self.num_elements)?;
-//         }
-//         write!(f, ", align {}", &self.alignment)?;
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Load {
@@ -2292,30 +1903,6 @@ impl Typed for Load {
     }
 }
 
-// impl Display for Load {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "{} = load ", &self.dest)?;
-//         if self.atomicity.is_some() {
-//             write!(f, "atomic ")?;
-//         }
-//         if self.volatile {
-//             write!(f, "volatile ")?;
-//         }
-//         {
-//             write!(f, "{}, ", &self.loaded_ty)?;
-//         }
-//         write!(f, "{}", &self.address)?;
-//         if let Some(a) = &self.atomicity {
-//             write!(f, " {}", a)?;
-//         }
-//         write!(f, ", align {}", &self.alignment)?;
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Store {
     pub address: Operand,
@@ -2347,27 +1934,6 @@ impl Typed for Store {
     }
 }
 
-// impl Display for Store {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "store ")?;
-//         if self.atomicity.is_some() {
-//             write!(f, "atomic ")?;
-//         }
-//         if self.volatile {
-//             write!(f, "volatile ")?;
-//         }
-//         write!(f, "{}, {}", &self.value, &self.address)?;
-//         if let Some(a) = &self.atomicity {
-//             write!(f, " {}", a)?;
-//         }
-//         write!(f, ", align {}", &self.alignment)?;
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Fence {
     pub atomicity: Atomicity,
@@ -2394,16 +1960,6 @@ impl Typed for Fence {
         types.void()
     }
 }
-
-// impl Display for Fence {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "fence {}", &self.atomicity)?;
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct CmpXchg {
@@ -2447,31 +2003,6 @@ impl Typed for CmpXchg {
     }
 }
 
-// impl Display for CmpXchg {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "{} = cmpxchg ", &self.dest)?;
-//         if self.weak {
-//             write!(f, "weak ")?;
-//         }
-//         if self.volatile {
-//             write!(f, "volatile ")?;
-//         }
-//         write!(
-//             f,
-//             "{}, {}, {} {} {}",
-//             &self.address,
-//             &self.expected,
-//             &self.replacement,
-//             &self.atomicity,
-//             &self.failure_memory_ordering,
-//         )?;
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct AtomicRMW {
     pub operation: RMWBinOp,
@@ -2510,21 +2041,6 @@ impl Typed for AtomicRMW {
     }
 }
 
-// impl Display for AtomicRMW {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "{} = atomicrmw ", &self.dest)?;
-//         if self.volatile {
-//             write!(f, "volatile ")?;
-//         }
-//         write!(f, "{} ", &self.operation)?;
-//         write!(f, "{}, {} {}", &self.address, &self.value, &self.atomicity)?;
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct GetElementPtr {
     pub address: Operand,
@@ -2561,23 +2077,6 @@ impl Typed for GetElementPtr {
         types.pointer()
     }
 }
-
-// impl Display for GetElementPtr {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "{} = getelementptr ", &self.dest)?;
-//         if self.in_bounds {
-//             write!(f, "inbounds ")?;
-//         }
-//         write!(f, "{}", &self.address)?;
-//         for idx in &self.indices {
-//             write!(f, ", {}", idx)?;
-//         }
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Trunc {
@@ -2620,17 +2119,6 @@ impl Typed for Trunc {
     }
 }
 
-// impl Display for Trunc {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = trunc {} to {}",
-//             &self.dest, &self.operand, &self.to_type,
-//         )?;
-//         Ok(())
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct ZExt {
     pub operand: Operand,
@@ -2671,23 +2159,6 @@ impl Typed for ZExt {
         self.to_type.clone()
     }
 }
-// impl Display for ZExt {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = zext",
-//             &self.dest
-//         )?;
-//
-//         write!(
-//             f,
-//             " {} to {}",
-//             &self.operand, &self.to_type
-//         )?;
-//
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct SExt {
@@ -2730,17 +2201,6 @@ impl Typed for SExt {
     }
 }
 
-// impl Display for SExt {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = sext {} to {}",
-//             &self.dest, &self.operand, &self.to_type,
-//         )?;
-//         Ok(())
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FPTrunc {
     pub operand: Operand,
@@ -2781,17 +2241,6 @@ impl Typed for FPTrunc {
         self.to_type.clone()
     }
 }
-
-// impl Display for FPTrunc {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = fptrunc {} to {}",
-//             &self.dest, &self.operand, &self.to_type,
-//         )?;
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FPExt {
@@ -2834,17 +2283,6 @@ impl Typed for FPExt {
     }
 }
 
-// impl Display for FPExt {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = fpext {} to {}",
-//             &self.dest, &self.operand, &self.to_type,
-//         )?;
-//         Ok(())
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FPToUI {
     pub operand: Operand,
@@ -2885,17 +2323,6 @@ impl Typed for FPToUI {
         self.to_type.clone()
     }
 }
-
-// impl Display for FPToUI {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = fptoui {} to {}",
-//             &self.dest, &self.operand, &self.to_type,
-//         )?;
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FPToSI {
@@ -2938,17 +2365,6 @@ impl Typed for FPToSI {
     }
 }
 
-// impl Display for FPToSI {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = fptosi {} to {}",
-//             &self.dest, &self.operand, &self.to_type,
-//         )?;
-//         Ok(())
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct UIToFP {
     pub operand: Operand,
@@ -2989,17 +2405,6 @@ impl Typed for UIToFP {
         self.to_type.clone()
     }
 }
-
-// impl Display for UIToFP {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = uitofp {} to {}",
-//             &self.dest, &self.operand, &self.to_type,
-//         )?;
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct SIToFP {
@@ -3042,17 +2447,6 @@ impl Typed for SIToFP {
     }
 }
 
-// impl Display for SIToFP {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = sitofp {} to {}",
-//             &self.dest, &self.operand, &self.to_type,
-//         )?;
-//         Ok(())
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct PtrToInt {
     pub operand: Operand,
@@ -3093,17 +2487,6 @@ impl Typed for PtrToInt {
         self.to_type.clone()
     }
 }
-
-// impl Display for PtrToInt {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = ptrtoint {} to {}",
-//             &self.dest, &self.operand, &self.to_type,
-//         )?;
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct IntToPtr {
@@ -3146,17 +2529,6 @@ impl Typed for IntToPtr {
     }
 }
 
-// impl Display for IntToPtr {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = inttoptr {} to {}",
-//             &self.dest, &self.operand, &self.to_type,
-//         )?;
-//         Ok(())
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct BitCast {
     pub operand: Operand,
@@ -3197,17 +2569,6 @@ impl Typed for BitCast {
         self.to_type.clone()
     }
 }
-
-// impl Display for BitCast {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = bitcast {} to {}",
-//             &self.dest, &self.operand, &self.to_type,
-//         )?;
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct AddrSpaceCast {
@@ -3250,17 +2611,6 @@ impl Typed for AddrSpaceCast {
     }
 }
 
-// impl Display for AddrSpaceCast {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = addrspacecast {} to {}",
-//             &self.dest, &self.operand, &self.to_type,
-//         )?;
-//         Ok(())
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct ICmp {
     pub predicate: IntPredicate,
@@ -3297,28 +2647,16 @@ impl Typed for ICmp {
         debug_assert_eq!(ty, types.type_of(&self.operand1));
         match ty.as_ref() {
             LLVMType::VectorType {
-                num_elements,
-                scalable,
-                ..
-            } => types.vector_of(types.bool(), *num_elements, *scalable),
+                num_elements, scalable, ..
+            } => types.vector_of(
+                types.bool(),
+                *num_elements,
+                *scalable,
+            ),
             _ => types.bool(),
         }
     }
 }
-
-// impl Display for ICmp {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = icmp {} {}, {}",
-//             &self.dest, &self.predicate, &self.operand0, &self.operand1,
-//         )?;
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct FCmp {
@@ -3356,28 +2694,16 @@ impl Typed for FCmp {
         debug_assert_eq!(ty, types.type_of(&self.operand1));
         match ty.as_ref() {
             LLVMType::VectorType {
-                num_elements,
-                scalable,
-                ..
-            } => types.vector_of(types.bool(), *num_elements, *scalable),
+                num_elements, scalable, ..
+            } => types.vector_of(
+                types.bool(),
+                *num_elements,
+                *scalable,
+            ),
             _ => types.bool(),
         }
     }
 }
-
-// impl Display for FCmp {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = fcmp {} {}, {}",
-//             &self.dest, &self.predicate, &self.operand0, &self.operand1,
-//         )?;
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Phi {
@@ -3412,27 +2738,6 @@ impl Typed for Phi {
         self.to_type.clone()
     }
 }
-
-// impl Display for Phi {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         let (first_val, first_label) = &self
-//             .incoming_values
-//             .get(0)
-//             .expect("Phi with no incoming values");
-//         write!(
-//             f,
-//             "{} = phi {} [ {}, {} ]",
-//             &self.dest, &self.to_type, first_val, first_label,
-//         )?;
-//         for (val, label) in &self.incoming_values[1 ..] {
-//             write!(f, ", [ {}, {} ]", val, label)?;
-//         }
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Select {
@@ -3471,20 +2776,6 @@ impl Typed for Select {
         t
     }
 }
-
-// impl Display for Select {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = select {}, {}, {}",
-//             &self.dest, &self.condition, &self.true_value, &self.false_value,
-//         )?;
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Freeze {
@@ -3526,13 +2817,6 @@ impl Typed for Freeze {
     }
 }
 
-// impl Display for Freeze {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "{} = freeze {}", &self.dest, &self.operand)?;
-//         Ok(())
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Call {
     pub function: Either<InlineAssembly, Operand>,
@@ -3565,42 +2849,16 @@ impl TryFrom<Instruction> for Call {
 impl Typed for Call {
     fn get_type(&self, _types: &Types) -> TypeRef {
         match self.function_ty.as_ref() {
-            LLVMType::FuncType { result_type, .. } => result_type.clone(),
-            ty => panic!("Expected Call.function_ty to be a FuncType, got {:?}", ty),
+            LLVMType::FuncType { result_type, .. } => {
+                result_type.clone()
+            },
+            ty => panic!(
+                "Expected Call.function_ty to be a FuncType, got {:?}",
+                ty
+            ),
         }
     }
 }
-
-// impl Display for Call {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         if let Some(dest) = &self.dest {
-//             write!(f, "{} = ", dest)?;
-//         }
-//         if self.is_tail_call {
-//             write!(f, "tail ")?;
-//         }
-//         write!(
-//             f,
-//             "call {}(",
-//             match &self.function {
-//                 Either::Left(_) => "<inline assembly>".into(),
-//                 Either::Right(op) => format!("{}", op),
-//             }
-//         )?;
-//         for (i, (arg, _)) in self.arguments.iter().enumerate() {
-//             if i == self.arguments.len() - 1 {
-//                 write!(f, "{}", arg)?;
-//             } else {
-//                 write!(f, "{}, ", arg)?;
-//             }
-//         }
-//         write!(f, ")")?;
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct VAArg {
@@ -3636,20 +2894,6 @@ impl Typed for VAArg {
         self.cur_type.clone()
     }
 }
-
-// impl Display for VAArg {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = va_arg {}, {}",
-//             &self.dest, &self.arg_list, &self.cur_type,
-//         )?;
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct LandingPad {
@@ -3687,19 +2931,6 @@ impl Typed for LandingPad {
     }
 }
 
-// impl Display for LandingPad {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "{} = landingpad {}", &self.dest, &self.result_type)?;
-//         if self.cleanup {
-//             write!(f, " cleanup")?;
-//         }
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct CatchPad {
     pub catch_switch: Operand,
@@ -3734,28 +2965,6 @@ impl Typed for CatchPad {
         types.token_type()
     }
 }
-
-// impl Display for CatchPad {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = catchpad within {} [",
-//             &self.dest, &self.catch_switch,
-//         )?;
-//         for (i, arg) in self.args.iter().enumerate() {
-//             if i == self.args.len() - 1 {
-//                 write!(f, "{}", arg)?;
-//             } else {
-//                 write!(f, "{}, ", arg)?;
-//             }
-//         }
-//         write!(f, "]")?;
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct CleanupPad {
@@ -3792,28 +3001,6 @@ impl Typed for CleanupPad {
     }
 }
 
-// impl Display for CleanupPad {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "{} = cleanuppad within {} [",
-//             &self.dest, &self.parent_pad,
-//         )?;
-//         for (i, arg) in self.args.iter().enumerate() {
-//             if i == self.args.len() - 1 {
-//                 write!(f, "{}", arg)?;
-//             } else {
-//                 write!(f, "{}, ", arg)?;
-//             }
-//         }
-//         write!(f, "]")?;
-//         // if self.debugloc.is_some() {
-//         //     write!(f, " (with debugloc)")?;
-//         // }
-//         Ok(())
-//     }
-// }
-
 /*
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
 pub enum TailCallKind {
@@ -3841,17 +3028,6 @@ pub struct Atomicity {
     pub mem_ordering: MemoryOrdering,
 }
 
-// impl Display for Atomicity {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         match self.synch_scope {
-//             SynchronizationScope::SingleThread => write!(f, "syncscope(\"singlethread\") "),
-//             SynchronizationScope::System => Ok(()),
-//         }?;
-//         write!(f, "{}", &self.mem_ordering)?;
-//         Ok(())
-//     }
-// }
-
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
 pub enum SynchronizationScope {
     SingleThread,
@@ -3868,20 +3044,6 @@ pub enum MemoryOrdering {
     SequentiallyConsistent,
     NotAtomic, // since we only have a `MemoryOrdering` on atomic instructions, we should never need this. But empirically, some atomic instructions -- e.g. the first 'atomicrmw' instruction in our 'atomic_no_syncscope' test -- have this `MemoryOrdering`
 }
-
-// impl Display for MemoryOrdering {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         match self {
-//             MemoryOrdering::Unordered => write!(f, "unordered"),
-//             MemoryOrdering::Monotonic => write!(f, "monotonic"),
-//             MemoryOrdering::Acquire => write!(f, "acquire"),
-//             MemoryOrdering::Release => write!(f, "release"),
-//             MemoryOrdering::AcquireRelease => write!(f, "acq_rel"),
-//             MemoryOrdering::SequentiallyConsistent => write!(f, "seq_cst"),
-//             MemoryOrdering::NotAtomic => write!(f, "not_atomic"),
-//         }
-//     }
-// }
 
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct InlineAssembly {
@@ -3925,30 +3087,6 @@ pub enum RMWBinOp {
     UIncWrap,
     UDecWrap,
 }
-
-// impl Display for RMWBinOp {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         match self {
-//             Self::Xchg => write!(f, "xchg"),
-//             Self::Add => write!(f, "add"),
-//             Self::Sub => write!(f, "sub"),
-//             Self::And => write!(f, "and"),
-//             Self::Nand => write!(f, "nand"),
-//             Self::Or => write!(f, "or"),
-//             Self::Xor => write!(f, "xor"),
-//             Self::Max => write!(f, "max"),
-//             Self::Min => write!(f, "min"),
-//             Self::UMax => write!(f, "umax"),
-//             Self::UMin => write!(f, "umin"),
-//             Self::FAdd => write!(f, "fadd"),
-//             Self::FSub => write!(f, "fsub"),
-//             Self::FMax => write!(f, "fmax"),
-//             Self::FMin => write!(f, "fmin"),
-//             Self::UIncWrap => write!(f, "uinc_wrap"),
-//             Self::UDecWrap => write!(f, "udec_wrap"),
-//         }
-//     }
-// }
 
 /*
 #[derive(PartialEq, Clone, Debug, Hash)]
@@ -4081,7 +3219,9 @@ impl TryFrom<Instruction> for UnaryOp {
     type Error = &'static str;
     fn try_from(inst: Instruction) -> Result<Self, Self::Error> {
         match inst {
-            Instruction::AddrSpaceCast(i) => Ok(UnaryOp::AddrSpaceCast(i)),
+            Instruction::AddrSpaceCast(i) => {
+                Ok(UnaryOp::AddrSpaceCast(i))
+            },
             Instruction::BitCast(i) => Ok(UnaryOp::BitCast(i)),
             Instruction::FNeg(i) => Ok(UnaryOp::FNeg(i)),
             Instruction::FPExt(i) => Ok(UnaryOp::FPExt(i)),

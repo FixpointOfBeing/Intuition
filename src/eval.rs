@@ -1,5 +1,5 @@
-use crate::syntax::*;
 use crate::env::{Env, Value};
+use crate::syntax::*;
 
 use lalrpop_util::lalrpop_mod;
 use std::{fs::read_to_string, path::PathBuf};
@@ -9,7 +9,10 @@ lalrpop_mod!(pub parser);
 pub struct EvalError(pub String);
 
 impl std::fmt::Display for EvalError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         write!(f, "EvalError: {}", self.0)
     }
 }
@@ -27,23 +30,22 @@ pub fn eval(env: &Env, expr: &Expr) -> EvalResult {
         Expr::Int(n) => Ok(Value::Int(*n)),
         Expr::Float(f) => Ok(Value::Float(*f)),
 
-        Expr::Var(name) => env
-            .get(name)
-            .cloned()
-            .ok_or_else(|| EvalError(format!("unbound variable: {}", name))),
+        Expr::Var(name) => env.get(name).cloned().ok_or_else(|| {
+            EvalError(format!("unbound variable: {}", name))
+        }),
 
         Expr::Ann(e, _) => eval(env, e),
 
         Expr::UnaryOp(op, e) => {
             let v = eval(env, e)?;
             eval_unary(op, v)
-        }
+        },
 
         Expr::BinOp(op, e1, e2) => {
             let v1 = eval(env, e1)?;
             let v2 = eval(env, e2)?;
             eval_binop(op, v1, v2)
-        }
+        },
 
         Expr::If(cond, thn, els) => match eval(env, cond)? {
             Value::Bool(true) => eval(env, thn),
@@ -55,24 +57,30 @@ pub fn eval(env: &Env, expr: &Expr) -> EvalResult {
             let v = eval(env, e1)?;
             let env2 = env.extend(name, v);
             eval(&env2, e2)
-        }
+        },
 
         Expr::LetRec(fname, fparams, _, fbody, body) => {
-            let params: Vec<Ident> = fparams.iter().map(|(id, _)| id.clone()).collect();
+            let params: Vec<Ident> =
+                fparams.iter().map(|(id, _)| id.clone()).collect();
             let rec_val = Value::RecClosure {
                 env: env.clone(),
                 fname: fname.clone(),
                 params: params.clone(),
                 body: (**fbody).clone(),
             };
-            let env2 = env.extend( &fname, rec_val);
+            let env2 = env.extend(&fname, rec_val);
             eval(&env2, body)
-        }
+        },
 
         Expr::Lambda(params, _, body) => {
-            let param_names: Vec<Ident> = params.iter().map(|(id, _)| id.clone()).collect();
-            Ok(Value::Closure(env.clone(), param_names, (**body).clone()))
-        }
+            let param_names: Vec<Ident> =
+                params.iter().map(|(id, _)| id.clone()).collect();
+            Ok(Value::Closure(
+                env.clone(),
+                param_names,
+                (**body).clone(),
+            ))
+        },
 
         Expr::App(func, args) => {
             let fval = eval(env, func)?;
@@ -82,7 +90,7 @@ pub fn eval(env: &Env, expr: &Expr) -> EvalResult {
                 argvs.push(argv);
             }
             apply(fval, argvs)
-        }
+        },
     }
 }
 
@@ -102,18 +110,17 @@ fn apply(func: Value, argvs: Vec<Value>) -> EvalResult {
             }
 
             if argvs.len() < params.len() {
-                Ok(Value::Closure(env, params[argvs.len()..].to_vec(), body))
+                Ok(Value::Closure(
+                    env,
+                    params[argvs.len()..].to_vec(),
+                    body,
+                ))
             } else {
                 eval(&env, &body)
             }
-        }
+        },
 
-        Value::RecClosure {
-            mut env,
-            fname,
-            params,
-            body,
-        } => {
+        Value::RecClosure { mut env, fname, params, body } => {
             if argvs.len() > params.len() {
                 return err!(
                     "too many arguments: expected {}, got {}",
@@ -145,7 +152,7 @@ fn apply(func: Value, argvs: Vec<Value>) -> EvalResult {
             } else {
                 eval(&env, &body)
             }
-        }
+        },
         other => err!("tried to apply a non-function: {}", other),
     }
 }
@@ -161,56 +168,106 @@ fn eval_unary(op: &UnaryOp, v: Value) -> EvalResult {
 
 fn eval_binop(op: &BinOp, v1: Value, v2: Value) -> EvalResult {
     match (op, v1, v2) {
-        (BinOp::Add, Value::Int(a), Value::Int(b)) => Ok(Value::Int(a + b)),
-        (BinOp::Sub, Value::Int(a), Value::Int(b)) => Ok(Value::Int(a - b)),
-        (BinOp::Mul, Value::Int(a), Value::Int(b)) => Ok(Value::Int(a * b)),
+        (BinOp::Add, Value::Int(a), Value::Int(b)) => {
+            Ok(Value::Int(a + b))
+        },
+        (BinOp::Sub, Value::Int(a), Value::Int(b)) => {
+            Ok(Value::Int(a - b))
+        },
+        (BinOp::Mul, Value::Int(a), Value::Int(b)) => {
+            Ok(Value::Int(a * b))
+        },
         (BinOp::Div, Value::Int(a), Value::Int(b)) => {
             if b == 0 {
                 err!("division by zero")
             } else {
                 Ok(Value::Int(a / b))
             }
-        }
+        },
 
-        (BinOp::Add, Value::Float(a), Value::Float(b)) => Ok(Value::Float(a + b)),
-        (BinOp::Sub, Value::Float(a), Value::Float(b)) => Ok(Value::Float(a - b)),
-        (BinOp::Mul, Value::Float(a), Value::Float(b)) => Ok(Value::Float(a * b)),
+        (BinOp::Add, Value::Float(a), Value::Float(b)) => {
+            Ok(Value::Float(a + b))
+        },
+        (BinOp::Sub, Value::Float(a), Value::Float(b)) => {
+            Ok(Value::Float(a - b))
+        },
+        (BinOp::Mul, Value::Float(a), Value::Float(b)) => {
+            Ok(Value::Float(a * b))
+        },
         (BinOp::Div, Value::Float(a), Value::Float(b)) => {
             if b == 0.0 {
                 err!("division by zero (float)")
             } else {
                 Ok(Value::Float(a / b))
             }
-        }
+        },
 
-        (BinOp::Eq, Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a == b)),
-        (BinOp::Neq, Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a != b)),
-        (BinOp::Lt, Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a < b)),
-        (BinOp::Leq, Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a <= b)),
-        (BinOp::Gt, Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a > b)),
-        (BinOp::Geq, Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a >= b)),
+        (BinOp::Eq, Value::Int(a), Value::Int(b)) => {
+            Ok(Value::Bool(a == b))
+        },
+        (BinOp::Neq, Value::Int(a), Value::Int(b)) => {
+            Ok(Value::Bool(a != b))
+        },
+        (BinOp::Lt, Value::Int(a), Value::Int(b)) => {
+            Ok(Value::Bool(a < b))
+        },
+        (BinOp::Leq, Value::Int(a), Value::Int(b)) => {
+            Ok(Value::Bool(a <= b))
+        },
+        (BinOp::Gt, Value::Int(a), Value::Int(b)) => {
+            Ok(Value::Bool(a > b))
+        },
+        (BinOp::Geq, Value::Int(a), Value::Int(b)) => {
+            Ok(Value::Bool(a >= b))
+        },
 
-        (BinOp::Eq, Value::Float(a), Value::Float(b)) => Ok(Value::Bool(a == b)),
-        (BinOp::Neq, Value::Float(a), Value::Float(b)) => Ok(Value::Bool(a != b)),
-        (BinOp::Lt, Value::Float(a), Value::Float(b)) => Ok(Value::Bool(a < b)),
-        (BinOp::Leq, Value::Float(a), Value::Float(b)) => Ok(Value::Bool(a <= b)),
-        (BinOp::Gt, Value::Float(a), Value::Float(b)) => Ok(Value::Bool(a > b)),
-        (BinOp::Geq, Value::Float(a), Value::Float(b)) => Ok(Value::Bool(a >= b)),
+        (BinOp::Eq, Value::Float(a), Value::Float(b)) => {
+            Ok(Value::Bool(a == b))
+        },
+        (BinOp::Neq, Value::Float(a), Value::Float(b)) => {
+            Ok(Value::Bool(a != b))
+        },
+        (BinOp::Lt, Value::Float(a), Value::Float(b)) => {
+            Ok(Value::Bool(a < b))
+        },
+        (BinOp::Leq, Value::Float(a), Value::Float(b)) => {
+            Ok(Value::Bool(a <= b))
+        },
+        (BinOp::Gt, Value::Float(a), Value::Float(b)) => {
+            Ok(Value::Bool(a > b))
+        },
+        (BinOp::Geq, Value::Float(a), Value::Float(b)) => {
+            Ok(Value::Bool(a >= b))
+        },
 
-        (BinOp::And, Value::Bool(a), Value::Bool(b)) => Ok(Value::Bool(a && b)),
-        (BinOp::Or, Value::Bool(a), Value::Bool(b)) => Ok(Value::Bool(a || b)),
-        (BinOp::Eq, Value::Bool(a), Value::Bool(b)) => Ok(Value::Bool(a == b)),
-        (BinOp::Neq, Value::Bool(a), Value::Bool(b)) => Ok(Value::Bool(a != b)),
+        (BinOp::And, Value::Bool(a), Value::Bool(b)) => {
+            Ok(Value::Bool(a && b))
+        },
+        (BinOp::Or, Value::Bool(a), Value::Bool(b)) => {
+            Ok(Value::Bool(a || b))
+        },
+        (BinOp::Eq, Value::Bool(a), Value::Bool(b)) => {
+            Ok(Value::Bool(a == b))
+        },
+        (BinOp::Neq, Value::Bool(a), Value::Bool(b)) => {
+            Ok(Value::Bool(a != b))
+        },
 
-        (BinOp::Eq, Value::Unit, Value::Unit) => Ok(Value::Bool(true)),
-        (BinOp::Neq, Value::Unit, Value::Unit) => Ok(Value::Bool(false)),
+        (BinOp::Eq, Value::Unit, Value::Unit) => {
+            Ok(Value::Bool(true))
+        },
+        (BinOp::Neq, Value::Unit, Value::Unit) => {
+            Ok(Value::Bool(false))
+        },
 
-        (op, v1, v2) => err!("type error in {:?}: got {} and {}", op, v1, v2),
+        (op, v1, v2) => {
+            err!("type error in {:?}: got {} and {}", op, v1, v2)
+        },
     }
 }
 
 pub fn eval_top(expr: &Expr) -> EvalResult {
-        eval(&Env::new(), expr)
+    eval(&Env::new(), expr)
 }
 
 pub fn eval_file(file: &PathBuf) -> EvalResult {
@@ -307,13 +364,19 @@ mod tests {
     fn test_let() {
         assert_eq!(run("let x = 1 in x"), Value::Int(1));
         assert_eq!(run("let x : Int = 5 in x + 1"), Value::Int(6));
-        assert_eq!(run("let x = 1 in let y = 2 in x + y"), Value::Int(3));
+        assert_eq!(
+            run("let x = 1 in let y = 2 in x + y"),
+            Value::Int(3)
+        );
     }
 
     #[test]
     fn test_lambda_apply() {
         assert_eq!(run("(fun (x: Int) => x) 42"), Value::Int(42));
-        assert_eq!(run("(fun (x: Int) (y: Int) => x + y) 3 4"), Value::Int(7));
+        assert_eq!(
+            run("(fun (x: Int) (y: Int) => x + y) 3 4"),
+            Value::Int(7)
+        );
     }
 
     #[test]

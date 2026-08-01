@@ -1,4 +1,3 @@
-
 /// Many LLVM objects have a `Name`, which is either a string name, or just a
 /// sequential numbering (e.g. `%3`).
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Hash)]
@@ -26,12 +25,3 @@ impl Name {
         }
     }
 }
-
-// impl fmt::Display for Name {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         match self {
-//             Name::Name(s) => write!(f, "%{}", s),
-//             Name::Number(n) => write!(f, "%{}", n),
-//         }
-//     }
-// }

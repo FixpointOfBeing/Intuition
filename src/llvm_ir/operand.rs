@@ -27,13 +27,3 @@ impl Operand {
         }
     }
 }
-
-// impl Display for Operand {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         match self {
-//             Operand::LocalOperand { name, ty } => write!(f, "{} {}", ty, name),
-//             Operand::ConstantOperand(cref) => write!(f, "{}", &cref),
-//             Operand::MetadataOperand => write!(f, "<metadata>"),
-//         }
-//     }
-// }

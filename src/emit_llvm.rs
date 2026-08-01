@@ -8,7 +8,8 @@ use crate::gensym::Gensym;
 use crate::llvm_ir::basicblock::BasicBlock;
 use crate::llvm_ir::constant::{Constant, ConstantRef, Float};
 use crate::llvm_ir::function::{
-    CallingConvention, Function, FunctionDeclaration, Parameter, ParameterAttribute,
+    CallingConvention, Function, FunctionDeclaration, Parameter,
+    ParameterAttribute,
 };
 use crate::llvm_ir::instruction::*;
 use crate::llvm_ir::module::*;
@@ -33,18 +34,23 @@ pub fn emit_module(
     let ret_ty = llvm_type(&return_type, &types);
 
     let param_tys = vec![];
-    let program_fn_ty = types.func_type(ret_ty.clone(), param_tys, false);
+    let program_fn_ty =
+        types.func_type(ret_ty.clone(), param_tys, false);
 
     let entry_block_name = nn("entry");
 
-    let body_blocks = compile_tail(&body, &types, &mut gensym, &env, &mut func_declarations);
+    let body_blocks = compile_tail(
+        &body,
+        &types,
+        &mut gensym,
+        &env,
+        &mut func_declarations,
+    );
 
     let mut blocks = Vec::with_capacity(1 + body_blocks.len());
     let mut entry = BasicBlock::new(entry_block_name);
     if let Some(first) = body_blocks.first() {
-        entry.term = Terminator::Br(Br {
-            dest: first.name.clone(),
-        });
+        entry.term = Terminator::Br(Br { dest: first.name.clone() });
     }
     blocks.push(entry);
     blocks.extend(body_blocks);
@@ -118,30 +124,25 @@ fn compile_lifted_fn(
     };
 
     let params: Vec<Parameter> = std::iter::once(env_param)
-        .chain(
-            fn_def
-                .params
-                .iter()
-                .enumerate()
-                .map(|(_, (name, ty))| Parameter {
-                    name: Name::Name(Box::new(name.clone())),
-                    ty: llvm_type(ty, types),
-                    attributes: vec![],
-                }),
-        )
+        .chain(fn_def.params.iter().enumerate().map(
+            |(_, (name, ty))| Parameter {
+                name: Name::Name(Box::new(name.clone())),
+                ty: llvm_type(ty, types),
+                attributes: vec![],
+            },
+        ))
         .collect();
 
     let ret_ty = llvm_type(&fn_def.return_type, types);
 
     let env = HashMap::new();
-    let body_blocks = compile_tail(ctail, types, gensym, &env, func_decls);
+    let body_blocks =
+        compile_tail(ctail, types, gensym, &env, func_decls);
 
     let mut blocks = Vec::with_capacity(1 + body_blocks.len());
     let mut entry = BasicBlock::new(nn("entry"));
     if let Some(first) = body_blocks.first() {
-        entry.term = Terminator::Br(Br {
-            dest: first.name.clone(),
-        });
+        entry.term = Terminator::Br(Br { dest: first.name.clone() });
     }
     blocks.push(entry);
     blocks.extend(body_blocks);
@@ -173,27 +174,33 @@ fn llvm_type(ty: &Type, types: &Types) -> TypeRef {
         Type::Int => types.i64(),
         Type::Float => types.double(),
         Type::Arrow(_, _) => types.pointer(),
-        Type::Var(_) => panic!("type variable should have been resolved"),
+        Type::Var(_) => {
+            panic!("type variable should have been resolved")
+        },
     }
 }
 
-fn compile_catom(atom: &CAtom, types: &Types, env: &HashMap<Ident, Operand>) -> Operand {
+fn compile_catom(
+    atom: &CAtom,
+    types: &Types,
+    env: &HashMap<Ident, Operand>,
+) -> Operand {
     match atom {
         CAtom::Unit => {
             let unit_ty = types.struct_of(vec![], false);
-            Operand::ConstantOperand(ConstantRef::new(Constant::AggregateZero(unit_ty)))
-        }
-        CAtom::Bool(b) => Operand::ConstantOperand(ConstantRef::new(Constant::Int {
-            bits: 1,
-            value: if *b { 1 } else { 0 },
-        })),
-        CAtom::Int(i) => Operand::ConstantOperand(ConstantRef::new(Constant::Int {
-            bits: 64,
-            value: *i as u64,
-        })),
-        CAtom::Float(f) => {
-            Operand::ConstantOperand(ConstantRef::new(Constant::Float(Float::Double(*f))))
-        }
+            Operand::ConstantOperand(ConstantRef::new(
+                Constant::AggregateZero(unit_ty),
+            ))
+        },
+        CAtom::Bool(b) => Operand::ConstantOperand(ConstantRef::new(
+            Constant::Int { bits: 1, value: if *b { 1 } else { 0 } },
+        )),
+        CAtom::Int(i) => Operand::ConstantOperand(ConstantRef::new(
+            Constant::Int { bits: 64, value: *i as u64 },
+        )),
+        CAtom::Float(f) => Operand::ConstantOperand(
+            ConstantRef::new(Constant::Float(Float::Double(*f))),
+        ),
         CAtom::Var(name, ty) => {
             if let Some(op) = env.get(name) {
                 op.clone()
@@ -204,7 +211,7 @@ fn compile_catom(atom: &CAtom, types: &Types, env: &HashMap<Ident, Operand>) -> 
                     ty: ty_ref,
                 }
             }
-        }
+        },
     }
 }
 
@@ -216,38 +223,45 @@ fn compile_cexpr(
     func_decls: &mut Vec<FunctionDeclaration>,
 ) -> (Vec<Instruction>, Operand) {
     match cexpr {
-        CExpr::Atom(catom) => (vec![], compile_catom(catom, types, env)),
+        CExpr::Atom(catom) => {
+            (vec![], compile_catom(catom, types, env))
+        },
         CExpr::BinOp(op, left, right) => {
             let left_op = compile_catom(left, types, env);
             let right_op = compile_catom(right, types, env);
             let dest = fresh_name(gensym);
-            let instr = compile_binop(op, left_op.clone(), right_op, dest.clone(), types);
+            let instr = compile_binop(
+                op,
+                left_op.clone(),
+                right_op,
+                dest.clone(),
+                types,
+            );
             let result_ty = types.type_of(&instr);
             (
                 vec![instr],
-                Operand::LocalOperand {
-                    name: dest,
-                    ty: result_ty,
-                },
+                Operand::LocalOperand { name: dest, ty: result_ty },
             )
-        }
+        },
         CExpr::UnaryOp(op, operand) => {
             let opnd = compile_catom(operand, types, env);
             let dest = fresh_name(gensym);
-            let instr = compile_unaryop(op, opnd, dest.clone(), types);
+            let instr =
+                compile_unaryop(op, opnd, dest.clone(), types);
             let result_ty = types.type_of(&instr);
             (
                 vec![instr],
-                Operand::LocalOperand {
-                    name: dest,
-                    ty: result_ty,
-                },
+                Operand::LocalOperand { name: dest, ty: result_ty },
             )
-        }
+        },
         CExpr::Call(func, args) => {
-            let (func_op, func_ty) = compile_function_operand(func, types, env, func_decls);
+            let (func_op, func_ty) = compile_function_operand(
+                func, types, env, func_decls,
+            );
             let ret_ty = match func_ty.as_ref() {
-                LLVMType::FuncType { result_type, .. } => result_type.clone(),
+                LLVMType::FuncType { result_type, .. } => {
+                    result_type.clone()
+                },
                 _ => types.void(),
             };
             let dest = fresh_name(gensym);
@@ -263,18 +277,17 @@ fn compile_cexpr(
             );
             (
                 vec![Instruction::Call(call)],
-                Operand::LocalOperand {
-                    name: dest,
-                    ty: ret_ty,
-                },
+                Operand::LocalOperand { name: dest, ty: ret_ty },
             )
-        }
+        },
         CExpr::MakeClosure(fn_ptr, captured, _closure_type) => {
-            compile_make_closure(fn_ptr, captured, types, gensym, env, func_decls)
-        }
-        CExpr::Project(env_val, idx, field_type) => {
-            compile_project(env_val, *idx, field_type, types, gensym, env)
-        }
+            compile_make_closure(
+                fn_ptr, captured, types, gensym, env, func_decls,
+            )
+        },
+        CExpr::Project(env_val, idx, field_type) => compile_project(
+            env_val, *idx, field_type, types, gensym, env,
+        ),
     }
 }
 
@@ -307,10 +320,9 @@ fn compile_make_closure(
     let alloca_dest = fresh_name(gensym);
     instrs.push(Instruction::Alloca(Alloca {
         allocated_type: closure_struct_ty.clone(),
-        num_elements: Operand::ConstantOperand(ConstantRef::new(Constant::Int {
-            bits: 64,
-            value: 1,
-        })),
+        num_elements: Operand::ConstantOperand(ConstantRef::new(
+            Constant::Int { bits: 64, value: 1 },
+        )),
         dest: alloca_dest.clone(),
         alignment: 8,
     }));
@@ -322,8 +334,12 @@ fn compile_make_closure(
             ty: types.pointer(),
         },
         indices: vec![
-            Operand::ConstantOperand(ConstantRef::new(Constant::Int { bits: 32, value: 0 })),
-            Operand::ConstantOperand(ConstantRef::new(Constant::Int { bits: 32, value: 0 })),
+            Operand::ConstantOperand(ConstantRef::new(
+                Constant::Int { bits: 32, value: 0 },
+            )),
+            Operand::ConstantOperand(ConstantRef::new(
+                Constant::Int { bits: 32, value: 0 },
+            )),
         ],
         dest: fn_field_dest.clone(),
         in_bounds: true,
@@ -357,11 +373,12 @@ fn compile_make_closure(
                 ty: types.pointer(),
             },
             indices: vec![
-                Operand::ConstantOperand(ConstantRef::new(Constant::Int { bits: 32, value: 0 })),
-                Operand::ConstantOperand(ConstantRef::new(Constant::Int {
-                    bits: 32,
-                    value: field_idx,
-                })),
+                Operand::ConstantOperand(ConstantRef::new(
+                    Constant::Int { bits: 32, value: 0 },
+                )),
+                Operand::ConstantOperand(ConstantRef::new(
+                    Constant::Int { bits: 32, value: field_idx },
+                )),
             ],
             dest: field_dest.clone(),
             in_bounds: true,
@@ -410,11 +427,12 @@ fn compile_project(
     let gep = GetElementPtr {
         address: env_op,
         indices: vec![
-            Operand::ConstantOperand(ConstantRef::new(Constant::Int { bits: 32, value: 0 })),
-            Operand::ConstantOperand(ConstantRef::new(Constant::Int {
-                bits: 32,
-                value: idx as u64,
-            })),
+            Operand::ConstantOperand(ConstantRef::new(
+                Constant::Int { bits: 32, value: 0 },
+            )),
+            Operand::ConstantOperand(ConstantRef::new(
+                Constant::Int { bits: 32, value: idx as u64 },
+            )),
         ],
         dest: gep_dest.clone(),
         in_bounds: true,
@@ -435,10 +453,8 @@ fn compile_project(
         alignment: 8,
     }));
 
-    let result = Operand::LocalOperand {
-        name: load_dest,
-        ty: field_llvm_ty,
-    };
+    let result =
+        Operand::LocalOperand { name: load_dest, ty: field_llvm_ty };
 
     (instrs, result)
 }
@@ -470,7 +486,7 @@ fn compile_binop(
                     nsw: false,
                 })
             }
-        }
+        },
         BinOp::Sub => {
             if is_float {
                 Instruction::FSub(FSub {
@@ -487,7 +503,7 @@ fn compile_binop(
                     nsw: false,
                 })
             }
-        }
+        },
         BinOp::Mul => {
             if is_float {
                 Instruction::FMul(FMul {
@@ -504,7 +520,7 @@ fn compile_binop(
                     nsw: false,
                 })
             }
-        }
+        },
         BinOp::Div => {
             if is_float {
                 Instruction::FDiv(FDiv {
@@ -520,7 +536,7 @@ fn compile_binop(
                     exact: false,
                 })
             }
-        }
+        },
         BinOp::And => Instruction::And(And {
             operand0: left,
             operand1: right,
@@ -535,109 +551,126 @@ fn compile_binop(
         BinOp::Eq => {
             if is_float {
                 Instruction::FCmp(FCmp {
-                    predicate: crate::llvm_ir::predicates::FPPredicate::OEQ,
+                    predicate:
+                        crate::llvm_ir::predicates::FPPredicate::OEQ,
                     operand0: left,
                     operand1: right,
                     dest,
                 })
             } else {
                 Instruction::ICmp(ICmp {
-                    predicate: crate::llvm_ir::predicates::IntPredicate::EQ,
+                    predicate:
+                        crate::llvm_ir::predicates::IntPredicate::EQ,
                     operand0: left,
                     operand1: right,
                     dest,
                 })
             }
-        }
+        },
         BinOp::Neq => {
             if is_float {
                 Instruction::FCmp(FCmp {
-                    predicate: crate::llvm_ir::predicates::FPPredicate::ONE,
+                    predicate:
+                        crate::llvm_ir::predicates::FPPredicate::ONE,
                     operand0: left,
                     operand1: right,
                     dest,
                 })
             } else {
                 Instruction::ICmp(ICmp {
-                    predicate: crate::llvm_ir::predicates::IntPredicate::NE,
+                    predicate:
+                        crate::llvm_ir::predicates::IntPredicate::NE,
                     operand0: left,
                     operand1: right,
                     dest,
                 })
             }
-        }
+        },
         BinOp::Lt => {
             if is_float {
                 Instruction::FCmp(FCmp {
-                    predicate: crate::llvm_ir::predicates::FPPredicate::OLT,
+                    predicate:
+                        crate::llvm_ir::predicates::FPPredicate::OLT,
                     operand0: left,
                     operand1: right,
                     dest,
                 })
             } else {
                 Instruction::ICmp(ICmp {
-                    predicate: crate::llvm_ir::predicates::IntPredicate::SLT,
+                    predicate:
+                        crate::llvm_ir::predicates::IntPredicate::SLT,
                     operand0: left,
                     operand1: right,
                     dest,
                 })
             }
-        }
+        },
         BinOp::Gt => {
             if is_float {
                 Instruction::FCmp(FCmp {
-                    predicate: crate::llvm_ir::predicates::FPPredicate::OGT,
+                    predicate:
+                        crate::llvm_ir::predicates::FPPredicate::OGT,
                     operand0: left,
                     operand1: right,
                     dest,
                 })
             } else {
                 Instruction::ICmp(ICmp {
-                    predicate: crate::llvm_ir::predicates::IntPredicate::SGT,
+                    predicate:
+                        crate::llvm_ir::predicates::IntPredicate::SGT,
                     operand0: left,
                     operand1: right,
                     dest,
                 })
             }
-        }
+        },
         BinOp::Leq => {
             if is_float {
                 Instruction::FCmp(FCmp {
-                    predicate: crate::llvm_ir::predicates::FPPredicate::OLE,
+                    predicate:
+                        crate::llvm_ir::predicates::FPPredicate::OLE,
                     operand0: left,
                     operand1: right,
                     dest,
                 })
             } else {
                 Instruction::ICmp(ICmp {
-                    predicate: crate::llvm_ir::predicates::IntPredicate::SLE,
+                    predicate:
+                        crate::llvm_ir::predicates::IntPredicate::SLE,
                     operand0: left,
                     operand1: right,
                     dest,
                 })
             }
-        }
+        },
         BinOp::Geq => {
             if is_float {
                 Instruction::FCmp(FCmp {
-                    predicate: crate::llvm_ir::predicates::FPPredicate::OGE,
+                    predicate:
+                        crate::llvm_ir::predicates::FPPredicate::OGE,
                     operand0: left,
                     operand1: right,
                     dest,
                 })
             } else {
                 Instruction::ICmp(ICmp {
-                    predicate: crate::llvm_ir::predicates::IntPredicate::SGE,
+                    predicate:
+                        crate::llvm_ir::predicates::IntPredicate::SGE,
                     operand0: left,
                     operand1: right,
                     dest,
                 })
             }
-        }
+        },
     }
 }
 
-fn compile_unaryop(op: &UnaryOp, operand: Operand, dest: Name, types: &Types) -> Instruction {
+fn compile_unaryop(
+    op: &UnaryOp,
+    operand: Operand,
+    dest: Name,
+    types: &Types,
+) -> Instruction {
     let op_ty = types.type_of(&operand);
     let is_float = matches!(op_ty.as_ref(), LLVMType::FPType(_));
 
@@ -647,23 +680,24 @@ fn compile_unaryop(op: &UnaryOp, operand: Operand, dest: Name, types: &Types) ->
                 Instruction::FNeg(FNeg { operand, dest })
             } else {
                 Instruction::Sub(Sub {
-                    operand0: Operand::ConstantOperand(ConstantRef::new(Constant::Int {
-                        bits: 64,
-                        value: 0,
-                    })),
+                    operand0: Operand::ConstantOperand(
+                        ConstantRef::new(Constant::Int {
+                            bits: 64,
+                            value: 0,
+                        }),
+                    ),
                     operand1: operand,
                     dest,
                     nuw: false,
                     nsw: false,
                 })
             }
-        }
+        },
         UnaryOp::Not => Instruction::Xor(Xor {
             operand0: operand,
-            operand1: Operand::ConstantOperand(ConstantRef::new(Constant::Int {
-                bits: 1,
-                value: 1,
-            })),
+            operand1: Operand::ConstantOperand(ConstantRef::new(
+                Constant::Int { bits: 1, value: 1 },
+            )),
             dest,
         }),
     }
@@ -682,15 +716,18 @@ fn compile_function_operand(
                 (op.clone(), func_ty)
             } else {
                 ensure_func_decl(name, arrow_ty, types, func_decls);
-                let global_ref =
-                    Operand::ConstantOperand(ConstantRef::new(Constant::GlobalReference {
+                let global_ref = Operand::ConstantOperand(
+                    ConstantRef::new(Constant::GlobalReference {
                         name: Name::Name(Box::new(name.clone())),
                         ty: func_ty.clone(),
-                    }));
+                    }),
+                );
                 (global_ref, func_ty)
             }
-        }
-        _ => panic!("function operand must be a variable with arrow type"),
+        },
+        _ => panic!(
+            "function operand must be a variable with arrow type"
+        ),
     }
 }
 
@@ -704,13 +741,17 @@ fn flatten_arrow(arrow_ty: &Type, types: &Types) -> TypeRef {
                     Type::Arrow(p, r) => {
                         param_tys.push(llvm_type(p, types));
                         cur = r.as_ref();
-                    }
+                    },
                     _ => {
-                        return types.func_type(llvm_type(cur, types), param_tys, false);
-                    }
+                        return types.func_type(
+                            llvm_type(cur, types),
+                            param_tys,
+                            false,
+                        );
+                    },
                 }
             }
-        }
+        },
         _ => panic!("expected arrow type, got {:?}", arrow_ty),
     }
 }
@@ -724,7 +765,8 @@ fn ensure_func_decl(
     if func_decls.iter().any(|d| d.name == name) {
         return;
     }
-    let (param_tys, ret_ty) = extract_arrow_params_and_ret(arrow_ty, types);
+    let (param_tys, ret_ty) =
+        extract_arrow_params_and_ret(arrow_ty, types);
     let decl = FunctionDeclaration {
         name: name.to_string(),
         parameters: param_tys
@@ -749,7 +791,10 @@ fn ensure_func_decl(
     func_decls.push(decl);
 }
 
-fn extract_arrow_params_and_ret(arrow_ty: &Type, types: &Types) -> (Vec<TypeRef>, TypeRef) {
+fn extract_arrow_params_and_ret(
+    arrow_ty: &Type,
+    types: &Types,
+) -> (Vec<TypeRef>, TypeRef) {
     match arrow_ty {
         Type::Arrow(param_ty, ret_ty) => {
             let mut param_tys = vec![llvm_type(param_ty, types)];
@@ -759,13 +804,13 @@ fn extract_arrow_params_and_ret(arrow_ty: &Type, types: &Types) -> (Vec<TypeRef>
                     Type::Arrow(p, r) => {
                         param_tys.push(llvm_type(p, types));
                         cur = r.as_ref();
-                    }
+                    },
                     _ => {
                         return (param_tys, llvm_type(cur, types));
-                    }
+                    },
                 }
             }
-        }
+        },
         _ => panic!("expected arrow type"),
     }
 }
@@ -790,7 +835,10 @@ fn compile_call(
                 env,
                 func_decls,
             );
-            assert!(instrs.is_empty(), "atom should produce no instructions");
+            assert!(
+                instrs.is_empty(),
+                "atom should produce no instructions"
+            );
             (op, vec![])
         })
         .collect();
@@ -816,16 +864,18 @@ fn compile_tail(
 ) -> Vec<BasicBlock> {
     match tail {
         CTail::Return(cexpr) => {
-            let (instrs, result) = compile_cexpr(cexpr, types, gensym, env, func_decls);
+            let (instrs, result) =
+                compile_cexpr(cexpr, types, gensym, env, func_decls);
             let mut bb = BasicBlock::new(block_name(gensym, "ret"));
             bb.instrs = instrs;
-            bb.term = Terminator::Ret(Ret {
-                return_operand: Some(result),
-            });
+            bb.term =
+                Terminator::Ret(Ret { return_operand: Some(result) });
             vec![bb]
-        }
+        },
         CTail::TailCall(func, args) => {
-            let (func_op, func_ty) = compile_function_operand(func, types, env, func_decls);
+            let (func_op, func_ty) = compile_function_operand(
+                func, types, env, func_decls,
+            );
             let call_dest = fresh_name(gensym);
             let call = compile_call(
                 func_op,
@@ -838,10 +888,13 @@ fn compile_tail(
                 func_decls,
             );
             let ret_ty = match call.function_ty.as_ref() {
-                LLVMType::FuncType { result_type, .. } => result_type.clone(),
+                LLVMType::FuncType { result_type, .. } => {
+                    result_type.clone()
+                },
                 _ => types.void(),
             };
-            let mut bb = BasicBlock::new(block_name(gensym, "tailcall"));
+            let mut bb =
+                BasicBlock::new(block_name(gensym, "tailcall"));
             bb.instrs = vec![Instruction::Call(call)];
             bb.term = Terminator::Ret(Ret {
                 return_operand: Some(Operand::LocalOperand {
@@ -850,15 +903,19 @@ fn compile_tail(
                 }),
             });
             vec![bb]
-        }
+        },
         CTail::Seq(stmt, cont) => {
             let CStmt::Assign(name, cexpr, _ty) = stmt;
-            let (instrs, result) = compile_cexpr(cexpr, types, gensym, env, func_decls);
+            let (instrs, result) =
+                compile_cexpr(cexpr, types, gensym, env, func_decls);
             let mut env_with = env.clone();
             env_with.insert(name.clone(), result);
-            let mut blocks = compile_tail(cont, types, gensym, &env_with, func_decls);
+            let mut blocks = compile_tail(
+                cont, types, gensym, &env_with, func_decls,
+            );
             if blocks.is_empty() {
-                let mut bb = BasicBlock::new(block_name(gensym, "seq"));
+                let mut bb =
+                    BasicBlock::new(block_name(gensym, "seq"));
                 bb.instrs = instrs;
                 bb.term = Terminator::Unreachable(Unreachable {});
                 vec![bb]
@@ -866,12 +923,14 @@ fn compile_tail(
                 blocks[0].instrs.splice(0..0, instrs);
                 blocks
             }
-        }
+        },
         CTail::If(cond, thn, els) => {
             let cond_op = compile_catom(cond, types, env);
 
-            let then_blocks = compile_tail(thn, types, gensym, env, func_decls);
-            let else_blocks = compile_tail(els, types, gensym, env, func_decls);
+            let then_blocks =
+                compile_tail(thn, types, gensym, env, func_decls);
+            let else_blocks =
+                compile_tail(els, types, gensym, env, func_decls);
 
             let then_label = then_blocks
                 .first()
@@ -882,7 +941,8 @@ fn compile_tail(
                 .map(|b| b.name.clone())
                 .unwrap_or_else(|| block_name(gensym, "else.empty"));
 
-            let mut entry = BasicBlock::new(block_name(gensym, "if.entry"));
+            let mut entry =
+                BasicBlock::new(block_name(gensym, "if.entry"));
             entry.term = Terminator::CondBr(CondBr {
                 condition: cond_op,
                 true_dest: then_label.clone(),
@@ -905,17 +965,23 @@ fn compile_tail(
                 blocks.extend(else_blocks);
             }
             blocks
-        }
+        },
     }
 }
 
-fn create_c_main(types: &Types, program_fn_ty: &TypeRef, gensym: &mut Gensym) -> Function {
+fn create_c_main(
+    types: &Types,
+    program_fn_ty: &TypeRef,
+    gensym: &mut Gensym,
+) -> Function {
     let i32_ty = types.i32();
 
-    let program_op = Operand::ConstantOperand(ConstantRef::new(Constant::GlobalReference {
-        name: Name::Name(Box::new("program".to_string())),
-        ty: program_fn_ty.clone(),
-    }));
+    let program_op = Operand::ConstantOperand(ConstantRef::new(
+        Constant::GlobalReference {
+            name: Name::Name(Box::new("program".to_string())),
+            ty: program_fn_ty.clone(),
+        },
+    ));
 
     let call_dest = fresh_name(gensym);
     let call = Call {
@@ -932,10 +998,9 @@ fn create_c_main(types: &Types, program_fn_ty: &TypeRef, gensym: &mut Gensym) ->
     let mut entry = BasicBlock::new(nn("entry"));
     entry.instrs = vec![Instruction::Call(call)];
     entry.term = Terminator::Ret(Ret {
-        return_operand: Some(Operand::ConstantOperand(ConstantRef::new(Constant::Int {
-            bits: 32,
-            value: 0,
-        }))),
+        return_operand: Some(Operand::ConstantOperand(
+            ConstantRef::new(Constant::Int { bits: 32, value: 0 }),
+        )),
     });
 
     Function {
@@ -984,10 +1049,15 @@ mod tests {
 
     fn emit_and_print(src: &str) -> String {
         let ast = parser::ExprParser::new().parse(src).unwrap();
-        let (return_ty, typed_ast) = typecheck(*ast).expect("typecheck failed");
+        let (return_ty, typed_ast) =
+            typecheck(*ast).expect("typecheck failed");
         let anf = crate::a_normal_form::anf_convert(typed_ast);
-        let clos_prog = crate::closure_conversion::closure_convert(anf);
-        let body_ctail = crate::explicate_control::explicate_control_convert(clos_prog.body);
+        let clos_prog =
+            crate::closure_conversion::closure_convert(anf);
+        let body_ctail =
+            crate::explicate_control::explicate_control_convert(
+                clos_prog.body,
+            );
         let fn_ctails: Vec<(crate::closure_conversion::ClosFnDef, _)> = clos_prog
             .fn_defs
             .iter()

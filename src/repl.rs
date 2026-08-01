@@ -1,9 +1,9 @@
-use rustyline::error::ReadlineError;
-use rustyline::{DefaultEditor };
 use lalrpop_util::lalrpop_mod;
+use rustyline::DefaultEditor;
+use rustyline::error::ReadlineError;
 
-use crate::typechecker::typecheck;
 use crate::eval::eval_top;
+use crate::typechecker::typecheck;
 lalrpop_mod!(pub parser);
 
 pub fn repl() {
@@ -20,32 +20,30 @@ pub fn repl() {
             Ok(line) => {
                 rl.add_history_entry(line.as_str()).unwrap();
                 match parser::ExprParser::new().parse(line.trim()) {
-                    Ok(expr) => {
-                        match typecheck((*expr).clone()) {
-                            Ok(_) => {
-                                match eval_top(&expr) {
-                                    Ok(val) => println!("{}", val),
-                                    Err(e) => println!("Evaluation error{}", e),
-                                }
-                            }
-                            Err(e) => println!("Type error: {}", e),
-                        }
+                    Ok(expr) => match typecheck((*expr).clone()) {
+                        Ok(_) => match eval_top(&expr) {
+                            Ok(val) => println!("{}", val),
+                            Err(e) => {
+                                println!("Evaluation error{}", e)
+                            },
+                        },
+                        Err(e) => println!("Type error: {}", e),
                     },
                     Err(e) => println!("Parse error: {}", e),
                 }
-            }
+            },
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
                 break;
-            }
+            },
             Err(ReadlineError::Eof) => {
                 println!("CTRL-D");
                 break;
-            }
+            },
             Err(err) => {
                 println!("Error: {:?}", err);
                 break;
-            }
+            },
         }
     }
 

@@ -1,5 +1,7 @@
 use crate::llvm_ir::name::Name;
-use crate::llvm_ir::types::{FPType, LLVMType, TypeRef, Typed, Types};
+use crate::llvm_ir::types::{
+    FPType, LLVMType, TypeRef, Typed, Types,
+};
 use std::convert::TryFrom;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -14,7 +16,7 @@ pub enum Constant {
     Null(TypeRef),
     AggregateZero(TypeRef),
     Struct {
-        name: Option<String>, // llvm-hs-pure has Option<Name> here, but I don't think struct types can be numbered
+        name: Option<String>,
         values: Vec<ConstantRef>,
         is_packed: bool,
     },
@@ -32,12 +34,11 @@ pub enum Constant {
     },
     TokenNone,
     PtrAuth {
-        ptr : ConstantRef,
-        key : ConstantRef,
-        disc : ConstantRef,
-        addr_disc : ConstantRef
+        ptr: ConstantRef,
+        key: ConstantRef,
+        disc: ConstantRef,
+        addr_disc: ConstantRef,
     },
-
 
     Add(Add),
     Sub(Sub),
@@ -45,11 +46,9 @@ pub enum Constant {
 
     Xor(Xor),
 
-
     ExtractElement(ExtractElement),
     InsertElement(InsertElement),
     ShuffleVector(ShuffleVector),
-
 
     GetElementPtr(GetElementPtr),
 
@@ -58,18 +57,17 @@ pub enum Constant {
     IntToPtr(IntToPtr),
     BitCast(BitCast),
     AddrSpaceCast(AddrSpaceCast),
-
 }
 
 #[derive(PartialEq, Clone, Debug)]
 #[allow(non_camel_case_types)]
 pub enum Float {
-    Half, // TODO perhaps Half(u16)
+    Half,   // TODO perhaps Half(u16)
     BFloat, // TODO perhaps BFloat(u16)
     Single(f32),
     Double(f64),
     Quadruple, // TODO perhaps Quadruple(u128)
-    X86_FP80,  // TODO perhaps X86_FP80((u16, u64)) with the most-significant bits on the left
+    X86_FP80, // TODO perhaps X86_FP80((u16, u64)) with the most-significant bits on the left
     PPC_FP128, // TODO perhaps PPC_FP128((u64, u64)) with the most-significant bits on the left
 }
 
@@ -77,8 +75,12 @@ impl std::hash::Hash for Float {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         core::mem::discriminant(self).hash(state);
         match self {
-            Float::Single(f) => ordered_float::OrderedFloat(*f).hash(state),
-            Float::Double(f) => ordered_float::OrderedFloat(*f).hash(state),
+            Float::Single(f) => {
+                ordered_float::OrderedFloat(*f).hash(state)
+            },
+            Float::Double(f) => {
+                ordered_float::OrderedFloat(*f).hash(state)
+            },
             _ => {},
         }
     }
@@ -97,20 +99,6 @@ impl Typed for Float {
         })
     }
 }
-
-// impl Display for Float {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         match self {
-//             Float::Half => write!(f, "half"),
-//             Float::BFloat => write!(f, "bfloat"),
-//             Float::Single(s) => write!(f, "float {}", s),
-//             Float::Double(d) => write!(f, "double {}", d),
-//             Float::Quadruple => write!(f, "quadruple"),
-//             Float::X86_FP80 => write!(f, "x86_fp80"),
-//             Float::PPC_FP128 => write!(f, "ppc_fp128"),
-//         }
-//     }
-// }
 
 impl Typed for Constant {
     #[rustfmt::skip] // to keep all the branches more consistent with each other
@@ -156,131 +144,6 @@ impl Typed for Constant {
     }
 }
 
-// impl Display for Constant {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         match self {
-//             Constant::Int { bits, value } => {
-//                 if *bits == 1 {
-//                     if *value == 0 {
-//                         write!(f, "i1 false")
-//                     } else {
-//                         write!(f, "i1 true")
-//                     }
-//                 } else {
-//                     match *bits {
-//                         16 => {
-//                             let signed_val = (*value & 0xFFFF) as i16;
-//                             if signed_val > -1000 {
-//                                 write!(f, "i{} {}", bits, signed_val)
-//                             } else {
-//                                 write!(f, "i{} {}", bits, *value)
-//                             }
-//                         },
-//                         32 => {
-//                             let signed_val = (*value & 0xFFFF_FFFF) as i32;
-//                             if signed_val > -1000 {
-//                                 write!(f, "i{} {}", bits, signed_val)
-//                             } else {
-//                                 write!(f, "i{} {}", bits, *value)
-//                             }
-//                         },
-//                         64 => {
-//                             let signed_val = *value as i64;
-//                             if signed_val > -1000 {
-//                                 write!(f, "i{} {}", bits, signed_val)
-//                             } else {
-//                                 write!(f, "i{} {}", bits, *value)
-//                             }
-//                         },
-//                         _ => write!(f, "i{} {}", bits, value),
-//                     }
-//                 }
-//             },
-//             Constant::Float(float) => write!(f, "{}", float),
-//             Constant::Null(ty) => write!(f, "{} null", ty),
-//             Constant::AggregateZero(ty) => write!(f, "{} zeroinitializer", ty),
-//             Constant::Struct {
-//                 values, is_packed, ..
-//             } => {
-//                 if *is_packed {
-//                     write!(f, "<")?;
-//                 }
-//                 write!(f, "{{ ")?;
-//                 for (i, val) in values.iter().enumerate() {
-//                     if i == values.len() - 1 {
-//                         write!(f, "{}", val)?;
-//                     } else {
-//                         write!(f, "{}, ", val)?;
-//                     }
-//                 }
-//                 write!(f, " }}")?;
-//                 if *is_packed {
-//                     write!(f, ">")?;
-//                 }
-//                 Ok(())
-//             },
-//             Constant::Array { elements, .. } => {
-//                 write!(f, "[ ")?;
-//                 for (i, elt) in elements.iter().enumerate() {
-//                     if i == elements.len() - 1 {
-//                         write!(f, "{}", elt)?;
-//                     } else {
-//                         write!(f, "{}, ", elt)?;
-//                     }
-//                 }
-//                 write!(f, " ]")?;
-//                 Ok(())
-//             },
-//             Constant::Vector(v) => {
-//                 write!(f, "< ")?;
-//                 for (i, elt) in v.iter().enumerate() {
-//                     if i == v.len() - 1 {
-//                         write!(f, "{}", elt)?;
-//                     } else {
-//                         write!(f, "{}, ", elt)?;
-//                     }
-//                 }
-//                 write!(f, " >")?;
-//                 Ok(())
-//             },
-//             Constant::Undef(ty) => write!(f, "{} undef", ty),
-//             Constant::Poison(ty) => write!(f, "{} poison", ty),
-//             Constant::BlockAddress => write!(f, "blockaddr"),
-//             Constant::GlobalReference { name, ty } => {
-//                 let name = match name {
-//                     Name::Name(n) => String::clone(n),
-//                     Name::Number(n) => n.to_string(),
-//                 };
-//                 match ty.as_ref() {
-//                     LLVMType::FuncType { .. } => {
-//                         write!(f, "@{}", name)
-//                     },
-//                     _ => {
-//                         write!(f, "ptr @{}", name)
-//                     },
-//                 }
-//             },
-//             Constant::TokenNone => write!(f, "none"),
-//             Constant::Add(a) => write!(f, "{}", a),
-//             Constant::Sub(s) => write!(f, "{}", s),
-//             Constant::Mul(m) => write!(f, "{}", m),
-//             Constant::Xor(x) => write!(f, "{}", x),
-//             Constant::ExtractElement(e) => write!(f, "{}", e),
-//             Constant::InsertElement(i) => write!(f, "{}", i),
-//             Constant::ShuffleVector(s) => write!(f, "{}", s),
-//             Constant::GetElementPtr(g) => write!(f, "{}", g),
-//             Constant::Trunc(t) => write!(f, "{}", t),
-//             Constant::PtrToInt(p) => write!(f, "{}", p),
-//             Constant::IntToPtr(i) => write!(f, "{}", i),
-//             Constant::BitCast(b) => write!(f, "{}", b),
-//             Constant::AddrSpaceCast(a) => write!(f, "{}", a),
-//             Constant::PtrAuth { ptr, key, disc, addr_disc } => {
-//                 write!(f, "ptrauth({}, {}, {}, {})", ptr, key, disc, addr_disc)
-//             }
-//         }
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct ConstantRef(Arc<Constant>);
 
@@ -304,12 +167,6 @@ impl Typed for ConstantRef {
     }
 }
 
-// impl Display for ConstantRef {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "{}", &self.0)
-//     }
-// }
-
 impl ConstantRef {
     pub fn new(c: Constant) -> Self {
         Self(Arc::new(c))
@@ -324,7 +181,6 @@ pub trait ConstBinaryOp {
     fn get_operand0(&self) -> ConstantRef;
     fn get_operand1(&self) -> ConstantRef;
 }
-
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Add {
@@ -364,12 +220,6 @@ impl Typed for Add {
     }
 }
 
-// impl Display for Add {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "add ({}, {})", &self.operand0, &self.operand1)
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Sub {
     pub operand0: ConstantRef,
@@ -407,12 +257,6 @@ impl Typed for Sub {
         t
     }
 }
-
-// impl Display for Sub {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "sub ({}, {})", &self.operand0, &self.operand1)
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Mul {
@@ -452,13 +296,6 @@ impl Typed for Mul {
     }
 }
 
-// impl Display for Mul {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "mul ({}, {})", &self.operand0, &self.operand1)
-//     }
-// }
-
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Xor {
     pub operand0: ConstantRef,
@@ -497,18 +334,10 @@ impl Typed for Xor {
     }
 }
 
-// impl Display for Xor {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "xor ({}, {})", &self.operand0, &self.operand1)
-//     }
-// }
-
-
 pub struct FRem {
     pub operand0: ConstantRef,
     pub operand1: ConstantRef,
 }
-
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct ExtractElement {
@@ -535,7 +364,9 @@ impl TryFrom<Constant> for ExtractElement {
 impl Typed for ExtractElement {
     fn get_type(&self, types: &Types) -> TypeRef {
         match types.type_of(&self.vector).as_ref() {
-            LLVMType::VectorType { element_type, .. } => element_type.clone(),
+            LLVMType::VectorType { element_type, .. } => {
+                element_type.clone()
+            },
             ty => panic!(
                 "Expected an ExtractElement vector to be VectorType, got {:?}",
                 ty
@@ -543,12 +374,6 @@ impl Typed for ExtractElement {
         }
     }
 }
-
-// impl Display for ExtractElement {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "extractelement ({}, {})", &self.vector, &self.index)
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct InsertElement {
@@ -578,16 +403,6 @@ impl Typed for InsertElement {
         types.type_of(&self.vector)
     }
 }
-
-// impl Display for InsertElement {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "insertelement ({}, {}, {})",
-//             &self.vector, &self.element, &self.index,
-//         )
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct ShuffleVector {
@@ -625,16 +440,22 @@ impl Typed for ShuffleVector {
         let ty = types.type_of(&self.operand0);
         debug_assert_eq!(ty, types.type_of(&self.operand1));
         match ty.as_ref() {
-            LLVMType::VectorType { element_type, .. } => match types.type_of(&self.mask).as_ref() {
-                LLVMType::VectorType {
-                    num_elements,
-                    scalable,
-                    ..
-                } => types.vector_of(element_type.clone(), *num_elements, *scalable),
-                ty => panic!(
-                    "Expected a ShuffleVector mask to be VectorType, got {:?}",
-                    ty
-                ),
+            LLVMType::VectorType { element_type, .. } => {
+                match types.type_of(&self.mask).as_ref() {
+                    LLVMType::VectorType {
+                        num_elements,
+                        scalable,
+                        ..
+                    } => types.vector_of(
+                        element_type.clone(),
+                        *num_elements,
+                        *scalable,
+                    ),
+                    ty => panic!(
+                        "Expected a ShuffleVector mask to be VectorType, got {:?}",
+                        ty
+                    ),
+                }
             },
             _ => panic!(
                 "Expected a ShuffleVector operand to be VectorType, got {:?}",
@@ -643,17 +464,6 @@ impl Typed for ShuffleVector {
         }
     }
 }
-
-// impl Display for ShuffleVector {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "shufflevector ({}, {}, {})",
-//             &self.operand0, &self.operand1, &self.mask,
-//         )
-//     }
-// }
-
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct GetElementPtr {
@@ -683,23 +493,6 @@ impl Typed for GetElementPtr {
         types.pointer()
     }
 }
-
-
-// impl Display for GetElementPtr {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "getelementptr{} ({}",
-//             if self.in_bounds { " inbounds" } else { "" },
-//             &self.address
-//         )?;
-//         for idx in &self.indices {
-//             write!(f, ", {}", idx)?;
-//         }
-//         write!(f, ")")?;
-//         Ok(())
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Trunc {
@@ -734,18 +527,6 @@ impl Typed for Trunc {
     }
 }
 
-// impl Display for Trunc {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "trunc ({} to {})",
-//             &self.get_operand(),
-//             &self.to_type,
-//         )
-//     }
-// }
-
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct PtrToInt {
     pub operand: ConstantRef,
@@ -778,17 +559,6 @@ impl Typed for PtrToInt {
         self.to_type.clone()
     }
 }
-
-// impl Display for PtrToInt {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "ptrtoint ({} to {})",
-//             &self.get_operand(),
-//             &self.to_type,
-//         )
-//     }
-// }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct IntToPtr {
@@ -823,17 +593,6 @@ impl Typed for IntToPtr {
     }
 }
 
-// impl Display for IntToPtr {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "inttoptr ({} to {})",
-//             &self.get_operand(),
-//             &self.to_type,
-//         )
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct BitCast {
     pub operand: ConstantRef,
@@ -867,17 +626,6 @@ impl Typed for BitCast {
     }
 }
 
-// impl Display for BitCast {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "bitcast ({} to {})",
-//             &self.get_operand(),
-//             &self.to_type,
-//         )
-//     }
-// }
-
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct AddrSpaceCast {
     pub operand: ConstantRef,
@@ -910,16 +658,3 @@ impl Typed for AddrSpaceCast {
         self.to_type.clone()
     }
 }
-
-// impl Display for AddrSpaceCast {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(
-//             f,
-//             "addrspacecast ({} to {})",
-//             &self.get_operand(),
-//             &self.to_type,
-//         )
-//     }
-// }
-
-

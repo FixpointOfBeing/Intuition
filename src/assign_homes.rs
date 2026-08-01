@@ -1,6 +1,5 @@
 use crate::syntax::Ident;
 
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum RvReg {
     Zero,
@@ -74,4 +73,3 @@ pub enum RvInstr {
     Jalr(RvArg),
     Label(Ident),
 }
-
