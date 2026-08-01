@@ -1,7 +1,6 @@
 use crate::llvm_ir::name::Name;
 use crate::llvm_ir::types::{FPType, LLVMType, TypeRef, Typed, Types};
 use std::convert::TryFrom;
-use std::fmt::{self, Display};
 use std::ops::Deref;
 use std::sync::Arc;
 

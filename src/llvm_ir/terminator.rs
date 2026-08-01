@@ -7,7 +7,6 @@ use crate::llvm_ir::name::Name;
 use crate::llvm_ir::operand::Operand;
 use either::Either;
 use std::convert::TryFrom;
-use std::fmt::{self, Display};
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub enum Terminator {

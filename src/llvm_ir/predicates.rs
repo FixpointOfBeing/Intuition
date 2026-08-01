@@ -1,4 +1,3 @@
-use std::fmt::{self, Display};
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
 pub enum IntPredicate {

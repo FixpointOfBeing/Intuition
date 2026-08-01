@@ -5,11 +5,10 @@ use crate::llvm_ir::name::Name;
 use crate::llvm_ir::operand::Operand;
 use crate::llvm_ir::predicates::FPPredicate;
 use crate::llvm_ir::predicates::IntPredicate;
-use crate::llvm_ir::constant::Constant;
 use crate::llvm_ir::types::{LLVMType, TypeRef, Typed, Types};
 use either::Either;
 use std::convert::TryFrom;
-use std::fmt::{self, Debug, Display};
+use std::fmt::Debug;
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub enum Instruction {

@@ -1,7 +1,6 @@
 use crate::llvm_ir::constant::{Constant, ConstantRef};
 use crate::llvm_ir::name::Name;
 use crate::llvm_ir::types::{TypeRef, Typed, Types};
-use std::fmt::{self, Display};
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub enum Operand {

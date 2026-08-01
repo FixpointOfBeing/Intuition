@@ -1,4 +1,4 @@
-use crate::{syntax::*, typechecker::typecheck};
+use crate::syntax::*;
 use crate::env::{Env, Value};
 
 use lalrpop_util::lalrpop_mod;

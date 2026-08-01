@@ -628,8 +628,7 @@ pub fn merge_clos_programs(mut programs: Vec<ClosProgram>) -> ClosProgram {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::a_normal_form::AnfExpr as AExprAnf;
-    use crate::syntax::{BinOp, Type, UnaryOp};
+    use crate::syntax::{BinOp, Type};
 
     fn v(name: &str, ty: Type) -> AExpr {
         AExpr::Var(name.to_string(), ty)

@@ -5,7 +5,6 @@ use crate::llvm_ir::name::Name;
 use crate::llvm_ir::show::Show;
 use crate::llvm_ir::types::{FPType, LLVMType, TypeRef, Typed, Types};
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::fmt::{self, Display};
 use std::io::Error;
 use std::path::PathBuf;
 

@@ -144,59 +144,116 @@ mod module_show {
             if self.visibility != Visibility::Default {
                 write!(s, "{} ", self.visibility.show(types)).unwrap();
             }
-            write!(s, "ifunc {}, {}", self.ty.show(types), self.resolver_fn.show(types)).unwrap();
+            write!(
+                s,
+                "ifunc {}, {}",
+                self.ty.show(types),
+                self.resolver_fn.show(types)
+            )
+            .unwrap();
 
             s
         }
     }
     impl Show for module::UnnamedAddr {
-        fn show(&self, types: &Types) -> String {
-            todo!();
+        fn show(&self, _types: &Types) -> String {
+            match self {
+                module::UnnamedAddr::Local => "local_unnamed_addr".to_string(),
+                module::UnnamedAddr::Global => "unnamed_addr".to_string(),
+            }
         }
     }
     impl Show for module::Linkage {
-        fn show(&self, types: &Types) -> String {
-            todo!();
+        fn show(&self, _types: &Types) -> String {
+            match self {
+                Linkage::Private => "private".to_string(),
+                Linkage::Internal => "internal".to_string(),
+                Linkage::External => String::new(),
+                Linkage::ExternalWeak => "extern_weak".to_string(),
+                Linkage::AvailableExternally => "available_externally".to_string(),
+                Linkage::LinkOnceAny => "linkonce".to_string(),
+                Linkage::LinkOnceODR => "linkonce_odr".to_string(),
+                Linkage::LinkOnceODRAutoHide => "linkonce_odr auto_hide".to_string(),
+                Linkage::WeakAny => "weak".to_string(),
+                Linkage::WeakODR => "weak_odr".to_string(),
+                Linkage::Common => "common".to_string(),
+                Linkage::Appending => "appending".to_string(),
+                Linkage::DLLImport => "dllimport".to_string(),
+                Linkage::DLLExport => "dllexport".to_string(),
+                Linkage::Ghost => "ghost".to_string(),
+                Linkage::LinkerPrivate => "linker_private".to_string(),
+                Linkage::LinkerPrivateWeak => "linker_private_weak".to_string(),
+            }
         }
     }
     impl Show for module::Visibility {
-        fn show(&self, types: &Types) -> String {
-            todo!();
+        fn show(&self, _types: &Types) -> String {
+            match self {
+                Visibility::Default => String::new(),
+                Visibility::Hidden => "hidden".to_string(),
+                Visibility::Protected => "protected".to_string(),
+            }
         }
     }
     impl Show for module::DLLStorageClass {
-        fn show(&self, types: &Types) -> String {
-            todo!();
+        fn show(&self, _types: &Types) -> String {
+            match self {
+                DLLStorageClass::Default => String::new(),
+                DLLStorageClass::Import => "dllimport".to_string(),
+                DLLStorageClass::Export => "dllexport".to_string(),
+            }
         }
     }
     impl Show for module::ThreadLocalMode {
-        fn show(&self, types: &Types) -> String {
-            todo!();
+        fn show(&self, _types: &Types) -> String {
+            match self {
+                module::ThreadLocalMode::NotThreadLocal => String::new(),
+                module::ThreadLocalMode::GeneralDynamic => "thread_local".to_string(),
+                module::ThreadLocalMode::LocalDynamic => "thread_local(localdynamic)".to_string(),
+                module::ThreadLocalMode::InitialExec => "thread_local(initialexec)".to_string(),
+                module::ThreadLocalMode::LocalExec => "thread_local(localexec)".to_string(),
+            }
         }
     }
     impl Show for module::Comdat {
-        fn show(&self, types: &Types) -> String {
-            todo!();
+        fn show(&self, _types: &Types) -> String {
+            format!("comdat({})", self.name)
         }
     }
     impl Show for module::SelectionKind {
-        fn show(&self, types: &Types) -> String {
-            todo!();
+        fn show(&self, _types: &Types) -> String {
+            match self {
+                module::SelectionKind::Any => "any".to_string(),
+                module::SelectionKind::ExactMatch => "exactmatch".to_string(),
+                module::SelectionKind::Largest => "largest".to_string(),
+                module::SelectionKind::NoDuplicates => "noduplicates".to_string(),
+                module::SelectionKind::SameSize => "samesize".to_string(),
+            }
         }
     }
     impl Show for module::DataLayout {
-        fn show(&self, types: &Types) -> String {
-            todo!();
+        fn show(&self, _types: &Types) -> String {
+            self.layout_str.clone()
         }
     }
     impl Show for module::Endianness {
-        fn show(&self, types: &Types) -> String {
-            todo!();
+        fn show(&self, _types: &Types) -> String {
+            match self {
+                module::Endianness::LittleEndian => "little".to_string(),
+                module::Endianness::BigEndian => "big".to_string(),
+            }
         }
     }
     impl Show for module::Mangling {
-        fn show(&self, types: &Types) -> String {
-            todo!();
+        fn show(&self, _types: &Types) -> String {
+            match self {
+                module::Mangling::ELF => "e".to_string(),
+                module::Mangling::MIPS => "m".to_string(),
+                module::Mangling::MachO => "o".to_string(),
+                module::Mangling::WindowsX86COFF => "w".to_string(),
+                module::Mangling::WindowsCOFF => "x".to_string(),
+                module::Mangling::XCOFF => "y".to_string(),
+            }
         }
     }
 }
@@ -301,23 +358,223 @@ mod function_show {
 
     impl Show for function::ParameterAttribute {
         fn show(&self, types: &Types) -> String {
-            todo!()
+            match self {
+                function::ParameterAttribute::ZeroExt => "zeroext".to_string(),
+                function::ParameterAttribute::SignExt => "signext".to_string(),
+                function::ParameterAttribute::InReg => "inreg".to_string(),
+                function::ParameterAttribute::ByVal(ty) => format!("byval({})", ty.show(types)),
+                function::ParameterAttribute::Preallocated(ty) => {
+                    format!("preallocated({})", ty.show(types))
+                }
+                function::ParameterAttribute::InAlloca(ty) => {
+                    format!("inalloca({})", ty.show(types))
+                }
+                function::ParameterAttribute::SRet(ty) => format!("sret({})", ty.show(types)),
+                function::ParameterAttribute::Alignment(n) => format!("align {}", n),
+                function::ParameterAttribute::NoAlias => "noalias".to_string(),
+                function::ParameterAttribute::NoCapture => "nocapture".to_string(),
+                function::ParameterAttribute::NoFree => "nofree".to_string(),
+                function::ParameterAttribute::Nest => "nest".to_string(),
+                function::ParameterAttribute::Returned => "returned".to_string(),
+                function::ParameterAttribute::NonNull => "nonnull".to_string(),
+                function::ParameterAttribute::Dereferenceable(n) => {
+                    format!("dereferenceable({})", n)
+                }
+                function::ParameterAttribute::DereferenceableOrNull(n) => {
+                    format!("dereferenceable_or_null({})", n)
+                }
+                function::ParameterAttribute::SwiftSelf => "swiftself".to_string(),
+                function::ParameterAttribute::SwiftError => "swifterror".to_string(),
+                function::ParameterAttribute::ImmArg => "immarg".to_string(),
+                function::ParameterAttribute::NoUndef => "noundef".to_string(),
+                function::ParameterAttribute::StringAttribute { kind, value } => {
+                    if value.is_empty() {
+                        format!("\"{}\"", kind)
+                    } else {
+                        format!("\"{}\"=\"{}\"", kind, value)
+                    }
+                }
+                function::ParameterAttribute::UnknownAttribute => String::new(),
+                function::ParameterAttribute::UnknownTypeAttribute(ty) => ty.show(types),
+            }
         }
     }
     impl Show for function::Parameter {
         fn show(&self, types: &Types) -> String {
-            todo!()
+            let mut s = String::new();
+            write!(s, "{} {}", self.ty.show(types), self.name.show(types)).unwrap();
+            for attr in &self.attributes {
+                write!(s, " {}", attr.show(types)).unwrap();
+            }
+            s
         }
     }
     impl Show for function::FunctionAttribute {
-        fn show(&self, types: &Types) -> String {
-            todo!()
+        fn show(&self, _types: &Types) -> String {
+            use function::MemoryEffect;
+
+            match self {
+                function::FunctionAttribute::AlignStack(n) => format!("alignstack({})", n),
+                function::FunctionAttribute::AllocSize { elt_size, num_elts } => {
+                    if let Some(n) = num_elts {
+                        format!("allocsize({}, {})", elt_size, n)
+                    } else {
+                        format!("allocsize({})", elt_size)
+                    }
+                }
+                function::FunctionAttribute::AlwaysInline => "alwaysinline".to_string(),
+                function::FunctionAttribute::Builtin => "builtin".to_string(),
+                function::FunctionAttribute::Cold => "cold".to_string(),
+                function::FunctionAttribute::Convergent => "convergent".to_string(),
+                function::FunctionAttribute::InaccessibleMemOnly => {
+                    "inaccessiblememonly".to_string()
+                }
+                function::FunctionAttribute::InaccessibleMemOrArgMemOnly => {
+                    "inaccessiblemem_or_argmemonly".to_string()
+                }
+                function::FunctionAttribute::InlineHint => "inlinehint".to_string(),
+                function::FunctionAttribute::JumpTable => "jumptable".to_string(),
+                function::FunctionAttribute::MinimizeSize => "minsize".to_string(),
+                function::FunctionAttribute::Naked => "naked".to_string(),
+                function::FunctionAttribute::NoBuiltin => "nobuiltin".to_string(),
+                function::FunctionAttribute::NoCFCheck => "nocf_check".to_string(),
+                function::FunctionAttribute::NoDuplicate => "noduplicate".to_string(),
+                function::FunctionAttribute::NoFree => "nofree".to_string(),
+                function::FunctionAttribute::NoImplicitFloat => "noimplicitfloat".to_string(),
+                function::FunctionAttribute::NoInline => "noinline".to_string(),
+                function::FunctionAttribute::NoMerge => "nomerge".to_string(),
+                function::FunctionAttribute::NonLazyBind => "nonlazybind".to_string(),
+                function::FunctionAttribute::NoRedZone => "noredzone".to_string(),
+                function::FunctionAttribute::NoReturn => "noreturn".to_string(),
+                function::FunctionAttribute::NoRecurse => "norecurse".to_string(),
+                function::FunctionAttribute::WillReturn => "willreturn".to_string(),
+                function::FunctionAttribute::ReturnsTwice => "returns_twice".to_string(),
+                function::FunctionAttribute::NoSync => "nosync".to_string(),
+                function::FunctionAttribute::NoUnwind => "nounwind".to_string(),
+                function::FunctionAttribute::NullPointerIsValid => {
+                    "null_pointer_is_valid".to_string()
+                }
+                function::FunctionAttribute::OptForFuzzing => "optforfuzzing".to_string(),
+                function::FunctionAttribute::OptNone => "optnone".to_string(),
+                function::FunctionAttribute::OptSize => "optsize".to_string(),
+                function::FunctionAttribute::ReadNone => "readnone".to_string(),
+                function::FunctionAttribute::ReadOnly => "readonly".to_string(),
+                function::FunctionAttribute::WriteOnly => "writeonly".to_string(),
+                function::FunctionAttribute::ArgMemOnly => "argmemonly".to_string(),
+                function::FunctionAttribute::SafeStack => "safestack".to_string(),
+                function::FunctionAttribute::SanitizeAddress => "sanitize_address".to_string(),
+                function::FunctionAttribute::SanitizeMemory => "sanitize_memory".to_string(),
+                function::FunctionAttribute::SanitizeThread => "sanitize_thread".to_string(),
+                function::FunctionAttribute::SanitizeHWAddress => "sanitize_hwaddress".to_string(),
+                function::FunctionAttribute::SanitizeMemTag => "sanitize_memtag".to_string(),
+                function::FunctionAttribute::ShadowCallStack => "shadowcallstack".to_string(),
+                function::FunctionAttribute::SpeculativeLoadHardening => {
+                    "speculative_load_hardening".to_string()
+                }
+                function::FunctionAttribute::Speculatable => "speculatable".to_string(),
+                function::FunctionAttribute::StackProtect => "ssp".to_string(),
+                function::FunctionAttribute::StackProtectReq => "sspreq".to_string(),
+                function::FunctionAttribute::StackProtectStrong => "sspstrong".to_string(),
+                function::FunctionAttribute::StrictFP => "strictfp".to_string(),
+                function::FunctionAttribute::UWTable => "uwtable".to_string(),
+                function::FunctionAttribute::Memory {
+                    default,
+                    argmem,
+                    inaccessible_mem,
+                } => {
+                    let mut s = String::new();
+                    write!(s, "memory(").unwrap();
+                    let mut first = true;
+                    let write_part =
+                        |w: &mut String, first: &mut bool, pre: &str, me: &MemoryEffect| match me {
+                            MemoryEffect::None => {}
+                            MemoryEffect::Read => {
+                                if !*first {
+                                    write!(w, ", ").unwrap();
+                                }
+                                write!(w, "{}read", pre).unwrap();
+                                *first = false;
+                            }
+                            MemoryEffect::Write => {
+                                if !*first {
+                                    write!(w, ", ").unwrap();
+                                }
+                                write!(w, "{}write", pre).unwrap();
+                                *first = false;
+                            }
+                            MemoryEffect::ReadWrite => {
+                                if !*first {
+                                    write!(w, ", ").unwrap();
+                                }
+                                write!(w, "{}readwrite", pre).unwrap();
+                                *first = false;
+                            }
+                        };
+                    write_part(&mut s, &mut first, "", default);
+                    write_part(&mut s, &mut first, "argmem: ", argmem);
+                    write_part(&mut s, &mut first, "inaccessiblemem: ", inaccessible_mem);
+                    write!(s, ")").unwrap();
+                    s
+                }
+                function::FunctionAttribute::StringAttribute { kind, value } => {
+                    if value.is_empty() {
+                        format!("\"{}\"", kind)
+                    } else {
+                        format!("\"{}\"=\"{}\"", kind, value)
+                    }
+                }
+                function::FunctionAttribute::UnknownAttribute => String::new(),
+            }
         }
     }
 
     impl Show for function::CallingConvention {
-        fn show(&self, types: &Types) -> String {
-            todo!()
+        fn show(&self, _types: &Types) -> String {
+            match self {
+                CallingConvention::C => "ccc".to_string(),
+                CallingConvention::Fast => "fastcc".to_string(),
+                CallingConvention::Cold => "coldcc".to_string(),
+                CallingConvention::GHC => "ghccc".to_string(),
+                CallingConvention::HiPE => "cc 11".to_string(),
+                CallingConvention::WebKit_JS => "webkit_jscc".to_string(),
+                CallingConvention::AnyReg => "anyregcc".to_string(),
+                CallingConvention::PreserveMost => "preserve_mostcc".to_string(),
+                CallingConvention::PreserveAll => "preserve_allcc".to_string(),
+                CallingConvention::Swift => "swiftcc".to_string(),
+                CallingConvention::CXX_FastTLS => "cxx_fast_tlscc".to_string(),
+                CallingConvention::X86_StdCall => "x86_stdcallcc".to_string(),
+                CallingConvention::X86_FastCall => "x86_fastcallcc".to_string(),
+                CallingConvention::X86_RegCall => "x86_regcallcc".to_string(),
+                CallingConvention::X86_ThisCall => "x86_thiscallcc".to_string(),
+                CallingConvention::X86_VectorCall => "x86_vectorcallcc".to_string(),
+                CallingConvention::X86_Intr => "x86_intrcc".to_string(),
+                CallingConvention::X86_64_SysV => "x86_64_sysvcc".to_string(),
+                CallingConvention::ARM_APCS => "arm_apcscc".to_string(),
+                CallingConvention::ARM_AAPCS => "arm_aapcscc".to_string(),
+                CallingConvention::ARM_AAPCS_VFP => "arm_aapcs_vfpcc".to_string(),
+                CallingConvention::MSP430_INTR => "msp430_intrcc".to_string(),
+                CallingConvention::MSP430_Builtin => "msp430_builtincc".to_string(),
+                CallingConvention::PTX_Kernel => "ptx_kernel".to_string(),
+                CallingConvention::PTX_Device => "ptx_device".to_string(),
+                CallingConvention::SPIR_FUNC => "spir_func".to_string(),
+                CallingConvention::SPIR_KERNEL => "spir_kernel".to_string(),
+                CallingConvention::Intel_OCL_BI => "intel_ocl_bicc".to_string(),
+                CallingConvention::Win64 => "win64cc".to_string(),
+                CallingConvention::HHVM => "hhvmcc".to_string(),
+                CallingConvention::HHVM_C => "hhvm_c".to_string(),
+                CallingConvention::AVR_Intr => "avr_intrcc".to_string(),
+                CallingConvention::AVR_Signal => "avr_signcc".to_string(),
+                CallingConvention::AVR_Builtin => "avr_builtincc".to_string(),
+                CallingConvention::AMDGPU_CS => "amdgpu_cs".to_string(),
+                CallingConvention::AMDGPU_ES => "amdgpu_es".to_string(),
+                CallingConvention::AMDGPU_GS => "amdgpu_gs".to_string(),
+                CallingConvention::AMDGPU_HS => "amdgpu_hs".to_string(),
+                CallingConvention::AMDGPU_LS => "amdgpu_ls".to_string(),
+                CallingConvention::AMDGPU_PS => "amdgpu_ps".to_string(),
+                CallingConvention::AMDGPU_VS => "amdgpu_vs".to_string(),
+                CallingConvention::AMDGPU_Kernel => "amdgpu_kernel".to_string(),
+                CallingConvention::Numbered(n) => format!("cc {}", n),
+            }
         }
     }
 }
@@ -810,7 +1067,13 @@ mod instruction_show {
             if self.volatile {
                 write!(s, "volatile ").unwrap();
             }
-            write!(s, "{}, {}", &self.loaded_ty.show(types), &self.address.show(types)).unwrap();
+            write!(
+                s,
+                "{}, {}",
+                &self.loaded_ty.show(types),
+                &self.address.show(types)
+            )
+            .unwrap();
             if let Some(a) = &self.atomicity {
                 write!(s, " {}", a.show(types)).unwrap();
             }
@@ -1316,17 +1579,52 @@ mod instruction_show {
     }
     impl Show for instruction::Atomicity {
         fn show(&self, types: &Types) -> String {
-            todo!();
+            let mut s = String::new();
+            use instruction::SynchronizationScope;
+            match self.synch_scope {
+                SynchronizationScope::SingleThread => {
+                    write!(s, "syncscope(\"singlethread\") ").unwrap();
+                }
+                SynchronizationScope::System => {}
+            }
+            write!(s, "{}", self.mem_ordering.show(types)).unwrap();
+            s
         }
     }
     impl Show for instruction::RMWBinOp {
-        fn show(&self, types: &Types) -> String {
-            todo!();
+        fn show(&self, _types: &Types) -> String {
+            match self {
+                instruction::RMWBinOp::Xchg => "xchg".to_string(),
+                instruction::RMWBinOp::Add => "add".to_string(),
+                instruction::RMWBinOp::Sub => "sub".to_string(),
+                instruction::RMWBinOp::And => "and".to_string(),
+                instruction::RMWBinOp::Nand => "nand".to_string(),
+                instruction::RMWBinOp::Or => "or".to_string(),
+                instruction::RMWBinOp::Xor => "xor".to_string(),
+                instruction::RMWBinOp::Max => "max".to_string(),
+                instruction::RMWBinOp::Min => "min".to_string(),
+                instruction::RMWBinOp::UMax => "umax".to_string(),
+                instruction::RMWBinOp::UMin => "umin".to_string(),
+                instruction::RMWBinOp::FAdd => "fadd".to_string(),
+                instruction::RMWBinOp::FSub => "fsub".to_string(),
+                instruction::RMWBinOp::FMax => "fmax".to_string(),
+                instruction::RMWBinOp::FMin => "fmin".to_string(),
+                instruction::RMWBinOp::UIncWrap => "uinc_wrap".to_string(),
+                instruction::RMWBinOp::UDecWrap => "udec_wrap".to_string(),
+            }
         }
     }
     impl Show for instruction::MemoryOrdering {
-        fn show(&self, types: &Types) -> String {
-            todo!();
+        fn show(&self, _types: &Types) -> String {
+            match self {
+                instruction::MemoryOrdering::Unordered => "unordered".to_string(),
+                instruction::MemoryOrdering::Monotonic => "monotonic".to_string(),
+                instruction::MemoryOrdering::Acquire => "acquire".to_string(),
+                instruction::MemoryOrdering::Release => "release".to_string(),
+                instruction::MemoryOrdering::AcquireRelease => "acq_rel".to_string(),
+                instruction::MemoryOrdering::SequentiallyConsistent => "seq_cst".to_string(),
+                instruction::MemoryOrdering::NotAtomic => "not_atomic".to_string(),
+            }
         }
     }
     impl Show for instruction::Instruction {
@@ -1411,17 +1709,94 @@ mod types_show {
 
     impl Show for types::LLVMType {
         fn show(&self, types: &Types) -> String {
-            todo!();
+            match self {
+                types::LLVMType::VoidType => "void".to_string(),
+                types::LLVMType::IntegerType { bits } => format!("i{}", bits),
+                types::LLVMType::PointerType { .. } => "ptr".to_string(),
+                types::LLVMType::FPType(fpt) => fpt.show(types),
+                types::LLVMType::FuncType {
+                    result_type,
+                    param_types,
+                    is_var_arg,
+                } => {
+                    let mut s = String::new();
+                    write!(s, "{} (", result_type.show(types)).unwrap();
+                    for (i, param_ty) in param_types.iter().enumerate() {
+                        if i == param_types.len() - 1 {
+                            write!(s, "{}", param_ty.show(types)).unwrap();
+                        } else {
+                            write!(s, "{}, ", param_ty.show(types)).unwrap();
+                        }
+                    }
+                    if *is_var_arg {
+                        write!(s, ", ...").unwrap();
+                    }
+                    write!(s, ")").unwrap();
+                    s
+                }
+                types::LLVMType::VectorType {
+                    element_type,
+                    num_elements,
+                    scalable,
+                } => {
+                    if *scalable {
+                        format!("<vscale x {} x {}>", num_elements, element_type.show(types))
+                    } else {
+                        format!("<{} x {}>", num_elements, element_type.show(types))
+                    }
+                }
+                types::LLVMType::ArrayType {
+                    element_type,
+                    num_elements,
+                } => format!("[{} x {}]", num_elements, element_type.show(types)),
+                types::LLVMType::StructType {
+                    element_types,
+                    is_packed,
+                } => {
+                    let mut s = String::new();
+                    if *is_packed {
+                        write!(s, "<").unwrap();
+                    }
+                    write!(s, "{{ ").unwrap();
+                    for (i, element_ty) in element_types.iter().enumerate() {
+                        if i == element_types.len() - 1 {
+                            write!(s, "{}", element_ty.show(types)).unwrap();
+                        } else {
+                            write!(s, "{}, ", element_ty.show(types)).unwrap();
+                        }
+                    }
+                    write!(s, " }}").unwrap();
+                    if *is_packed {
+                        write!(s, ">").unwrap();
+                    }
+                    s
+                }
+                types::LLVMType::NamedStructType { name } => format!("%{}", name),
+                types::LLVMType::X86_MMXType => "x86_mmx".to_string(),
+                types::LLVMType::X86_AMXType => "x86_amx".to_string(),
+                types::LLVMType::MetadataType => "metadata".to_string(),
+                types::LLVMType::LabelType => "label".to_string(),
+                types::LLVMType::TokenType => "token".to_string(),
+                types::LLVMType::TargetExtType => "target()".to_string(),
+            }
         }
     }
     impl Show for types::FPType {
-        fn show(&self, types: &Types) -> String {
-            todo!();
+        fn show(&self, _types: &Types) -> String {
+            match self {
+                types::FPType::Half => "half".to_string(),
+                types::FPType::BFloat => "bfloat".to_string(),
+                types::FPType::Single => "float".to_string(),
+                types::FPType::Double => "double".to_string(),
+                types::FPType::FP128 => "fp128".to_string(),
+                types::FPType::X86_FP80 => "x86_fp80".to_string(),
+                types::FPType::PPC_FP128 => "ppc_fp128".to_string(),
+            }
         }
     }
     impl Show for types::TypeRef {
         fn show(&self, types: &Types) -> String {
-            todo!();
+            self.as_ref().show(types)
         }
     }
 }
@@ -1436,22 +1811,38 @@ mod constant_show {
 
     impl Show for constant::Add {
         fn show(&self, types: &Types) -> String {
-            todo!();
+            format!(
+                "add ({}, {})",
+                &self.operand0.show(types),
+                &self.operand1.show(types)
+            )
         }
     }
     impl Show for constant::Sub {
         fn show(&self, types: &Types) -> String {
-            todo!();
+            format!(
+                "sub ({}, {})",
+                &self.operand0.show(types),
+                &self.operand1.show(types)
+            )
         }
     }
     impl Show for constant::Mul {
         fn show(&self, types: &Types) -> String {
-            todo!();
+            format!(
+                "mul ({}, {})",
+                &self.operand0.show(types),
+                &self.operand1.show(types)
+            )
         }
     }
     impl Show for constant::Xor {
         fn show(&self, types: &Types) -> String {
-            todo!();
+            format!(
+                "xor ({}, {})",
+                &self.operand0.show(types),
+                &self.operand1.show(types)
+            )
         }
     }
     impl Show for constant::FRem {
@@ -1466,47 +1857,91 @@ mod constant_show {
     }
     impl Show for constant::ExtractElement {
         fn show(&self, types: &Types) -> String {
-            todo!();
+            format!(
+                "extractelement ({}, {})",
+                &self.vector.show(types),
+                &self.index.show(types)
+            )
         }
     }
     impl Show for constant::InsertElement {
         fn show(&self, types: &Types) -> String {
-            todo!();
+            format!(
+                "insertelement ({}, {}, {})",
+                &self.vector.show(types),
+                &self.element.show(types),
+                &self.index.show(types)
+            )
         }
     }
     impl Show for constant::ShuffleVector {
         fn show(&self, types: &Types) -> String {
-            todo!();
+            format!(
+                "shufflevector ({}, {}, {})",
+                &self.operand0.show(types),
+                &self.operand1.show(types),
+                &self.mask.show(types)
+            )
         }
     }
     impl Show for constant::GetElementPtr {
         fn show(&self, types: &Types) -> String {
-            todo!();
+            let mut s = String::new();
+            write!(s, "getelementptr").unwrap();
+            if self.in_bounds {
+                write!(s, " inbounds").unwrap();
+            }
+            write!(s, " ({}", &self.address.show(types)).unwrap();
+            for idx in &self.indices {
+                write!(s, ", {}", idx.show(types)).unwrap();
+            }
+            write!(s, ")").unwrap();
+            s
         }
     }
     impl Show for constant::Trunc {
         fn show(&self, types: &Types) -> String {
-            todo!();
+            format!(
+                "trunc ({} to {})",
+                &self.operand.show(types),
+                &self.to_type.show(types)
+            )
         }
     }
     impl Show for constant::PtrToInt {
         fn show(&self, types: &Types) -> String {
-            todo!();
+            format!(
+                "ptrtoint ({} to {})",
+                &self.operand.show(types),
+                &self.to_type.show(types)
+            )
         }
     }
     impl Show for constant::IntToPtr {
         fn show(&self, types: &Types) -> String {
-            todo!();
+            format!(
+                "inttoptr ({} to {})",
+                &self.operand.show(types),
+                &self.to_type.show(types)
+            )
         }
     }
     impl Show for constant::BitCast {
         fn show(&self, types: &Types) -> String {
-            todo!();
+            format!(
+                "bitcast ({} to {})",
+                &self.operand.show(types),
+                &self.to_type.show(types)
+            )
         }
     }
     impl Show for constant::AddrSpaceCast {
         fn show(&self, types: &Types) -> String {
-            todo!();
+            format!(
+                "addrspacecast ({} to {})",
+                &self.operand.show(types),
+                &self.to_type.show(types)
+            )
         }
     }
     impl Show for constant::ConstantRef {
@@ -1515,8 +1950,16 @@ mod constant_show {
         }
     }
     impl Show for constant::Float {
-        fn show(&self, types: &Types) -> String {
-            todo!()
+        fn show(&self, _types: &Types) -> String {
+            match self {
+                constant::Float::Half => "half".to_string(),
+                constant::Float::BFloat => "bfloat".to_string(),
+                constant::Float::Single(s) => format!("float {}", s),
+                constant::Float::Double(d) => format!("double {}", d),
+                constant::Float::Quadruple => "quadruple".to_string(),
+                constant::Float::X86_FP80 => "x86_fp80".to_string(),
+                constant::Float::PPC_FP128 => "ppc_fp128".to_string(),
+            }
         }
     }
     impl Show for constant::Constant {
@@ -1551,34 +1994,94 @@ mod constant_show {
                 },
                 constant::Constant::TokenNone => write!(s, "none").unwrap(),
                 constant::Constant::Struct {
-                    name,
+                    name: _,
                     values,
                     is_packed,
-                } => todo!(),
+                } => {
+                    if *is_packed {
+                        write!(s, "<").unwrap();
+                    }
+                    write!(s, "{{ ").unwrap();
+                    for (i, val) in values.iter().enumerate() {
+                        if i == values.len() - 1 {
+                            write!(s, "{}", val.show(types)).unwrap();
+                        } else {
+                            write!(s, "{}, ", val.show(types)).unwrap();
+                        }
+                    }
+                    write!(s, " }}").unwrap();
+                    if *is_packed {
+                        write!(s, ">").unwrap();
+                    }
+                }
                 constant::Constant::Array {
-                    element_type,
+                    element_type: _,
                     elements,
-                } => todo!(),
-                constant::Constant::Vector(constant_refs) => todo!(),
+                } => {
+                    write!(s, "[ ").unwrap();
+                    for (i, elt) in elements.iter().enumerate() {
+                        if i == elements.len() - 1 {
+                            write!(s, "{}", elt.show(types)).unwrap();
+                        } else {
+                            write!(s, "{}, ", elt.show(types)).unwrap();
+                        }
+                    }
+                    write!(s, " ]").unwrap();
+                }
+                constant::Constant::Vector(constant_refs) => {
+                    write!(s, "< ").unwrap();
+                    for (i, elt) in constant_refs.iter().enumerate() {
+                        if i == constant_refs.len() - 1 {
+                            write!(s, "{}", elt.show(types)).unwrap();
+                        } else {
+                            write!(s, "{}, ", elt.show(types)).unwrap();
+                        }
+                    }
+                    write!(s, " >").unwrap();
+                }
                 constant::Constant::PtrAuth {
                     ptr,
                     key,
                     disc,
                     addr_disc,
-                } => todo!(),
-                constant::Constant::Add(add) => todo!(),
-                constant::Constant::Sub(sub) => todo!(),
-                constant::Constant::Mul(mul) => todo!(),
-                constant::Constant::Xor(xor) => todo!(),
-                constant::Constant::ExtractElement(extract_element) => todo!(),
-                constant::Constant::InsertElement(insert_element) => todo!(),
-                constant::Constant::ShuffleVector(shuffle_vector) => todo!(),
-                constant::Constant::GetElementPtr(get_element_ptr) => todo!(),
-                constant::Constant::Trunc(trunc) => todo!(),
-                constant::Constant::PtrToInt(ptr_to_int) => todo!(),
-                constant::Constant::IntToPtr(int_to_ptr) => todo!(),
-                constant::Constant::BitCast(bit_cast) => todo!(),
-                constant::Constant::AddrSpaceCast(addr_space_cast) => todo!(),
+                } => write!(
+                    s,
+                    "ptrauth({}, {}, {}, {})",
+                    ptr.show(types),
+                    key.show(types),
+                    disc.show(types),
+                    addr_disc.show(types)
+                )
+                .unwrap(),
+                constant::Constant::Add(add) => write!(s, "{}", add.show(types)).unwrap(),
+                constant::Constant::Sub(sub) => write!(s, "{}", sub.show(types)).unwrap(),
+                constant::Constant::Mul(mul) => write!(s, "{}", mul.show(types)).unwrap(),
+                constant::Constant::Xor(xor) => write!(s, "{}", xor.show(types)).unwrap(),
+                constant::Constant::ExtractElement(extract_element) => {
+                    write!(s, "{}", extract_element.show(types)).unwrap()
+                }
+                constant::Constant::InsertElement(insert_element) => {
+                    write!(s, "{}", insert_element.show(types)).unwrap()
+                }
+                constant::Constant::ShuffleVector(shuffle_vector) => {
+                    write!(s, "{}", shuffle_vector.show(types)).unwrap()
+                }
+                constant::Constant::GetElementPtr(get_element_ptr) => {
+                    write!(s, "{}", get_element_ptr.show(types)).unwrap()
+                }
+                constant::Constant::Trunc(trunc) => write!(s, "{}", trunc.show(types)).unwrap(),
+                constant::Constant::PtrToInt(ptr_to_int) => {
+                    write!(s, "{}", ptr_to_int.show(types)).unwrap()
+                }
+                constant::Constant::IntToPtr(int_to_ptr) => {
+                    write!(s, "{}", int_to_ptr.show(types)).unwrap()
+                }
+                constant::Constant::BitCast(bit_cast) => {
+                    write!(s, "{}", bit_cast.show(types)).unwrap()
+                }
+                constant::Constant::AddrSpaceCast(addr_space_cast) => {
+                    write!(s, "{}", addr_space_cast.show(types)).unwrap()
+                }
             }
             s
         }
@@ -1598,7 +2101,7 @@ mod terminator_show {
             write!(s, "ret ").unwrap();
             match &self.return_operand {
                 None => write!(s, "void").unwrap(),
-                Some(op) => write!(s, "{}", op.show(types)).unwrap(),
+                Some(op) => write!(s, "{} {}", types.type_of(op).show(types), op.show(types)).unwrap(),
             }
             s
         }
@@ -1800,17 +2303,44 @@ mod terminator_show {
 mod predicate_show {
     use super::Show;
     use crate::llvm_ir::predicates;
-    use std::fmt::Write;
 
     impl Show for predicates::FPPredicate {
-        fn show(&self, types: &crate::llvm_ir::types::Types) -> String {
-            todo!()
+        fn show(&self, _types: &crate::llvm_ir::types::Types) -> String {
+            match self {
+                predicates::FPPredicate::False => "false".to_string(),
+                predicates::FPPredicate::OEQ => "oeq".to_string(),
+                predicates::FPPredicate::OGT => "ogt".to_string(),
+                predicates::FPPredicate::OGE => "oge".to_string(),
+                predicates::FPPredicate::OLT => "olt".to_string(),
+                predicates::FPPredicate::OLE => "ole".to_string(),
+                predicates::FPPredicate::ONE => "one".to_string(),
+                predicates::FPPredicate::ORD => "ord".to_string(),
+                predicates::FPPredicate::UNO => "uno".to_string(),
+                predicates::FPPredicate::UEQ => "ueq".to_string(),
+                predicates::FPPredicate::UGT => "ugt".to_string(),
+                predicates::FPPredicate::UGE => "uge".to_string(),
+                predicates::FPPredicate::ULT => "ult".to_string(),
+                predicates::FPPredicate::ULE => "ule".to_string(),
+                predicates::FPPredicate::UNE => "une".to_string(),
+                predicates::FPPredicate::True => "true".to_string(),
+            }
         }
     }
 
     impl Show for predicates::IntPredicate {
-        fn show(&self, types: &crate::llvm_ir::types::Types) -> String {
-            todo!()
+        fn show(&self, _types: &crate::llvm_ir::types::Types) -> String {
+            match self {
+                predicates::IntPredicate::EQ => "eq".to_string(),
+                predicates::IntPredicate::NE => "ne".to_string(),
+                predicates::IntPredicate::UGT => "ugt".to_string(),
+                predicates::IntPredicate::UGE => "uge".to_string(),
+                predicates::IntPredicate::ULT => "ult".to_string(),
+                predicates::IntPredicate::ULE => "ule".to_string(),
+                predicates::IntPredicate::SGT => "sgt".to_string(),
+                predicates::IntPredicate::SGE => "sge".to_string(),
+                predicates::IntPredicate::SLT => "slt".to_string(),
+                predicates::IntPredicate::SLE => "sle".to_string(),
+            }
         }
     }
 }
@@ -1822,7 +2352,7 @@ mod name_show {
     use std::fmt::Write;
 
     impl Show for name::Name {
-        fn show(&self, types: &Types) -> String {
+        fn show(&self, _types: &Types) -> String {
             let mut s = String::new();
             match self {
                 name::Name::Name(name) => write!(s, "%{}", name).unwrap(),

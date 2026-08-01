@@ -5,7 +5,6 @@ use crate::{
     closure_conversion::{ClosFnDef, closure_convert},
     emit_llvm::emit_module,
     explicate_control::explicate_control_convert,
-    llvm_ir::show::Show,
     uniquify::uniquify_convert,
 };
 
