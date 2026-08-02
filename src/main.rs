@@ -1,6 +1,5 @@
 // pub mod compile_llvm;
 pub mod a_normal_form;
-pub mod assign_homes;
 pub mod closure_conversion;
 pub mod compile;
 pub mod emit_llvm;
@@ -10,7 +9,6 @@ pub mod explicate_control;
 pub mod gensym;
 pub mod llvm_ir;
 pub mod repl;
-pub mod select_instructions;
 pub mod syntax;
 pub mod typechecker;
 pub mod uniquify;
