@@ -54,7 +54,6 @@ pub struct FunctionDeclaration {
     pub calling_convention: CallingConvention,
     pub alignment: u32,
     pub garbage_collector_name: Option<String>,
-    // pub debugloc: Option<DebugLoc>,
 }
 
 #[derive(PartialEq, Clone, Debug, Hash)]
@@ -127,7 +126,7 @@ pub enum MemoryEffect {
 }
 
 impl MemoryEffect {
-    pub(crate) fn from_llvm_bits(val: u64) -> Self {
+    pub fn from_llvm_bits(val: u64) -> Self {
         match val {
             0b00 => Self::None,
             0b01 => Self::Read,

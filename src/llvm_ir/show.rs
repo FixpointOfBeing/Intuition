@@ -1607,6 +1607,52 @@ mod instruction_show {
         }
     }
 
+impl Show for instruction::FPPredicate {
+        fn show(
+            &self,
+            _types: &crate::llvm_ir::types::Types,
+        ) -> String {
+            match self {
+                instruction::FPPredicate::False => "false".to_string(),
+                instruction::FPPredicate::OEQ => "oeq".to_string(),
+                instruction::FPPredicate::OGT => "ogt".to_string(),
+                instruction::FPPredicate::OGE => "oge".to_string(),
+                instruction::FPPredicate::OLT => "olt".to_string(),
+                instruction::FPPredicate::OLE => "ole".to_string(),
+                instruction::FPPredicate::ONE => "one".to_string(),
+                instruction::FPPredicate::ORD => "ord".to_string(),
+                instruction::FPPredicate::UNO => "uno".to_string(),
+                instruction::FPPredicate::UEQ => "ueq".to_string(),
+                instruction::FPPredicate::UGT => "ugt".to_string(),
+                instruction::FPPredicate::UGE => "uge".to_string(),
+                instruction::FPPredicate::ULT => "ult".to_string(),
+                instruction::FPPredicate::ULE => "ule".to_string(),
+                instruction::FPPredicate::UNE => "une".to_string(),
+                instruction::FPPredicate::True => "true".to_string(),
+            }
+        }
+    }
+
+    impl Show for instruction::IntPredicate {
+        fn show(
+            &self,
+            _types: &crate::llvm_ir::types::Types,
+        ) -> String {
+            match self {
+                instruction::IntPredicate::EQ => "eq".to_string(),
+                instruction::IntPredicate::NE => "ne".to_string(),
+                instruction::IntPredicate::UGT => "ugt".to_string(),
+                instruction::IntPredicate::UGE => "uge".to_string(),
+                instruction::IntPredicate::ULT => "ult".to_string(),
+                instruction::IntPredicate::ULE => "ule".to_string(),
+                instruction::IntPredicate::SGT => "sgt".to_string(),
+                instruction::IntPredicate::SGE => "sge".to_string(),
+                instruction::IntPredicate::SLT => "slt".to_string(),
+                instruction::IntPredicate::SLE => "sle".to_string(),
+            }
+        }
+    }
+
     impl Show for instruction::ICmp {
         fn show(&self, types: &Types) -> String {
             let mut s = String::new();
@@ -2714,57 +2760,6 @@ mod terminator_show {
                     t.show(types)
                 },
                 terminator::Terminator::CallBr(t) => t.show(types),
-            }
-        }
-    }
-}
-
-mod predicate_show {
-    use super::Show;
-    use crate::llvm_ir::predicates;
-
-    impl Show for predicates::FPPredicate {
-        fn show(
-            &self,
-            _types: &crate::llvm_ir::types::Types,
-        ) -> String {
-            match self {
-                predicates::FPPredicate::False => "false".to_string(),
-                predicates::FPPredicate::OEQ => "oeq".to_string(),
-                predicates::FPPredicate::OGT => "ogt".to_string(),
-                predicates::FPPredicate::OGE => "oge".to_string(),
-                predicates::FPPredicate::OLT => "olt".to_string(),
-                predicates::FPPredicate::OLE => "ole".to_string(),
-                predicates::FPPredicate::ONE => "one".to_string(),
-                predicates::FPPredicate::ORD => "ord".to_string(),
-                predicates::FPPredicate::UNO => "uno".to_string(),
-                predicates::FPPredicate::UEQ => "ueq".to_string(),
-                predicates::FPPredicate::UGT => "ugt".to_string(),
-                predicates::FPPredicate::UGE => "uge".to_string(),
-                predicates::FPPredicate::ULT => "ult".to_string(),
-                predicates::FPPredicate::ULE => "ule".to_string(),
-                predicates::FPPredicate::UNE => "une".to_string(),
-                predicates::FPPredicate::True => "true".to_string(),
-            }
-        }
-    }
-
-    impl Show for predicates::IntPredicate {
-        fn show(
-            &self,
-            _types: &crate::llvm_ir::types::Types,
-        ) -> String {
-            match self {
-                predicates::IntPredicate::EQ => "eq".to_string(),
-                predicates::IntPredicate::NE => "ne".to_string(),
-                predicates::IntPredicate::UGT => "ugt".to_string(),
-                predicates::IntPredicate::UGE => "uge".to_string(),
-                predicates::IntPredicate::ULT => "ult".to_string(),
-                predicates::IntPredicate::ULE => "ule".to_string(),
-                predicates::IntPredicate::SGT => "sgt".to_string(),
-                predicates::IntPredicate::SGE => "sge".to_string(),
-                predicates::IntPredicate::SLT => "slt".to_string(),
-                predicates::IntPredicate::SLE => "sle".to_string(),
             }
         }
     }

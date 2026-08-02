@@ -118,7 +118,7 @@ fn compile_lifted_fn(
     func_decls: &mut Vec<FunctionDeclaration>,
 ) -> Function {
     let env_param = Parameter {
-        name: Name::Name(Box::new(fn_def.env_param.clone())),
+        name: Name::Name(fn_def.env_param.clone()),
         ty: types.pointer(),
         attributes: vec![],
     };
@@ -126,7 +126,7 @@ fn compile_lifted_fn(
     let params: Vec<Parameter> = std::iter::once(env_param)
         .chain(fn_def.params.iter().enumerate().map(
             |(_, (name, ty))| Parameter {
-                name: Name::Name(Box::new(name.clone())),
+                name: Name::Name(name.clone()),
                 ty: llvm_type(ty, types),
                 attributes: vec![],
             },
@@ -207,7 +207,7 @@ fn compile_catom(
             } else {
                 let ty_ref = llvm_type(ty, types);
                 Operand::LocalOperand {
-                    name: Name::Name(Box::new(name.clone())),
+                    name: Name::Name(name.clone()),
                     ty: ty_ref,
                 }
             }
@@ -552,7 +552,7 @@ fn compile_binop(
             if is_float {
                 Instruction::FCmp(FCmp {
                     predicate:
-                        crate::llvm_ir::predicates::FPPredicate::OEQ,
+                        crate::llvm_ir::instruction::FPPredicate::OEQ,
                     operand0: left,
                     operand1: right,
                     dest,
@@ -560,7 +560,7 @@ fn compile_binop(
             } else {
                 Instruction::ICmp(ICmp {
                     predicate:
-                        crate::llvm_ir::predicates::IntPredicate::EQ,
+                        crate::llvm_ir::instruction::IntPredicate::EQ,
                     operand0: left,
                     operand1: right,
                     dest,
@@ -571,7 +571,7 @@ fn compile_binop(
             if is_float {
                 Instruction::FCmp(FCmp {
                     predicate:
-                        crate::llvm_ir::predicates::FPPredicate::ONE,
+                        crate::llvm_ir::instruction::FPPredicate::ONE,
                     operand0: left,
                     operand1: right,
                     dest,
@@ -579,7 +579,7 @@ fn compile_binop(
             } else {
                 Instruction::ICmp(ICmp {
                     predicate:
-                        crate::llvm_ir::predicates::IntPredicate::NE,
+                        crate::llvm_ir::instruction::IntPredicate::NE,
                     operand0: left,
                     operand1: right,
                     dest,
@@ -590,7 +590,7 @@ fn compile_binop(
             if is_float {
                 Instruction::FCmp(FCmp {
                     predicate:
-                        crate::llvm_ir::predicates::FPPredicate::OLT,
+                        crate::llvm_ir::instruction::FPPredicate::OLT,
                     operand0: left,
                     operand1: right,
                     dest,
@@ -598,7 +598,7 @@ fn compile_binop(
             } else {
                 Instruction::ICmp(ICmp {
                     predicate:
-                        crate::llvm_ir::predicates::IntPredicate::SLT,
+                        crate::llvm_ir::instruction::IntPredicate::SLT,
                     operand0: left,
                     operand1: right,
                     dest,
@@ -609,7 +609,7 @@ fn compile_binop(
             if is_float {
                 Instruction::FCmp(FCmp {
                     predicate:
-                        crate::llvm_ir::predicates::FPPredicate::OGT,
+                        crate::llvm_ir::instruction::FPPredicate::OGT,
                     operand0: left,
                     operand1: right,
                     dest,
@@ -617,7 +617,7 @@ fn compile_binop(
             } else {
                 Instruction::ICmp(ICmp {
                     predicate:
-                        crate::llvm_ir::predicates::IntPredicate::SGT,
+                        crate::llvm_ir::instruction::IntPredicate::SGT,
                     operand0: left,
                     operand1: right,
                     dest,
@@ -628,7 +628,7 @@ fn compile_binop(
             if is_float {
                 Instruction::FCmp(FCmp {
                     predicate:
-                        crate::llvm_ir::predicates::FPPredicate::OLE,
+                        crate::llvm_ir::instruction::FPPredicate::OLE,
                     operand0: left,
                     operand1: right,
                     dest,
@@ -636,7 +636,7 @@ fn compile_binop(
             } else {
                 Instruction::ICmp(ICmp {
                     predicate:
-                        crate::llvm_ir::predicates::IntPredicate::SLE,
+                        crate::llvm_ir::instruction::IntPredicate::SLE,
                     operand0: left,
                     operand1: right,
                     dest,
@@ -647,7 +647,7 @@ fn compile_binop(
             if is_float {
                 Instruction::FCmp(FCmp {
                     predicate:
-                        crate::llvm_ir::predicates::FPPredicate::OGE,
+                        crate::llvm_ir::instruction::FPPredicate::OGE,
                     operand0: left,
                     operand1: right,
                     dest,
@@ -655,7 +655,7 @@ fn compile_binop(
             } else {
                 Instruction::ICmp(ICmp {
                     predicate:
-                        crate::llvm_ir::predicates::IntPredicate::SGE,
+                        crate::llvm_ir::instruction::IntPredicate::SGE,
                     operand0: left,
                     operand1: right,
                     dest,
@@ -718,7 +718,7 @@ fn compile_function_operand(
                 ensure_func_decl(name, arrow_ty, types, func_decls);
                 let global_ref = Operand::ConstantOperand(
                     ConstantRef::new(Constant::GlobalReference {
-                        name: Name::Name(Box::new(name.clone())),
+                        name: Name::Name(name.clone()),
                         ty: func_ty.clone(),
                     }),
                 );
@@ -978,7 +978,7 @@ fn create_c_main(
 
     let program_op = Operand::ConstantOperand(ConstantRef::new(
         Constant::GlobalReference {
-            name: Name::Name(Box::new("program".to_string())),
+            name: Name::Name("program".to_string()),
             ty: program_fn_ty.clone(),
         },
     ));
@@ -1025,15 +1025,15 @@ fn create_c_main(
 
 fn fresh_name(gensym: &mut Gensym) -> Name {
     let name = gensym.fresh_with_prefix("tmp");
-    Name::Name(Box::new(name))
+    Name::Name(name)
 }
 
 fn block_name(gensym: &mut Gensym, prefix: &str) -> Name {
-    Name::Name(Box::new(gensym.fresh_with_prefix(prefix)))
+    Name::Name(gensym.fresh_with_prefix(prefix))
 }
 
 fn nn(s: &str) -> Name {
-    Name::Name(Box::new(s.to_string()))
+    Name::Name(s.to_string())
 }
 
 pub fn module_to_string(module: &Module) -> String {

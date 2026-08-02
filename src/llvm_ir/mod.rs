@@ -1,13 +1,10 @@
 pub mod basicblock;
 pub mod constant;
-// pub mod debugloc;
 pub mod function;
 pub mod instruction;
-// pub mod metadata;
 pub mod module;
 pub mod name;
 pub mod operand;
-pub mod predicates;
 pub mod show;
 pub mod terminator;
 pub mod types;
