@@ -1,5 +1,4 @@
 use crate::intu_ir::basicblock::BasicBlock;
-use crate::intu_ir::constant::ConstantRef;
 use crate::intu_ir::name::Name;
 use crate::intu_ir::types::{TypeRef, Typed, Types};
 

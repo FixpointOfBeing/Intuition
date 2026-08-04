@@ -1,6 +1,6 @@
 use crate::intu_ir::name::Name;
 use crate::intu_ir::operand::Operand;
-use crate::intu_ir::types::{InstType, TypeRef, Typed, Types};
+use crate::intu_ir::types::{TypeRef, Typed, Types};
 
 /// 一个基本块（Basic Block）的终结指令（Terminator）。
 ///

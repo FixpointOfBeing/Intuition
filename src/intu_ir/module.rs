@@ -5,9 +5,8 @@ use crate::intu_ir::function::{
 use crate::intu_ir::name::Name;
 use crate::intu_ir::show::Show;
 use crate::intu_ir::types::{
-    FPType, InstType, TypeRef, Typed, Types,
+    TypeRef, Typed, Types,
 };
-use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::Error;
 use std::path::PathBuf;
 

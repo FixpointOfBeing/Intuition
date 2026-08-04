@@ -1,8 +1,6 @@
-use crate::intu_ir::name::Name;
 use crate::intu_ir::types::{
-    FPType, InstType, TypeRef, Typed, Types,
+    FPType, TypeRef, Typed, Types,
 };
-use std::convert::TryFrom;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -70,7 +68,7 @@ impl Typed for Constant {
         match self {
             Constant::Int { bits, .. } => types.int(*bits),
             Constant::Float(f) => types.type_of(f),
-            Constant::Struct { values, is_packed, .. } => types
+            Constant::Struct { values,  .. } => types
                 .struct_of(
                     values.iter().map(|v| types.type_of(v)).collect(),
                 ),
