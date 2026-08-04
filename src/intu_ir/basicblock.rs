@@ -1,6 +1,6 @@
-use crate::llvm_ir::instruction::Instruction;
-use crate::llvm_ir::name::Name;
-use crate::llvm_ir::terminator::Terminator;
+use crate::intu_ir::instruction::Instruction;
+use crate::intu_ir::name::Name;
+use crate::intu_ir::terminator::Terminator;
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct BasicBlock {
@@ -11,13 +11,10 @@ pub struct BasicBlock {
 
 impl BasicBlock {
     pub fn new(name: Name) -> Self {
-        use crate::llvm_ir::terminator::Unreachable;
         Self {
             name,
             instrs: vec![],
-            term: Terminator::Unreachable(Unreachable {
-                // debugloc: None,
-            }),
+            term: Terminator::Unreachable,
         }
     }
 }

@@ -7,7 +7,7 @@ pub mod env;
 pub mod eval;
 pub mod explicate_control;
 pub mod gensym;
-pub mod llvm_ir;
+pub mod intu_ir;
 pub mod repl;
 pub mod syntax;
 pub mod typechecker;

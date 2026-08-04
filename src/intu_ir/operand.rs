@@ -1,12 +1,11 @@
-use crate::llvm_ir::constant::{Constant, ConstantRef};
-use crate::llvm_ir::name::Name;
-use crate::llvm_ir::types::{TypeRef, Typed, Types};
+use crate::intu_ir::constant::{Constant, ConstantRef};
+use crate::intu_ir::name::Name;
+use crate::intu_ir::types::{TypeRef, Typed, Types};
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub enum Operand {
     LocalOperand { name: Name, ty: TypeRef },
     ConstantOperand(ConstantRef),
-    MetadataOperand, // --TODO not yet implemented-- MetadataOperand(Box<Metadata>),
 }
 
 impl Typed for Operand {
@@ -14,7 +13,6 @@ impl Typed for Operand {
         match self {
             Operand::LocalOperand { ty, .. } => ty.clone(),
             Operand::ConstantOperand(c) => types.type_of(c),
-            Operand::MetadataOperand => types.metadata_type(),
         }
     }
 }
