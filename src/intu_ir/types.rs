@@ -16,7 +16,7 @@ pub enum InstType {
     FuncType { result_type: TypeRef, param_types: Vec<TypeRef> },
     VectorType { element_type: TypeRef, num_elements: usize },
     ArrayType { element_type: TypeRef, num_elements: usize },
-    StructType { element_types: Vec<TypeRef>, },
+    StructType { element_types: Vec<TypeRef> },
     NamedStructType { name: String },
 }
 
@@ -211,22 +211,19 @@ impl Types {
             })
     }
 
-    pub fn struct_of(
-        &self,
-        element_types: Vec<TypeRef>,
-    ) -> TypeRef {
+    pub fn struct_of(&self, element_types: Vec<TypeRef>) -> TypeRef {
         self.struct_types
             .lookup(&element_types.clone())
             .unwrap_or_else(|| {
-                TypeRef::new(InstType::StructType {
-                    element_types,
-                })
+                TypeRef::new(InstType::StructType { element_types })
             })
     }
 
     pub fn named_struct(&self, name: &str) -> TypeRef {
         self.named_struct_types.lookup(name).unwrap_or_else(|| {
-            TypeRef::new(InstType::NamedStructType { name: name.into() })
+            TypeRef::new(InstType::NamedStructType {
+                name: name.into(),
+            })
         })
     }
 
@@ -260,7 +257,7 @@ impl Types {
         self.named_struct_defs.remove(name).is_some()
     }
 
-   pub fn get_for_type(&self, ty: &InstType) -> TypeRef {
+    pub fn get_for_type(&self, ty: &InstType) -> TypeRef {
         match ty {
             InstType::VoidType => self.void(),
             InstType::IntegerType { bits } => self.int(*bits),
@@ -276,10 +273,12 @@ impl Types {
             InstType::ArrayType { element_type, num_elements } => {
                 self.array_of(element_type.clone(), *num_elements)
             },
-            InstType::StructType { element_types, } => {
-                self.struct_of(element_types.clone(),)
+            InstType::StructType { element_types } => {
+                self.struct_of(element_types.clone())
             },
-            InstType::NamedStructType { name } => self.named_struct(name),
+            InstType::NamedStructType { name } => {
+                self.named_struct(name)
+            },
         }
     }
 }

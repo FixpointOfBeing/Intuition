@@ -11,10 +11,6 @@ pub struct BasicBlock {
 
 impl BasicBlock {
     pub fn new(name: Name) -> Self {
-        Self {
-            name,
-            instrs: vec![],
-            term: Terminator::Unreachable,
-        }
+        Self { name, instrs: vec![], term: Terminator::Unreachable }
     }
 }

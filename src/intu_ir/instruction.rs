@@ -21,197 +21,132 @@ pub enum Instruction {
     /// 语法：
     /// ```text
     /// %dest = add i32 %a, %b
-    Add {
-        operand0: Operand,
-        operand1: Operand,
-        dest: Name,
-    },
+    Add { operand0: Operand, operand1: Operand, dest: Name },
     /// `sub` —— 整数减法。
     ///
     /// 语法：
     /// ```text
     /// %dest = sub i32 %a, %b
-    Sub {
-        operand0: Operand,
-        operand1: Operand,
-        dest: Name,
-    },
+    Sub { operand0: Operand, operand1: Operand, dest: Name },
     /// `mul` —— 整数乘法。
     ///
     /// 语法：
     /// ```text
     /// %dest = mul i32 %a, %b
-    Mul {
-        operand0: Operand,
-        operand1: Operand,
-        dest: Name,
-    },
+    Mul { operand0: Operand, operand1: Operand, dest: Name },
     /// `udiv` —— 无符号整数除法。
     ///
     /// 语法：
     /// ```text
     /// %dest = udiv i32 %a, %b
-    UDiv {
-        operand0: Operand,
-        operand1: Operand,
-        dest: Name,
-    },
+    UDiv { operand0: Operand, operand1: Operand, dest: Name },
     /// `sdiv` —— 有符号整数除法。
     ///
     /// 语法：
     /// ```text
     /// %dest = sdiv i32 %a, %b
-    SDiv {
-        operand0: Operand,
-        operand1: Operand,
-        dest: Name,
-    },
+    SDiv { operand0: Operand, operand1: Operand, dest: Name },
     /// `urem` —— 无符号整数取余。
     ///
     /// 语法：
     /// ```text
     /// %dest = urem i32 %a, %b
-    URem {
-        operand0: Operand,
-        operand1: Operand,
-        dest: Name,
-    },
+    URem { operand0: Operand, operand1: Operand, dest: Name },
 
     /// `srem` —— 有符号整数取余。
     ///
     /// 语法：
     /// ```text
     /// %dest = srem i32 %a, %b
-    SRem {
-        operand0: Operand,
-        operand1: Operand,
-        dest: Name,
-    },
+    SRem { operand0: Operand, operand1: Operand, dest: Name },
     /// `and` —— 按位与。
     ///
     /// 语法：
     /// ```text
     /// %dest = and i32 %a, %b
-    And {
-        operand0: Operand,
-        operand1: Operand,
-        dest: Name,
-    },
+    And { operand0: Operand, operand1: Operand, dest: Name },
 
     /// `or` —— 按位或。
     ///
     /// 语法：
     /// ```text
     /// %dest = or i32 %a, %b
-    Or {
-        operand0: Operand,
-        operand1: Operand,
-        dest: Name,
-    },
+    Or { operand0: Operand, operand1: Operand, dest: Name },
     /// `xor` —— 按位异或。
     ///
     /// 语法：
     /// ```text
     /// %dest = xor i32 %a, %b
-    Xor {
-        operand0: Operand,
-        operand1: Operand,
-        dest: Name,
-    },
+    Xor { operand0: Operand, operand1: Operand, dest: Name },
     /// `shl` —— 逻辑左移。
     ///
     /// 语法：
     /// ```text
     /// %dest = shl i32 %a, %b
-    Shl {
-        operand0: Operand,
-        operand1: Operand,
-        dest: Name,
-    },
+    Shl { operand0: Operand, operand1: Operand, dest: Name },
     /// `lshr` —— 逻辑右移：高位补 0。
     ///
     /// 语法：
     /// ```text
     /// %dest = lshr i32 %a, %b
-    LShr {
-        operand0: Operand,
-        operand1: Operand,
-        dest: Name,
-    },
+    LShr { operand0: Operand, operand1: Operand, dest: Name },
     /// `ashr` —— 算术右移：高位补符号位。
     ///
     /// 语法：
     /// ```text
     /// %dest = ashr i32 %a, %b
-    AShr {
-        operand0: Operand,
-        operand1: Operand,
-        dest: Name,
-    },
+    AShr { operand0: Operand, operand1: Operand, dest: Name },
     /// `fadd` —— 浮点加法。
     ///
     /// 语法：
     /// ```text
     /// %dest = fadd double %a, %b
-    FAdd {
-        operand0: Operand,
-        operand1: Operand,
-        dest: Name,
-    },
+    FAdd { operand0: Operand, operand1: Operand, dest: Name },
     /// `fsub` —— 浮点减法。
     ///
     /// 语法：
     /// ```text
     /// %dest = fsub double %a, %b
-    FSub {
-        operand0: Operand,
-        operand1: Operand,
-        dest: Name,
-    },
+    FSub { operand0: Operand, operand1: Operand, dest: Name },
     /// `fmul` —— 浮点乘法。
     ///
     /// 语法：
     /// ```text
     /// %dest = fmul double %a, %b
-    FMul {
-        operand0: Operand,
-        operand1: Operand,
-        dest: Name,
-    },
+    FMul { operand0: Operand, operand1: Operand, dest: Name },
     /// `fdiv` —— 浮点除法。
     ///
     /// 语法：
     /// ```text
     /// %dest = fdiv double %a, %b
-    FDiv {
-        operand0: Operand,
-        operand1: Operand,
-        dest: Name,
-    },
+    FDiv { operand0: Operand, operand1: Operand, dest: Name },
     /// `frem` —— 浮点取余（截断余数，语义同 C 的 `fmod`）。
     ///
     /// 语法：
     /// ```text
     /// %dest = frem double %a, %b
-    FRem {
-        operand0: Operand,
-        operand1: Operand,
-        dest: Name,
-    },
+    FRem { operand0: Operand, operand1: Operand, dest: Name },
     /// `fneg` —— 浮点取负。
     ///
     /// 语法：
     /// ```text
     /// %dest = fneg double %a
-    FNeg {
-        operand: Operand,
-        dest: Name,
-    },
-    ExtractValue {
-        aggregate: Operand,
-        indices: Vec<u32>,
-        dest: Name,
-    },
+    FNeg { operand: Operand, dest: Name },
+
+    /// `extractvalue` —— 从聚合体（strut，array）中按索引路径提取子值，返回该子值副本。
+    ///
+    /// 语法：
+    /// ```text
+    /// %dest = extractvalue { i32, i32 } %agg, 1, 0
+    /// ``
+    ExtractValue { aggregate: Operand, indices: Vec<u32>, dest: Name },
+
+    /// `insertvalue` —— 基于原聚合体（strut，array）生成新聚合体，将指定值插入到索引路径对应位置。
+    ///
+    /// 语法：
+    /// ```text
+    /// %dest = insertvalue { i32, i32 } %agg, i32 %val, 1, 0
+    /// ```
     InsertValue {
         aggregate: Operand,
         element: Operand,
@@ -271,125 +206,77 @@ pub enum Instruction {
     /// 语法：
     /// ```text
     /// %dest = trunc i32 %a to i8
-    Trunc {
-        operand: Operand,
-        to_type: TypeRef,
-        dest: Name,
-    },
+    Trunc { operand: Operand, to_type: TypeRef, dest: Name },
     /// `zext` —— 零扩展：窄整数高位补 0，扩展为宽整数。
     ///
     /// 语法：
     /// ```text
     /// %dest = zext i8 %a to i32
-    ZExt {
-        operand: Operand,
-        to_type: TypeRef,
-        dest: Name,
-    },
+    ZExt { operand: Operand, to_type: TypeRef, dest: Name },
     /// `sext` —— 符号扩展：按源值的符号位填充高位。
     ///
     /// 语法：
     /// ```text
     /// %dest = sext i8 %a to i64
-    SExt {
-        operand: Operand,
-        to_type: TypeRef,
-        dest: Name,
-    },
+    SExt { operand: Operand, to_type: TypeRef, dest: Name },
     /// `fptrunc` —— 浮点降精度（如 `f64` → `f32`），可能损失精度，
     /// 溢出时得到无穷。
     ///
     /// 语法：
     /// ```text
     /// %dest = fptrunc double %a to float
-    FPTrunc {
-        operand: Operand,
-        to_type: TypeRef,
-        dest: Name,
-    },
+    FPTrunc { operand: Operand, to_type: TypeRef, dest: Name },
     /// `fpext` —— 浮点升精度（如 `f32` → `f64`），无损。
     ///
     /// 语法：
     /// ```text
     /// %dest = fpext float %a to double
     /// ``
-    FPExt {
-        operand: Operand,
-        to_type: TypeRef,
-        dest: Name,
-    },
+    FPExt { operand: Operand, to_type: TypeRef, dest: Name },
     /// `fptoui` —— 浮点转无符号整数（向零截断）。
     ///
     /// 语法：
     /// ```text
     /// %dest = fptoui double %a to i32
-    FPToUI {
-        operand: Operand,
-        to_type: TypeRef,
-        dest: Name,
-    },
+    FPToUI { operand: Operand, to_type: TypeRef, dest: Name },
     /// `fptosi` —— 浮点转有符号整数（向零截断）。
     ///
     /// 语法：
     /// ```text
     /// %dest = fptosi double %a to i32
-    FPToSI {
-        operand: Operand,
-        to_type: TypeRef,
-        dest: Name,
-    },
+    FPToSI { operand: Operand, to_type: TypeRef, dest: Name },
     /// `uitofp` —— 无符号整数转浮点（可能损失精度）。
     ///
     /// 语法：
     /// ```text
     /// %dest = uitofp i32 %a to double
-    UIToFP {
-        operand: Operand,
-        to_type: TypeRef,
-        dest: Name,
-    },
+    UIToFP { operand: Operand, to_type: TypeRef, dest: Name },
 
     /// `sitofp` —— 有符号整数转浮点（可能损失精度）。
     ///
     /// 语法：
     /// ```text
     /// %dest = sitofp i32 %a to double
-    SIToFP {
-        operand: Operand,
-        to_type: TypeRef,
-        dest: Name,
-    },
+    SIToFP { operand: Operand, to_type: TypeRef, dest: Name },
     /// `ptrtoint` —— 指针转整数，保留地址的位模式。
     ///
     /// 语法：
     /// ```text
     /// %dest = ptrtoint ptr %p to i64
-    PtrToInt {
-        operand: Operand,
-        to_type: TypeRef,
-        dest: Name,
-    },
+    PtrToInt { operand: Operand, to_type: TypeRef, dest: Name },
 
     /// `inttoptr` —— 整数转指针（`ptrtoint` 的逆运算）。
     ///
     /// 语法：
     /// ```text
     /// %dest = inttoptr i64 %p to ptr
-    IntToPtr {
-        operand: Operand,
-        to_type: TypeRef,
-        dest: Name,
-    },
+    IntToPtr { operand: Operand, to_type: TypeRef, dest: Name },
     /// `bitcast` —— 位重解释：保持底层位不变，只改变类型（大小必须相同）。
     ///
     /// 语法：
     /// ```text
     /// %dest = bitcast float %a to i32
-    BitCast {
-        operand: Operand,
-        to_type: TypeRef,
-        dest: Name,
-    },
+    BitCast { operand: Operand, to_type: TypeRef, dest: Name },
 
     /// `icmp` —— 整数比较，结果为 `i1`（向量操作数时为 `<N x i1>`）。
     ///

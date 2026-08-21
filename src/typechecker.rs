@@ -169,14 +169,28 @@ fn infer(
             let (ty, typed_operand) = infer(ctx, *operand)?;
             match op {
                 UnaryOp::Neg => match &ty {
-                Type::Int | Type::Float => Ok((ty.clone(), (TypedExpr::UnaryOp(op, Box::new(typed_operand), ty)))),
+                    Type::Int | Type::Float => Ok((
+                        ty.clone(),
+                        (TypedExpr::UnaryOp(
+                            op,
+                            Box::new(typed_operand),
+                            ty,
+                        )),
+                    )),
                     _ => Err(TypeError::InvalidUnary {
                         op: "-".to_string(),
                         ty,
                     }),
                 },
                 UnaryOp::Not => match &ty {
-                    Type::Bool => Ok((ty.clone(), (TypedExpr::UnaryOp(op, Box::new(typed_operand), ty)))),
+                    Type::Bool => Ok((
+                        ty.clone(),
+                        (TypedExpr::UnaryOp(
+                            op,
+                            Box::new(typed_operand),
+                            ty,
+                        )),
+                    )),
                     _ => Err(TypeError::InvalidUnary {
                         op: "!".to_string(),
                         ty,

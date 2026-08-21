@@ -1,10 +1,10 @@
-use std::fmt;
-use crate::riscv::rv_reg::Reg;
 use crate::riscv::rv_imm::{I24, I24WithZeroedBits};
+use crate::riscv::rv_reg::Reg;
+use std::fmt;
 
 /// RISC-V RV64 instruction
 #[derive(Debug, Clone, PartialEq)]
-pub enum RvInst{
+pub enum RvInst {
     // R-type
     Add { rd: Reg, rs1: Reg, rs2: Reg },
     Sub { rd: Reg, rs1: Reg, rs2: Reg },
@@ -91,67 +91,165 @@ pub enum RvInst{
 impl fmt::Display for RvInst {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Add { rd, rs1, rs2 } => write!(f, "add {rd}, {rs1}, {rs2}"),
-            Self::Sub { rd, rs1, rs2 } => write!(f, "sub {rd}, {rs1}, {rs2}"),
-            Self::Sll { rd, rs1, rs2 } => write!(f, "sll {rd}, {rs1}, {rs2}"),
-            Self::Slt { rd, rs1, rs2 } => write!(f, "slt {rd}, {rs1}, {rs2}"),
-            Self::Sltu { rd, rs1, rs2 } => write!(f, "sltu {rd}, {rs1}, {rs2}"),
-            Self::Xor { rd, rs1, rs2 } => write!(f, "xor {rd}, {rs1}, {rs2}"),
-            Self::Srl { rd, rs1, rs2 } => write!(f, "srl {rd}, {rs1}, {rs2}"),
-            Self::Sra { rd, rs1, rs2 } => write!(f, "sra {rd}, {rs1}, {rs2}"),
-            Self::Or { rd, rs1, rs2 } => write!(f, "or {rd}, {rs1}, {rs2}"),
-            Self::And { rd, rs1, rs2 } => write!(f, "and {rd}, {rs1}, {rs2}"),
+            Self::Add { rd, rs1, rs2 } => {
+                write!(f, "add {rd}, {rs1}, {rs2}")
+            },
+            Self::Sub { rd, rs1, rs2 } => {
+                write!(f, "sub {rd}, {rs1}, {rs2}")
+            },
+            Self::Sll { rd, rs1, rs2 } => {
+                write!(f, "sll {rd}, {rs1}, {rs2}")
+            },
+            Self::Slt { rd, rs1, rs2 } => {
+                write!(f, "slt {rd}, {rs1}, {rs2}")
+            },
+            Self::Sltu { rd, rs1, rs2 } => {
+                write!(f, "sltu {rd}, {rs1}, {rs2}")
+            },
+            Self::Xor { rd, rs1, rs2 } => {
+                write!(f, "xor {rd}, {rs1}, {rs2}")
+            },
+            Self::Srl { rd, rs1, rs2 } => {
+                write!(f, "srl {rd}, {rs1}, {rs2}")
+            },
+            Self::Sra { rd, rs1, rs2 } => {
+                write!(f, "sra {rd}, {rs1}, {rs2}")
+            },
+            Self::Or { rd, rs1, rs2 } => {
+                write!(f, "or {rd}, {rs1}, {rs2}")
+            },
+            Self::And { rd, rs1, rs2 } => {
+                write!(f, "and {rd}, {rs1}, {rs2}")
+            },
 
-            Self::Addw { rd, rs1, rs2 } => write!(f, "addw {rd}, {rs1}, {rs2}"),
-            Self::Subw { rd, rs1, rs2 } => write!(f, "subw {rd}, {rs1}, {rs2}"),
-            Self::Sllw { rd, rs1, rs2 } => write!(f, "sllw {rd}, {rs1}, {rs2}"),
-            Self::Srlw { rd, rs1, rs2 } => write!(f, "srlw {rd}, {rs1}, {rs2}"),
-            Self::Sraw { rd, rs1, rs2 } => write!(f, "sraw {rd}, {rs1}, {rs2}"),
+            Self::Addw { rd, rs1, rs2 } => {
+                write!(f, "addw {rd}, {rs1}, {rs2}")
+            },
+            Self::Subw { rd, rs1, rs2 } => {
+                write!(f, "subw {rd}, {rs1}, {rs2}")
+            },
+            Self::Sllw { rd, rs1, rs2 } => {
+                write!(f, "sllw {rd}, {rs1}, {rs2}")
+            },
+            Self::Srlw { rd, rs1, rs2 } => {
+                write!(f, "srlw {rd}, {rs1}, {rs2}")
+            },
+            Self::Sraw { rd, rs1, rs2 } => {
+                write!(f, "sraw {rd}, {rs1}, {rs2}")
+            },
 
-            Self::Addi { rd, rs1, imm } => write!(f, "addi {rd}, {rs1}, {imm}"),
-            Self::Slti { rd, rs1, imm } => write!(f, "slti {rd}, {rs1}, {imm}"),
-            Self::Sltiu { rd, rs1, imm } => write!(f, "sltiu {rd}, {rs1}, {imm}"),
-            Self::Xori { rd, rs1, imm } => write!(f, "xori {rd}, {rs1}, {imm}"),
-            Self::Ori { rd, rs1, imm } => write!(f, "ori {rd}, {rs1}, {imm}"),
-            Self::Andi { rd, rs1, imm } => write!(f, "andi {rd}, {rs1}, {imm}"),
-            Self::Slli { rd, rs1, shamt } => write!(f, "slli {rd}, {rs1}, {shamt}"),
-            Self::Srli { rd, rs1, shamt } => write!(f, "srli {rd}, {rs1}, {shamt}"),
-            Self::Srai { rd, rs1, shamt } => write!(f, "srai {rd}, {rs1}, {shamt}"),
+            Self::Addi { rd, rs1, imm } => {
+                write!(f, "addi {rd}, {rs1}, {imm}")
+            },
+            Self::Slti { rd, rs1, imm } => {
+                write!(f, "slti {rd}, {rs1}, {imm}")
+            },
+            Self::Sltiu { rd, rs1, imm } => {
+                write!(f, "sltiu {rd}, {rs1}, {imm}")
+            },
+            Self::Xori { rd, rs1, imm } => {
+                write!(f, "xori {rd}, {rs1}, {imm}")
+            },
+            Self::Ori { rd, rs1, imm } => {
+                write!(f, "ori {rd}, {rs1}, {imm}")
+            },
+            Self::Andi { rd, rs1, imm } => {
+                write!(f, "andi {rd}, {rs1}, {imm}")
+            },
+            Self::Slli { rd, rs1, shamt } => {
+                write!(f, "slli {rd}, {rs1}, {shamt}")
+            },
+            Self::Srli { rd, rs1, shamt } => {
+                write!(f, "srli {rd}, {rs1}, {shamt}")
+            },
+            Self::Srai { rd, rs1, shamt } => {
+                write!(f, "srai {rd}, {rs1}, {shamt}")
+            },
 
-            Self::Addiw { rd, rs1, imm } => write!(f, "addiw {rd}, {rs1}, {imm}"),
-            Self::Slliw { rd, rs1, shamt } => write!(f, "slliw {rd}, {rs1}, {shamt}"),
-            Self::Srliw { rd, rs1, shamt } => write!(f, "srliw {rd}, {rs1}, {shamt}"),
-            Self::Sraiw { rd, rs1, shamt } => write!(f, "sraiw {rd}, {rs1}, {shamt}"),
+            Self::Addiw { rd, rs1, imm } => {
+                write!(f, "addiw {rd}, {rs1}, {imm}")
+            },
+            Self::Slliw { rd, rs1, shamt } => {
+                write!(f, "slliw {rd}, {rs1}, {shamt}")
+            },
+            Self::Srliw { rd, rs1, shamt } => {
+                write!(f, "srliw {rd}, {rs1}, {shamt}")
+            },
+            Self::Sraiw { rd, rs1, shamt } => {
+                write!(f, "sraiw {rd}, {rs1}, {shamt}")
+            },
 
-            Self::Lb { rd, rs1, imm } => write!(f, "lb {rd}, {imm}({rs1})"),
-            Self::Lh { rd, rs1, imm } => write!(f, "lh {rd}, {imm}({rs1})"),
-            Self::Lw { rd, rs1, imm } => write!(f, "lw {rd}, {imm}({rs1})"),
-            Self::Ld { rd, rs1, imm } => write!(f, "ld {rd}, {imm}({rs1})"),
-            Self::Lbu { rd, rs1, imm } => write!(f, "lbu {rd}, {imm}({rs1})"),
-            Self::Lhu { rd, rs1, imm } => write!(f, "lhu {rd}, {imm}({rs1})"),
-            Self::Lwu { rd, rs1, imm } => write!(f, "lwu {rd}, {imm}({rs1})"),
+            Self::Lb { rd, rs1, imm } => {
+                write!(f, "lb {rd}, {imm}({rs1})")
+            },
+            Self::Lh { rd, rs1, imm } => {
+                write!(f, "lh {rd}, {imm}({rs1})")
+            },
+            Self::Lw { rd, rs1, imm } => {
+                write!(f, "lw {rd}, {imm}({rs1})")
+            },
+            Self::Ld { rd, rs1, imm } => {
+                write!(f, "ld {rd}, {imm}({rs1})")
+            },
+            Self::Lbu { rd, rs1, imm } => {
+                write!(f, "lbu {rd}, {imm}({rs1})")
+            },
+            Self::Lhu { rd, rs1, imm } => {
+                write!(f, "lhu {rd}, {imm}({rs1})")
+            },
+            Self::Lwu { rd, rs1, imm } => {
+                write!(f, "lwu {rd}, {imm}({rs1})")
+            },
 
-            Self::Jalr { rd, rs1, imm } => write!(f, "jalr {rd}, {imm}({rs1})"),
+            Self::Jalr { rd, rs1, imm } => {
+                write!(f, "jalr {rd}, {imm}({rs1})")
+            },
 
-            Self::Sb { rs2, rs1, imm } => write!(f, "sb {rs2}, {imm}({rs1})"),
-            Self::Sh { rs2, rs1, imm } => write!(f, "sh {rs2}, {imm}({rs1})"),
-            Self::Sw { rs2, rs1, imm } => write!(f, "sw {rs2}, {imm}({rs1})"),
-            Self::Sd { rs2, rs1, imm } => write!(f, "sd {rs2}, {imm}({rs1})"),
+            Self::Sb { rs2, rs1, imm } => {
+                write!(f, "sb {rs2}, {imm}({rs1})")
+            },
+            Self::Sh { rs2, rs1, imm } => {
+                write!(f, "sh {rs2}, {imm}({rs1})")
+            },
+            Self::Sw { rs2, rs1, imm } => {
+                write!(f, "sw {rs2}, {imm}({rs1})")
+            },
+            Self::Sd { rs2, rs1, imm } => {
+                write!(f, "sd {rs2}, {imm}({rs1})")
+            },
 
-            Self::Beq { rs1, rs2, imm } => write!(f, "beq {rs1}, {rs2}, {imm}"),
-            Self::Bne { rs1, rs2, imm } => write!(f, "bne {rs1}, {rs2}, {imm}"),
-            Self::Blt { rs1, rs2, imm } => write!(f, "blt {rs1}, {rs2}, {imm}"),
-            Self::Bge { rs1, rs2, imm } => write!(f, "bge {rs1}, {rs2}, {imm}"),
-            Self::Bltu { rs1, rs2, imm } => write!(f, "bltu {rs1}, {rs2}, {imm}"),
-            Self::Bgeu { rs1, rs2, imm } => write!(f, "bgeu {rs1}, {rs2}, {imm}"),
+            Self::Beq { rs1, rs2, imm } => {
+                write!(f, "beq {rs1}, {rs2}, {imm}")
+            },
+            Self::Bne { rs1, rs2, imm } => {
+                write!(f, "bne {rs1}, {rs2}, {imm}")
+            },
+            Self::Blt { rs1, rs2, imm } => {
+                write!(f, "blt {rs1}, {rs2}, {imm}")
+            },
+            Self::Bge { rs1, rs2, imm } => {
+                write!(f, "bge {rs1}, {rs2}, {imm}")
+            },
+            Self::Bltu { rs1, rs2, imm } => {
+                write!(f, "bltu {rs1}, {rs2}, {imm}")
+            },
+            Self::Bgeu { rs1, rs2, imm } => {
+                write!(f, "bgeu {rs1}, {rs2}, {imm}")
+            },
 
-            Self::Lui { rd, imm } => write!(f, "lui {rd}, 0x{:x}", imm.to_i32() >> 12),
+            Self::Lui { rd, imm } => {
+                write!(f, "lui {rd}, 0x{:x}", imm.to_i32() >> 12)
+            },
 
-            Self::Auipc { rd, imm } => write!(f, "auipc {rd}, 0x{:x}", imm.to_i32() >> 12),
+            Self::Auipc { rd, imm } => {
+                write!(f, "auipc {rd}, 0x{:x}", imm.to_i32() >> 12)
+            },
 
             Self::Jal { rd, imm } => write!(f, "jal {rd}, {imm}"),
 
-            Self::Fence { pred, succ } => write!(f, "fence {pred}, {succ}"),
+            Self::Fence { pred, succ } => {
+                write!(f, "fence {pred}, {succ}")
+            },
             Self::FenceTso => write!(f, "fence.tso"),
 
             Self::Ecall => write!(f, "ecall"),

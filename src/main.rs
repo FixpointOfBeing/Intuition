@@ -8,11 +8,12 @@ pub mod eval;
 pub mod explicate_control;
 pub mod gensym;
 pub mod intu_ir;
+pub mod liveness;
 pub mod repl;
+pub mod riscv;
 pub mod syntax;
 pub mod typechecker;
 pub mod uniquify;
-pub mod riscv;
 pub mod wasm;
 
 use crate::compile::compile_file;

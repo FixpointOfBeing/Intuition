@@ -1,6 +1,4 @@
-use crate::intu_ir::types::{
-    FPType, TypeRef, Typed, Types,
-};
+use crate::intu_ir::types::{FPType, TypeRef, Typed, Types};
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -68,10 +66,9 @@ impl Typed for Constant {
         match self {
             Constant::Int { bits, .. } => types.int(*bits),
             Constant::Float(f) => types.type_of(f),
-            Constant::Struct { values,  .. } => types
-                .struct_of(
-                    values.iter().map(|v| types.type_of(v)).collect(),
-                ),
+            Constant::Struct { values, .. } => types.struct_of(
+                values.iter().map(|v| types.type_of(v)).collect(),
+            ),
             Constant::Array { element_type, elements } => {
                 types.array_of(element_type.clone(), elements.len())
             },

@@ -1011,7 +1011,7 @@ mod types_show {
 
 mod constant_show {
     use crate::intu_ir::constant;
-    
+
     use crate::intu_ir::types::Types;
     use std::fmt::Write;
 
@@ -1077,7 +1077,6 @@ mod constant_show {
                         }
                     }
                     write!(s, " }}").unwrap();
-                    
                 },
                 constant::Constant::Array {
                     element_type: _,
@@ -1119,7 +1118,7 @@ mod terminator_show {
 
     use super::Show;
 
-        impl Show for terminator::Terminator {
+    impl Show for terminator::Terminator {
         fn show(&self, types: &Types) -> String {
             use terminator::Terminator;
             match self {
@@ -1214,7 +1213,9 @@ mod tests {
     use super::Show;
     use crate::intu_ir::basicblock::BasicBlock;
     use crate::intu_ir::constant::{Constant, ConstantRef, Float};
-    use crate::intu_ir::function::{Function, FunctionDeclaration, Parameter};
+    use crate::intu_ir::function::{
+        Function, FunctionDeclaration, Parameter,
+    };
     use crate::intu_ir::instruction::{
         FPPredicate, Instruction, IntPredicate,
     };
@@ -1231,10 +1232,7 @@ mod tests {
     }
 
     fn mk_local(ty: TypeRef, name: &str) -> Operand {
-        Operand::LocalOperand {
-            name: Name::Name(name.into()),
-            ty,
-        }
+        Operand::LocalOperand { name: Name::Name(name.into()), ty }
     }
 
     fn mk_const_int(bits: u32, value: u64) -> Operand {
@@ -1327,14 +1325,9 @@ mod tests {
         let void_fn = types.func_type(types.void(), vec![]);
         assert_eq!(show_insttype(&void_fn, &types), "void ()");
 
-        let int_fn = types.func_type(
-            types.i32(),
-            vec![types.i32(), types.i64()],
-        );
-        assert_eq!(
-            show_insttype(&int_fn, &types),
-            "i32 (i32, i64)"
-        );
+        let int_fn = types
+            .func_type(types.i32(), vec![types.i32(), types.i64()]);
+        assert_eq!(show_insttype(&int_fn, &types), "i32 (i32, i64)");
 
         let multi_param = types.func_type(
             types.double(),
@@ -1357,10 +1350,7 @@ mod tests {
     fn test_array_type() {
         let types = mk_types();
         let arr = types.array_of(types.double(), 10);
-        assert_eq!(
-            show_insttype(&arr, &types),
-            "[10 x double]"
-        );
+        assert_eq!(show_insttype(&arr, &types), "[10 x double]");
     }
 
     #[test]
@@ -1371,10 +1361,7 @@ mod tests {
             types.double(),
             types.pointer(),
         ]);
-        assert_eq!(
-            show_insttype(&s, &types),
-            "{ i32, double, ptr }"
-        );
+        assert_eq!(show_insttype(&s, &types), "{ i32, double, ptr }");
     }
 
     #[test]
@@ -1403,12 +1390,10 @@ mod tests {
     #[test]
     fn test_named_struct_def_defined() {
         let types = mk_types();
-        let inner = types.struct_of(vec![types.i32(), types.double()]);
+        let inner =
+            types.struct_of(vec![types.i32(), types.double()]);
         let def = NamedStructDef::Defined(inner);
-        assert_eq!(
-            def.show(&types),
-            "type { i32, double }"
-        );
+        assert_eq!(def.show(&types), "type { i32, double }");
     }
 
     // ========================= Constant =========================
@@ -1416,22 +1401,13 @@ mod tests {
     #[test]
     fn test_constant_int() {
         let types = mk_types();
-        let c = Constant::Int {
-            bits: 32,
-            value: 42,
-        };
+        let c = Constant::Int { bits: 32, value: 42 };
         assert_eq!(c.show(&types), "42");
 
-        let c = Constant::Int {
-            bits: 32,
-            value: 0xFFFF_FFFF,
-        };
+        let c = Constant::Int { bits: 32, value: 0xFFFF_FFFF };
         assert_eq!(c.show(&types), "-1");
 
-        let c_neg = Constant::Int {
-            bits: 16,
-            value: 0xFFFF,
-        };
+        let c_neg = Constant::Int { bits: 16, value: 0xFFFF };
         assert_eq!(c_neg.show(&types), "-1");
     }
 
@@ -1463,17 +1439,11 @@ mod tests {
     fn test_constant_struct() {
         let types = mk_types();
         let values = vec![
-            ConstantRef::new(Constant::Int {
-                bits: 32,
-                value: 1,
-            }),
+            ConstantRef::new(Constant::Int { bits: 32, value: 1 }),
             ConstantRef::new(Constant::Float(Float::Double(2.0))),
         ];
-        let c = Constant::Struct {
-            name: None,
-            values,
-            is_packed: false,
-        };
+        let c =
+            Constant::Struct { name: None, values, is_packed: false };
         assert_eq!(c.show(&types), "{ 1, double 2 }");
     }
 
@@ -1481,47 +1451,24 @@ mod tests {
     fn test_constant_array() {
         let types = mk_types();
         let elements = vec![
-            ConstantRef::new(Constant::Int {
-                bits: 32,
-                value: 1,
-            }),
-            ConstantRef::new(Constant::Int {
-                bits: 32,
-                value: 2,
-            }),
-            ConstantRef::new(Constant::Int {
-                bits: 32,
-                value: 3,
-            }),
+            ConstantRef::new(Constant::Int { bits: 32, value: 1 }),
+            ConstantRef::new(Constant::Int { bits: 32, value: 2 }),
+            ConstantRef::new(Constant::Int { bits: 32, value: 3 }),
         ];
-        let c = Constant::Array {
-            element_type: types.i32(),
-            elements,
-        };
-        assert_eq!(
-            c.show(&types),
-            "[ 1, 2, 3 ]"
-        );
+        let c =
+            Constant::Array { element_type: types.i32(), elements };
+        assert_eq!(c.show(&types), "[ 1, 2, 3 ]");
     }
 
     #[test]
     fn test_constant_vector() {
         let types = mk_types();
         let elements = vec![
-            ConstantRef::new(Constant::Int {
-                bits: 32,
-                value: 4,
-            }),
-            ConstantRef::new(Constant::Int {
-                bits: 32,
-                value: 5,
-            }),
+            ConstantRef::new(Constant::Int { bits: 32, value: 4 }),
+            ConstantRef::new(Constant::Int { bits: 32, value: 5 }),
         ];
         let c = Constant::Vector(elements);
-        assert_eq!(
-            c.show(&types),
-            "< 4, 5 >"
-        );
+        assert_eq!(c.show(&types), "< 4, 5 >");
     }
 
     // ========================= Operand =========================
@@ -1592,10 +1539,7 @@ mod tests {
             operand1: b,
             dest: Name::Name("r".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%r = add i32 %a, %b"
-        );
+        assert_eq!(instr.show(&types), "%r = add i32 %a, %b");
     }
 
     #[test]
@@ -1608,10 +1552,7 @@ mod tests {
             operand1: b,
             dest: Name::Number(1),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%1 = sub i64 %x, %y"
-        );
+        assert_eq!(instr.show(&types), "%1 = sub i64 %x, %y");
     }
 
     #[test]
@@ -1637,10 +1578,7 @@ mod tests {
             operand1: b,
             dest: Name::Name("q".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%q = udiv i32 %a, %b"
-        );
+        assert_eq!(instr.show(&types), "%q = udiv i32 %a, %b");
     }
 
     #[test]
@@ -1653,10 +1591,7 @@ mod tests {
             operand1: b,
             dest: Name::Name("q".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%q = sdiv i64 %a, %b"
-        );
+        assert_eq!(instr.show(&types), "%q = sdiv i64 %a, %b");
     }
 
     #[test]
@@ -1669,10 +1604,7 @@ mod tests {
             operand1: b,
             dest: Name::Name("r".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%r = urem i32 %a, %b"
-        );
+        assert_eq!(instr.show(&types), "%r = urem i32 %a, %b");
     }
 
     #[test]
@@ -1685,10 +1617,7 @@ mod tests {
             operand1: b,
             dest: Name::Name("r".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%r = srem i32 %a, %b"
-        );
+        assert_eq!(instr.show(&types), "%r = srem i32 %a, %b");
     }
 
     // ========================= Instructions: bitwise =========================
@@ -1703,10 +1632,7 @@ mod tests {
             operand1: b,
             dest: Name::Name("r".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%r = and i8 %x, 15"
-        );
+        assert_eq!(instr.show(&types), "%r = and i8 %x, 15");
     }
 
     #[test]
@@ -1719,10 +1645,7 @@ mod tests {
             operand1: b,
             dest: Name::Number(3),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%3 = or i32 %a, %b"
-        );
+        assert_eq!(instr.show(&types), "%3 = or i32 %a, %b");
     }
 
     #[test]
@@ -1735,10 +1658,7 @@ mod tests {
             operand1: b,
             dest: Name::Name("r".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%r = xor i64 %a, %b"
-        );
+        assert_eq!(instr.show(&types), "%r = xor i64 %a, %b");
     }
 
     // ========================= Instructions: shift =========================
@@ -1766,10 +1686,7 @@ mod tests {
             operand1: b,
             dest: Name::Name("r".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%r = lshr i64 %a, 3"
-        );
+        assert_eq!(instr.show(&types), "%r = lshr i64 %a, 3");
     }
 
     #[test]
@@ -1782,10 +1699,7 @@ mod tests {
             operand1: b,
             dest: Name::Name("r".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%r = ashr i32 %a, 1"
-        );
+        assert_eq!(instr.show(&types), "%r = ashr i32 %a, 1");
     }
 
     // ========================= Instructions: float arithmetic =========================
@@ -1800,10 +1714,7 @@ mod tests {
             operand1: b,
             dest: Name::Number(0),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%0 = fadd double %a, %b"
-        );
+        assert_eq!(instr.show(&types), "%0 = fadd double %a, %b");
     }
 
     #[test]
@@ -1816,10 +1727,7 @@ mod tests {
             operand1: b,
             dest: Name::Name("r".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%r = fsub float %x, float 1"
-        );
+        assert_eq!(instr.show(&types), "%r = fsub float %x, float 1");
     }
 
     #[test]
@@ -1848,10 +1756,7 @@ mod tests {
             operand1: b,
             dest: Name::Name("q".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%q = fdiv double %a, %b"
-        );
+        assert_eq!(instr.show(&types), "%q = fdiv double %a, %b");
     }
 
     #[test]
@@ -1878,10 +1783,7 @@ mod tests {
             operand: a,
             dest: Name::Name("r".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%r = fneg double %a"
-        );
+        assert_eq!(instr.show(&types), "%r = fneg double %a");
     }
 
     // ========================= Instructions: memory =========================
@@ -1980,10 +1882,7 @@ mod tests {
             to_type: types.i8(),
             dest: Name::Name("r".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%r = trunc i32 %a to i8"
-        );
+        assert_eq!(instr.show(&types), "%r = trunc i32 %a to i8");
     }
 
     #[test]
@@ -1995,10 +1894,7 @@ mod tests {
             to_type: types.i32(),
             dest: Name::Name("r".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%r = zext i8 %a to i32"
-        );
+        assert_eq!(instr.show(&types), "%r = zext i8 %a to i32");
     }
 
     #[test]
@@ -2010,10 +1906,7 @@ mod tests {
             to_type: types.i64(),
             dest: Name::Name("r".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%r = sext i32 %a to i64"
-        );
+        assert_eq!(instr.show(&types), "%r = sext i32 %a to i64");
     }
 
     #[test]
@@ -2100,10 +1993,7 @@ mod tests {
             to_type: types.single(),
             dest: Name::Name("r".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%r = sitofp i64 %a to float"
-        );
+        assert_eq!(instr.show(&types), "%r = sitofp i64 %a to float");
     }
 
     #[test]
@@ -2115,10 +2005,7 @@ mod tests {
             to_type: types.i64(),
             dest: Name::Name("r".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%r = ptrtoint ptr %p to i64"
-        );
+        assert_eq!(instr.show(&types), "%r = ptrtoint ptr %p to i64");
     }
 
     #[test]
@@ -2130,10 +2017,7 @@ mod tests {
             to_type: types.pointer(),
             dest: Name::Name("p".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%p = inttoptr i64 %a to ptr"
-        );
+        assert_eq!(instr.show(&types), "%p = inttoptr i64 %a to ptr");
     }
 
     #[test]
@@ -2164,10 +2048,7 @@ mod tests {
             operand1: b,
             dest: Name::Name("r".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%r = icmp slt i32 %a, %b"
-        );
+        assert_eq!(instr.show(&types), "%r = icmp slt i32 %a, %b");
     }
 
     #[test]
@@ -2181,10 +2062,7 @@ mod tests {
             operand1: b,
             dest: Name::Number(5),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%5 = icmp eq i64 %a, 0"
-        );
+        assert_eq!(instr.show(&types), "%5 = icmp eq i64 %a, 0");
     }
 
     #[test]
@@ -2198,10 +2076,7 @@ mod tests {
             operand1: b,
             dest: Name::Name("r".into()),
         };
-        assert_eq!(
-            instr.show(&types),
-            "%r = fcmp olt double %a, %b"
-        );
+        assert_eq!(instr.show(&types), "%r = fcmp olt double %a, %b");
     }
 
     // ========================= Instructions: call =========================
@@ -2209,8 +2084,7 @@ mod tests {
     #[test]
     fn test_call_void() {
         let types = mk_types();
-        let fn_ty =
-            types.func_type(types.void(), vec![types.i32()]);
+        let fn_ty = types.func_type(types.void(), vec![types.i32()]);
         let fn_name = Operand::LocalOperand {
             name: Name::Name("puts".into()),
             ty: fn_ty,
@@ -2218,18 +2092,13 @@ mod tests {
         let arg = mk_local(types.i32(), "arg");
         let instr = Instruction::Call {
             function: fn_name,
-            function_ty: types.func_type(
-                types.void(),
-                vec![types.i32()],
-            ),
+            function_ty: types
+                .func_type(types.void(), vec![types.i32()]),
             arguments: vec![arg],
             dest: None,
             is_tail_call: false,
         };
-        assert_eq!(
-            instr.show(&types),
-            "call void %puts(%arg)"
-        );
+        assert_eq!(instr.show(&types), "call void %puts(%arg)");
     }
 
     #[test]
@@ -2254,10 +2123,7 @@ mod tests {
             dest: Some(Name::Name("r".into())),
             is_tail_call: false,
         };
-        assert_eq!(
-            instr.show(&types),
-            "%r = call i32 %add(%a, %b)"
-        );
+        assert_eq!(instr.show(&types), "%r = call i32 %add(%a, %b)");
     }
 
     #[test]
@@ -2274,10 +2140,7 @@ mod tests {
             dest: None,
             is_tail_call: true,
         };
-        assert_eq!(
-            instr.show(&types),
-            "tail call void %foo()"
-        );
+        assert_eq!(instr.show(&types), "tail call void %foo()");
     }
 
     // ========================= Instructions: aggregate =========================
@@ -2358,9 +2221,7 @@ mod tests {
     #[test]
     fn test_ret_void() {
         let types = mk_types();
-        let term = Terminator::Ret {
-            return_operand: None,
-        };
+        let term = Terminator::Ret { return_operand: None };
         assert_eq!(term.show(&types), "ret void");
     }
 
@@ -2368,9 +2229,7 @@ mod tests {
     fn test_ret_value() {
         let types = mk_types();
         let val = mk_local(types.i32(), "r");
-        let term = Terminator::Ret {
-            return_operand: Some(val),
-        };
+        let term = Terminator::Ret { return_operand: Some(val) };
         assert_eq!(term.show(&types), "ret i32 %r");
     }
 
@@ -2378,18 +2237,14 @@ mod tests {
     fn test_ret_constant() {
         let types = mk_types();
         let val = mk_const_int(32, 42);
-        let term = Terminator::Ret {
-            return_operand: Some(val),
-        };
+        let term = Terminator::Ret { return_operand: Some(val) };
         assert_eq!(term.show(&types), "ret i32 42");
     }
 
     #[test]
     fn test_br() {
         let types = mk_types();
-        let term = Terminator::Br {
-            dest: Name::Name("loop".into()),
-        };
+        let term = Terminator::Br { dest: Name::Name("loop".into()) };
         assert_eq!(term.show(&types), "br label %loop");
     }
 
@@ -2468,10 +2323,7 @@ mod tests {
             return_type: types.void(),
             alignment: 0,
         };
-        assert_eq!(
-            decl.show(&types),
-            "declare  @puts(ptr %s)\n"
-        );
+        assert_eq!(decl.show(&types), "declare  @puts(ptr %s)\n");
     }
 
     #[test]
@@ -2591,25 +2443,23 @@ mod tests {
                     name: Name::Name("then".into()),
                     instrs: vec![],
                     term: Terminator::Ret {
-                        return_operand: Some(mk_const_int(
-                            32, 1,
-                        )),
+                        return_operand: Some(mk_const_int(32, 1)),
                     },
                 },
                 BasicBlock {
                     name: Name::Name("else".into()),
                     instrs: vec![],
                     term: Terminator::Ret {
-                        return_operand: Some(mk_const_int(
-                            32, 2,
-                        )),
+                        return_operand: Some(mk_const_int(32, 2)),
                     },
                 },
             ],
         };
         let output = func.show(&types);
         assert!(output.starts_with("define i32 @choose(i1 %c) {\n"));
-        assert!(output.contains("entry:\n  br i1 %c, label %then, label %else\n"));
+        assert!(output.contains(
+            "entry:\n  br i1 %c, label %then, label %else\n"
+        ));
         assert!(output.contains("then:\n  ret i32 1\n"));
         assert!(output.contains("else:\n  ret i32 2\n"));
         assert!(output.ends_with("}"));
@@ -2630,10 +2480,7 @@ mod tests {
                 value: 42,
             })),
         };
-        assert_eq!(
-            gv.show(&types),
-            "@%x = constant i32 42"
-        );
+        assert_eq!(gv.show(&types), "@%x = constant i32 42");
     }
 
     #[test]
@@ -2687,7 +2534,10 @@ mod tests {
     #[test]
     fn test_module_with_global_and_function() {
         let mut types = Types::new();
-        types.add_named_struct_def("Foo".into(), NamedStructDef::Opaque);
+        types.add_named_struct_def(
+            "Foo".into(),
+            NamedStructDef::Opaque,
+        );
 
         let module = Module {
             name: "test".into(),
@@ -2740,17 +2590,17 @@ mod tests {
                 is_constant: false,
                 ty: types.i32(),
                 addr_space: 0,
-                initializer: Some(ConstantRef::new(
-                    Constant::Int {
-                        bits: 32,
-                        value: 0,
-                    },
-                )),
+                initializer: Some(ConstantRef::new(Constant::Int {
+                    bits: 32,
+                    value: 0,
+                })),
             }],
             types: types.clone(),
         };
         let output = module.show(&types);
-        assert!(output.starts_with("source_filename = \"test.ll\"\n"));
+        assert!(
+            output.starts_with("source_filename = \"test.ll\"\n")
+        );
         assert!(output.contains("%Foo = type opaque"));
         assert!(output.contains("@%count = global i32 0"));
         assert!(output.contains("declare  @puts("));
