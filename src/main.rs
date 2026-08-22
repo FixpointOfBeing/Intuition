@@ -1,5 +1,6 @@
 // pub mod compile_llvm;
 pub mod a_normal_form;
+pub mod allocate_registers;
 pub mod closure_conversion;
 pub mod compile;
 pub mod emit_llvm;
