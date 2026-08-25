@@ -16,6 +16,8 @@ pub mod syntax;
 pub mod typechecker;
 pub mod uniquify;
 pub mod wasm;
+pub mod riscv_var;
+pub mod select_instructions;
 
 use crate::compile::compile_file;
 use crate::eval::eval_file;

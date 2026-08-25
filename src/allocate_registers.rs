@@ -22,6 +22,9 @@ fn link(
     name1: &Name,
     name2: &Name,
 ) {
+    if name1 == name2 {
+        return;
+    }
     let node1 = match graph_nodes.get(name1) {
         Some(idx) => idx.clone(),
         None => {

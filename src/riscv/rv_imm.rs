@@ -8,6 +8,7 @@ pub struct I24([u8; 3]);
 #[derive(Clone, PartialEq, Debug, Hash)]
 pub struct U24([u8; 3]);
 
+// signed integers that stores 24-bit numbers with the lowest LOW_ZEROED_BITS bits zeroed
 #[derive(Clone, PartialEq, Debug, Hash)]
 pub struct I24WithZeroedBits<const LOW_ZEROED_BITS: u8>([u8; 3]);
 
