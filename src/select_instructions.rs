@@ -3,13 +3,12 @@ use crate::{
     gensym::Gensym,
     riscv_var::{
         basicblock::RvVarBasicBlock,
-        instruction::{RvVarInstr, seqz, snez},
+        instruction::{RvVarInstr, li, mv, seqz, snez},
         label::Label,
         location::{RvVarLocation, a0, ra, t0, x0, zero},
         program::RvVarProgram,
     },
-    syntax::BinOp,
-    syntax::UnaryOp,
+    syntax::{BinOp, UnaryOp},
 };
 
 fn select_atom(
@@ -17,26 +16,29 @@ fn select_atom(
     instrs: &mut Vec<RvVarInstr>,
     dest: RvVarLocation,
 ) {
-    let instr = match atom {
+    match atom {
         CAtom::Unit => {
-            RvVarInstr::Addi { rd: dest, rs1: zero(), imm: 0 }
+            let instr =
+                RvVarInstr::Addi { rd: dest, rs1: zero(), imm: 0 };
+            instrs.push(instr);
         },
         CAtom::Bool(b) => {
             let v = if b { 1 } else { 0 };
-            RvVarInstr::Addi { rd: dest, rs1: zero(), imm: v }
+            let instr =
+                RvVarInstr::Addi { rd: dest, rs1: zero(), imm: v };
+            instrs.push(instr);
         },
-        CAtom::Int(i) => {
-            todo!()
-        },
+        CAtom::Int(i) => instrs.append(&mut li(dest, i)),
         CAtom::Float(f) => {
             todo!()
         },
         CAtom::Var(name, _) => {
             let location = RvVarLocation::Var(name);
-            RvVarInstr::Addi { rd: dest, rs1: location, imm: 0 }
+            let instr = mv(dest, location);
+
+            instrs.push(instr);
         },
     };
-    instrs.push(instr);
 }
 
 fn select_expr(

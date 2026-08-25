@@ -10,7 +10,7 @@ impl RvVarProgram {
         RvVarProgram { blocks }
     }
 
-    pub fn append_basic_block(&self, block: RvVarBasicBlock) {
+    pub fn append_basic_block(&mut self, block: RvVarBasicBlock) {
         self.blocks.push(block);
     }
 }
