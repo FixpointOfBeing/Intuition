@@ -1,6 +1,40 @@
-use crate::riscv::rv64imfd_imm::{I24, I24WithZeroedBits};
+use crate::riscv::rv64imfd_imm::{
+    Imm12, Imm13LowZeroBits1, Imm21LowZeroBits1, Imm32LowZeroBits12,
+    Shamt5, Shamt6,
+};
 use crate::riscv::rv64imfd_reg::{FReg, IReg};
 use std::fmt;
+
+/// 浮点舍入模式
+#[derive(Debug, Clone, PartialEq)]
+pub enum Rm {
+    /// 就近舍入，平局取偶（round to nearest, ties to even）
+    Rne,
+    /// 向零舍入（round towards zero）
+    Rtz,
+    /// 向下舍入，朝 -∞（round down）
+    Rdn,
+    /// 向上舍入，朝 +∞（round up）
+    Rup,
+    /// 就近舍入，平局取绝对值大者（round to nearest, ties to max magnitude）
+    Rmm,
+    /// 动态舍入模式，由 frm 寄存器决定
+    Dyn,
+}
+
+impl fmt::Display for Rm {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            Rm::Rne => "rne",
+            Rm::Rtz => "rtz",
+            Rm::Rdn => "rdn",
+            Rm::Rup => "rup",
+            Rm::Rmm => "rmm",
+            Rm::Dyn => "dyn",
+        };
+        f.write_str(name)
+    }
+}
 
 /// RISC-V RV64 instruction
 #[derive(Debug, Clone, PartialEq)]
@@ -170,185 +204,593 @@ pub enum RvInst {
     Addi {
         rd: IReg,
         rs1: IReg,
-        imm: i16,
+        imm: Imm12,
     },
     Slti {
         rd: IReg,
         rs1: IReg,
-        imm: i16,
+        imm: Imm12,
     },
     Sltiu {
         rd: IReg,
         rs1: IReg,
-        imm: i16,
+        imm: Imm12,
     },
     Xori {
         rd: IReg,
         rs1: IReg,
-        imm: i16,
+        imm: Imm12,
     },
     Ori {
         rd: IReg,
         rs1: IReg,
-        imm: i16,
+        imm: Imm12,
     },
     Andi {
         rd: IReg,
         rs1: IReg,
-        imm: i16,
+        imm: Imm12,
     },
     Slli {
         rd: IReg,
         rs1: IReg,
-        shamt: u8,
+        shamt: Shamt6,
     },
     Srli {
         rd: IReg,
         rs1: IReg,
-        shamt: u8,
+        shamt: Shamt6,
     },
     Srai {
         rd: IReg,
         rs1: IReg,
-        shamt: u8,
+        shamt: Shamt6,
     },
 
     // RV64 I-type W
     Addiw {
         rd: IReg,
         rs1: IReg,
-        imm: i16,
+        imm: Imm12,
     },
     Slliw {
         rd: IReg,
         rs1: IReg,
-        shamt: u8,
+        shamt: Shamt5,
     },
     Srliw {
         rd: IReg,
         rs1: IReg,
-        shamt: u8,
+        shamt: Shamt5,
     },
     Sraiw {
         rd: IReg,
         rs1: IReg,
-        shamt: u8,
+        shamt: Shamt5,
     },
 
     // Loads (I-type)
     Lb {
         rd: IReg,
         rs1: IReg,
-        imm: i16,
+        imm: Imm12,
     },
     Lh {
         rd: IReg,
         rs1: IReg,
-        imm: i16,
+        imm: Imm12,
     },
     Lw {
         rd: IReg,
         rs1: IReg,
-        imm: i16,
+        imm: Imm12,
     },
     Ld {
         rd: IReg,
         rs1: IReg,
-        imm: i16,
+        imm: Imm12,
     },
     Lbu {
         rd: IReg,
         rs1: IReg,
-        imm: i16,
+        imm: Imm12,
     },
     Lhu {
         rd: IReg,
         rs1: IReg,
-        imm: i16,
+        imm: Imm12,
     },
     Lwu {
         rd: IReg,
         rs1: IReg,
-        imm: i16,
+        imm: Imm12,
     },
 
     // Jalr (I-type)
     Jalr {
         rd: IReg,
         rs1: IReg,
-        imm: i16,
+        imm: Imm12,
     },
 
     // S-type
     Sb {
         rs2: IReg,
         rs1: IReg,
-        imm: i16,
+        imm: Imm12,
     },
     Sh {
         rs2: IReg,
         rs1: IReg,
-        imm: i16,
+        imm: Imm12,
     },
     Sw {
         rs2: IReg,
         rs1: IReg,
-        imm: i16,
+        imm: Imm12,
     },
     Sd {
         rs2: IReg,
         rs1: IReg,
-        imm: i16,
+        imm: Imm12,
     },
 
     // B-type
     Beq {
         rs1: IReg,
         rs2: IReg,
-        imm: I24,
+        imm: Imm13LowZeroBits1,
     },
     Bne {
         rs1: IReg,
         rs2: IReg,
-        imm: I24,
+        imm: Imm13LowZeroBits1,
     },
     Blt {
         rs1: IReg,
         rs2: IReg,
-        imm: I24,
+        imm: Imm13LowZeroBits1,
     },
     Bge {
         rs1: IReg,
         rs2: IReg,
-        imm: I24,
+        imm: Imm13LowZeroBits1,
     },
     Bltu {
         rs1: IReg,
         rs2: IReg,
-        imm: I24,
+        imm: Imm13LowZeroBits1,
     },
     Bgeu {
         rs1: IReg,
         rs2: IReg,
-        imm: I24,
+        imm: Imm13LowZeroBits1,
     },
 
     // Lui (U-type)
     Lui {
         rd: IReg,
-        imm: I24WithZeroedBits<12>,
+        imm: Imm32LowZeroBits12,
     },
 
     // Auipc (U-type)
     Auipc {
         rd: IReg,
-        imm: I24WithZeroedBits<12>,
+        imm: Imm32LowZeroBits12,
     },
 
     // Jal (J-type)
     Jal {
         rd: IReg,
-        imm: I24,
+        imm: Imm21LowZeroBits1,
+    },
+
+    // 浮点算术（带舍入模式）
+    /// 单精度浮点加法：rd = rs1 + rs2（按 rm 舍入）
+    FaddS {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+        rm: Rm,
+    },
+    /// 双精度浮点加法：rd = rs1 + rs2（按 rm 舍入）
+    FaddD {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+        rm: Rm,
+    },
+    /// 单精度浮点减法：rd = rs1 - rs2（按 rm 舍入）
+    FsubS {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+        rm: Rm,
+    },
+    /// 双精度浮点减法：rd = rs1 - rs2（按 rm 舍入）
+    FsubD {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+        rm: Rm,
+    },
+    /// 单精度浮点乘法：rd = rs1 × rs2（按 rm 舍入）
+    FmulS {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+        rm: Rm,
+    },
+    /// 双精度浮点乘法：rd = rs1 × rs2（按 rm 舍入）
+    FmulD {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+        rm: Rm,
+    },
+    /// 单精度浮点除法：rd = rs1 / rs2（按 rm 舍入）
+    FdivS {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+        rm: Rm,
+    },
+    /// 双精度浮点除法：rd = rs1 / rs2（按 rm 舍入）
+    FdivD {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+        rm: Rm,
+    },
+    /// 单精度浮点平方根：rd = √rs1（按 rm 舍入）
+    FsqrtS {
+        rd: FReg,
+        rs1: FReg,
+        rm: Rm,
+    },
+    /// 双精度浮点平方根：rd = √rs1（按 rm 舍入）
+    FsqrtD {
+        rd: FReg,
+        rs1: FReg,
+        rm: Rm,
+    },
+
+    // 符号注入/拷贝（无舍入）
+    /// 单精度拷贝符号位：rd = rs1 的绝对值与 rs2 的符号位组合
+    FsgnjS {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+    },
+    /// 双精度拷贝符号位：rd = rs1 的绝对值与 rs2 的符号位组合
+    FsgnjD {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+    },
+    /// 单精度拷贝相反符号位：rd = rs1 的绝对值与 ~rs2 的符号位组合
+    FsgnjnS {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+    },
+    /// 双精度拷贝相反符号位：rd = rs1 的绝对值与 ~rs2 的符号位组合
+    FsgnjnD {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+    },
+    /// 单精度符号位异或：rd = rs1 的绝对值与 (rs1 符号位 xor rs2 符号位) 组合
+    FsgnjxS {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+    },
+    /// 双精度符号位异或：rd = rs1 的绝对值与 (rs1 符号位 xor rs2 符号位) 组合
+    FsgnjxD {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+    },
+
+    // 取最小值/最大值（无舍入，遵循 IEEE-754 2019 语义）
+    /// 单精度取最小值：rd = min(rs1, rs2)
+    FminS {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+    },
+    /// 双精度取最小值：rd = min(rs1, rs2)
+    FminD {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+    },
+    /// 单精度取最大值：rd = max(rs1, rs2)
+    FmaxS {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+    },
+    /// 双精度取最大值：rd = max(rs1, rs2)
+    FmaxD {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+    },
+
+    // 浮点比较（结果写入整数寄存器）
+    /// 单精度浮点相等比较：rs1 == rs2 时 rd = 1，否则 rd = 0
+    FeqS {
+        rd: IReg,
+        rs1: FReg,
+        rs2: FReg,
+    },
+    /// 双精度浮点相等比较：rs1 == rs2 时 rd = 1，否则 rd = 0
+    FeqD {
+        rd: IReg,
+        rs1: FReg,
+        rs2: FReg,
+    },
+    /// 单精度浮点小于比较：rs1 < rs2 时 rd = 1，否则 rd = 0
+    FltS {
+        rd: IReg,
+        rs1: FReg,
+        rs2: FReg,
+    },
+    /// 双精度浮点小于比较：rs1 < rs2 时 rd = 1，否则 rd = 0
+    FltD {
+        rd: IReg,
+        rs1: FReg,
+        rs2: FReg,
+    },
+    /// 单精度浮点小于等于比较：rs1 <= rs2 时 rd = 1，否则 rd = 0
+    FleS {
+        rd: IReg,
+        rs1: FReg,
+        rs2: FReg,
+    },
+    /// 双精度浮点小于等于比较：rs1 <= rs2 时 rd = 1，否则 rd = 0
+    FleD {
+        rd: IReg,
+        rs1: FReg,
+        rs2: FReg,
+    },
+
+    // 寄存器移动（整数 ↔ 浮点，位模式不变）
+    /// 将浮点寄存器的位模式按 32 位符号扩展移到整数寄存器：rd = sext32(bits(rs1))
+    FmvXW {
+        rd: IReg,
+        rs1: FReg,
+    },
+    /// 将整数寄存器的低 32 位位模式移到浮点寄存器：rd = bits(rs1)[31:0]
+    FmvWX {
+        rd: FReg,
+        rs1: IReg,
+    },
+    /// 将浮点寄存器的位模式（64 位）移到整数寄存器：rd = bits(rs1)
+    FmvXD {
+        rd: IReg,
+        rs1: FReg,
+    },
+    /// 将整数寄存器的位模式（64 位）移到浮点寄存器：rd = bits(rs1)
+    FmvDX {
+        rd: FReg,
+        rs1: IReg,
+    },
+
+    // 类型转换（整数 → 浮点，无舍入）
+    /// 有符号整数转单精度浮点：rd = (float)rs1
+    FcvtSW {
+        rd: FReg,
+        rs1: IReg,
+    },
+    /// 无符号整数转单精度浮点：rd = (float)rs1
+    FcvtSWu {
+        rd: FReg,
+        rs1: IReg,
+    },
+    /// 有符号整数转双精度浮点：rd = (double)rs1
+    FcvtDW {
+        rd: FReg,
+        rs1: IReg,
+    },
+    /// 无符号整数转双精度浮点：rd = (double)rs1
+    FcvtDWu {
+        rd: FReg,
+        rs1: IReg,
+    },
+
+    // 类型转换（浮点 ↔ 浮点，无舍入）
+    /// 单精度浮点转双精度浮点：rd = (double)rs1
+    FcvtSD {
+        rd: FReg,
+        rs1: FReg,
+    },
+    /// 双精度浮点转单精度浮点：rd = (float)rs1
+    FcvtDS {
+        rd: FReg,
+        rs1: FReg,
+    },
+
+    // 类型转换（浮点 → 整数，带舍入模式）
+    /// 单精度浮点转有符号整数（按 rm 舍入，向零截断等价于 rtz）
+    FcvtWS {
+        rd: IReg,
+        rs1: FReg,
+        rm: Rm,
+    },
+    /// 单精度浮点转无符号整数（按 rm 舍入）
+    FcvtWuS {
+        rd: IReg,
+        rs1: FReg,
+        rm: Rm,
+    },
+    /// 双精度浮点转有符号整数（按 rm 舍入）
+    FcvtWD {
+        rd: IReg,
+        rs1: FReg,
+        rm: Rm,
+    },
+    /// 双精度浮点转无符号整数（按 rm 舍入）
+    FcvtWuD {
+        rd: IReg,
+        rs1: FReg,
+        rm: Rm,
+    },
+
+    // 融合乘加（R4-type，带舍入模式）
+    /// 单精度融合乘加：rd = rs1×rs2 + rs3（按 rm 舍入）
+    FmaddS {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+        rs3: FReg,
+        rm: Rm,
+    },
+    /// 单精度融合乘减：rd = rs1×rs2 - rs3（按 rm 舍入）
+    FmsubS {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+        rs3: FReg,
+        rm: Rm,
+    },
+    /// 单精度融合负乘加：rd = -(rs1×rs2) + rs3（按 rm 舍入）
+    FnmsubS {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+        rs3: FReg,
+        rm: Rm,
+    },
+    /// 单精度融合负乘减：rd = -(rs1×rs2) - rs3（按 rm 舍入）
+    FnmaddS {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+        rs3: FReg,
+        rm: Rm,
+    },
+    /// 双精度融合乘加：rd = rs1×rs2 + rs3（按 rm 舍入）
+    FmaddD {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+        rs3: FReg,
+        rm: Rm,
+    },
+    /// 双精度融合乘减：rd = rs1×rs2 - rs3（按 rm 舍入）
+    FmsubD {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+        rs3: FReg,
+        rm: Rm,
+    },
+    /// 双精度融合负乘加：rd = -(rs1×rs2) + rs3（按 rm 舍入）
+    FnmsubD {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+        rs3: FReg,
+        rm: Rm,
+    },
+    /// 双精度融合负乘减：rd = -(rs1×rs2) - rs3（按 rm 舍入）
+    FnmaddD {
+        rd: FReg,
+        rs1: FReg,
+        rs2: FReg,
+        rs3: FReg,
+        rm: Rm,
+    },
+
+    // 浮点分类（结果写入整数寄存器）
+    /// 单精度浮点分类：rd = 指示 rs1 类型的位掩码
+    FclassS {
+        rd: IReg,
+        rs1: FReg,
+    },
+    /// 双精度浮点分类：rd = 指示 rs1 类型的位掩码
+    FclassD {
+        rd: IReg,
+        rs1: FReg,
+    },
+
+    // RV64F/D 64 位整数转换（带舍入模式）
+    /// 单精度浮点转有符号 64 位整数（按 rm 舍入）
+    FcvtLS {
+        rd: IReg,
+        rs1: FReg,
+        rm: Rm,
+    },
+    /// 单精度浮点转无符号 64 位整数（按 rm 舍入）
+    FcvtLuS {
+        rd: IReg,
+        rs1: FReg,
+        rm: Rm,
+    },
+    /// 有符号 64 位整数转单精度浮点（按 rm 舍入）
+    FcvtSL {
+        rd: FReg,
+        rs1: IReg,
+        rm: Rm,
+    },
+    /// 无符号 64 位整数转单精度浮点（按 rm 舍入）
+    FcvtSLu {
+        rd: FReg,
+        rs1: IReg,
+        rm: Rm,
+    },
+    /// 双精度浮点转有符号 64 位整数（按 rm 舍入）
+    FcvtLD {
+        rd: IReg,
+        rs1: FReg,
+        rm: Rm,
+    },
+    /// 双精度浮点转无符号 64 位整数（按 rm 舍入）
+    FcvtLuD {
+        rd: IReg,
+        rs1: FReg,
+        rm: Rm,
+    },
+    /// 有符号 64 位整数转双精度浮点（按 rm 舍入）
+    FcvtDL {
+        rd: FReg,
+        rs1: IReg,
+        rm: Rm,
+    },
+    /// 无符号 64 位整数转双精度浮点（按 rm 舍入）
+    FcvtDLu {
+        rd: FReg,
+        rs1: IReg,
+        rm: Rm,
+    },
+
+    // 浮点访存
+    /// 加载单精度浮点：rd = Mem[rs1 + sext(imm)]
+    Flw {
+        rd: FReg,
+        rs1: IReg,
+        imm: Imm12,
+    },
+    /// 加载双精度浮点：rd = Mem[rs1 + sext(imm)]
+    Fld {
+        rd: FReg,
+        rs1: IReg,
+        imm: Imm12,
+    },
+    /// 存单精度浮点：Mem[rs1 + sext(imm)] = rs2
+    Fsw {
+        rs2: FReg,
+        rs1: IReg,
+        imm: Imm12,
+    },
+    /// 存双精度浮点：Mem[rs1 + sext(imm)] = rs2
+    Fsd {
+        rs2: FReg,
+        rs1: IReg,
+        imm: Imm12,
     },
 
     // Fence
@@ -566,193 +1008,6 @@ impl fmt::Display for RvInst {
 
             Self::Jal { rd, imm } => write!(f, "jal {rd}, {imm}"),
 
-            Self::Fence { pred, succ } => {
-                write!(f, "fence {pred}, {succ}")
-            },
-            Self::FenceTso => write!(f, "fence.tso"),
-
-            Self::Ecall => write!(f, "ecall"),
-            Self::Ebreak => write!(f, "ebreak"),
-
-            Self::Unimp => write!(f, "unimp"),
-        }
-    }
-}
-
-/// 浮点舍入模式
-#[derive(Debug, Clone, PartialEq)]
-pub enum Rm {
-    /// 就近舍入，平局取偶（round to nearest, ties to even）
-    Rne,
-    /// 向零舍入（round towards zero）
-    Rtz,
-    /// 向下舍入，朝 -∞（round down）
-    Rdn,
-    /// 向上舍入，朝 +∞（round up）
-    Rup,
-    /// 就近舍入，平局取绝对值大者（round to nearest, ties to max magnitude）
-    Rmm,
-    /// 动态舍入模式，由 frm 寄存器决定
-    Dyn,
-}
-
-impl fmt::Display for Rm {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let name = match self {
-            Rm::Rne => "rne",
-            Rm::Rtz => "rtz",
-            Rm::Rdn => "rdn",
-            Rm::Rup => "rup",
-            Rm::Rmm => "rmm",
-            Rm::Dyn => "dyn",
-        };
-        f.write_str(name)
-    }
-}
-
-/// RISC-V 浮点指令（F/D 扩展）
-#[derive(Debug, Clone, PartialEq)]
-pub enum RvFInst {
-    // 浮点算术（带舍入模式）
-    /// 单精度浮点加法：rd = rs1 + rs2（按 rm 舍入）
-    FaddS { rd: FReg, rs1: FReg, rs2: FReg, rm: Rm },
-    /// 双精度浮点加法：rd = rs1 + rs2（按 rm 舍入）
-    FaddD { rd: FReg, rs1: FReg, rs2: FReg, rm: Rm },
-    /// 单精度浮点减法：rd = rs1 - rs2（按 rm 舍入）
-    FsubS { rd: FReg, rs1: FReg, rs2: FReg, rm: Rm },
-    /// 双精度浮点减法：rd = rs1 - rs2（按 rm 舍入）
-    FsubD { rd: FReg, rs1: FReg, rs2: FReg, rm: Rm },
-    /// 单精度浮点乘法：rd = rs1 × rs2（按 rm 舍入）
-    FmulS { rd: FReg, rs1: FReg, rs2: FReg, rm: Rm },
-    /// 双精度浮点乘法：rd = rs1 × rs2（按 rm 舍入）
-    FmulD { rd: FReg, rs1: FReg, rs2: FReg, rm: Rm },
-    /// 单精度浮点除法：rd = rs1 / rs2（按 rm 舍入）
-    FdivS { rd: FReg, rs1: FReg, rs2: FReg, rm: Rm },
-    /// 双精度浮点除法：rd = rs1 / rs2（按 rm 舍入）
-    FdivD { rd: FReg, rs1: FReg, rs2: FReg, rm: Rm },
-    /// 单精度浮点平方根：rd = √rs1（按 rm 舍入）
-    FsqrtS { rd: FReg, rs1: FReg, rm: Rm },
-    /// 双精度浮点平方根：rd = √rs1（按 rm 舍入）
-    FsqrtD { rd: FReg, rs1: FReg, rm: Rm },
-
-    // 符号注入/拷贝（无舍入）
-    /// 单精度拷贝符号位：rd = rs1 的绝对值与 rs2 的符号位组合
-    FsgnjS { rd: FReg, rs1: FReg, rs2: FReg },
-    /// 双精度拷贝符号位：rd = rs1 的绝对值与 rs2 的符号位组合
-    FsgnjD { rd: FReg, rs1: FReg, rs2: FReg },
-    /// 单精度拷贝相反符号位：rd = rs1 的绝对值与 ~rs2 的符号位组合
-    FsgnjnS { rd: FReg, rs1: FReg, rs2: FReg },
-    /// 双精度拷贝相反符号位：rd = rs1 的绝对值与 ~rs2 的符号位组合
-    FsgnjnD { rd: FReg, rs1: FReg, rs2: FReg },
-    /// 单精度符号位异或：rd = rs1 的绝对值与 (rs1 符号位 xor rs2 符号位) 组合
-    FsgnjxS { rd: FReg, rs1: FReg, rs2: FReg },
-    /// 双精度符号位异或：rd = rs1 的绝对值与 (rs1 符号位 xor rs2 符号位) 组合
-    FsgnjxD { rd: FReg, rs1: FReg, rs2: FReg },
-
-    // 取最小值/最大值（无舍入，遵循 IEEE-754 2019 语义）
-    /// 单精度取最小值：rd = min(rs1, rs2)
-    FminS { rd: FReg, rs1: FReg, rs2: FReg },
-    /// 双精度取最小值：rd = min(rs1, rs2)
-    FminD { rd: FReg, rs1: FReg, rs2: FReg },
-    /// 单精度取最大值：rd = max(rs1, rs2)
-    FmaxS { rd: FReg, rs1: FReg, rs2: FReg },
-    /// 双精度取最大值：rd = max(rs1, rs2)
-    FmaxD { rd: FReg, rs1: FReg, rs2: FReg },
-
-    // 浮点比较（结果写入整数寄存器）
-    /// 单精度浮点相等比较：rs1 == rs2 时 rd = 1，否则 rd = 0
-    FeqS { rd: IReg, rs1: FReg, rs2: FReg },
-    /// 双精度浮点相等比较：rs1 == rs2 时 rd = 1，否则 rd = 0
-    FeqD { rd: IReg, rs1: FReg, rs2: FReg },
-    /// 单精度浮点小于比较：rs1 < rs2 时 rd = 1，否则 rd = 0
-    FltS { rd: IReg, rs1: FReg, rs2: FReg },
-    /// 双精度浮点小于比较：rs1 < rs2 时 rd = 1，否则 rd = 0
-    FltD { rd: IReg, rs1: FReg, rs2: FReg },
-    /// 单精度浮点小于等于比较：rs1 <= rs2 时 rd = 1，否则 rd = 0
-    FleS { rd: IReg, rs1: FReg, rs2: FReg },
-    /// 双精度浮点小于等于比较：rs1 <= rs2 时 rd = 1，否则 rd = 0
-    FleD { rd: IReg, rs1: FReg, rs2: FReg },
-
-    // 寄存器移动（整数 ↔ 浮点，位模式不变）
-    /// 将浮点寄存器的位模式按 32 位符号扩展移到整数寄存器：rd = sext32(bits(rs1))
-    FmvXW { rd: IReg, rs1: FReg },
-    /// 将整数寄存器的低 32 位位模式移到浮点寄存器：rd = bits(rs1)[31:0]
-    FmvWX { rd: FReg, rs1: IReg },
-    /// 将浮点寄存器的位模式（64 位）移到整数寄存器：rd = bits(rs1)
-    FmvXD { rd: IReg, rs1: FReg },
-    /// 将整数寄存器的位模式（64 位）移到浮点寄存器：rd = bits(rs1)
-    FmvDX { rd: FReg, rs1: IReg },
-
-    // 类型转换（整数 → 浮点，无舍入）
-    /// 有符号整数转单精度浮点：rd = (float)rs1
-    FcvtSW { rd: FReg, rs1: IReg },
-    /// 无符号整数转单精度浮点：rd = (float)rs1
-    FcvtSWu { rd: FReg, rs1: IReg },
-    /// 有符号整数转双精度浮点：rd = (double)rs1
-    FcvtDW { rd: FReg, rs1: IReg },
-    /// 无符号整数转双精度浮点：rd = (double)rs1
-    FcvtDWu { rd: FReg, rs1: IReg },
-
-    // 类型转换（浮点 ↔ 浮点，无舍入）
-    /// 单精度浮点转双精度浮点：rd = (double)rs1
-    FcvtSD { rd: FReg, rs1: FReg },
-    /// 双精度浮点转单精度浮点：rd = (float)rs1
-    FcvtDS { rd: FReg, rs1: FReg },
-
-    // 类型转换（浮点 → 整数，带舍入模式）
-    /// 单精度浮点转有符号整数（按 rm 舍入，向零截断等价于 rtz）
-    FcvtWS { rd: IReg, rs1: FReg, rm: Rm },
-    /// 单精度浮点转无符号整数（按 rm 舍入）
-    FcvtWuS { rd: IReg, rs1: FReg, rm: Rm },
-    /// 双精度浮点转有符号整数（按 rm 舍入）
-    FcvtWD { rd: IReg, rs1: FReg, rm: Rm },
-    /// 双精度浮点转无符号整数（按 rm 舍入）
-    FcvtWuD { rd: IReg, rs1: FReg, rm: Rm },
-
-    // 浮点访存
-    /// 加载单精度浮点：rd = Mem[rs1 + sext(imm)]
-    Flw { rd: FReg, rs1: IReg, imm: i16 },
-    /// 加载双精度浮点：rd = Mem[rs1 + sext(imm)]
-    Fld { rd: FReg, rs1: IReg, imm: i16 },
-    /// 存单精度浮点：Mem[rs1 + sext(imm)] = rs2
-    Fsw { rs2: FReg, rs1: IReg, imm: i16 },
-    /// 存双精度浮点：Mem[rs1 + sext(imm)] = rs2
-    Fsd { rs2: FReg, rs1: IReg, imm: i16 },
-}
-
-/// 伪指令：单精度浮点拷贝 rd = rs，展开为 fsgnj.s rd, rs, rs
-pub fn fmv_s(rd: FReg, rs: FReg) -> RvFInst {
-    RvFInst::FsgnjS { rd: rd, rs1: rs, rs2: rs }
-}
-
-/// 伪指令：双精度浮点拷贝 rd = rs，展开为 fsgnj.d rd, rs, rs
-pub fn fmv_d(rd: FReg, rs: FReg) -> RvFInst {
-    RvFInst::FsgnjD { rd: rd, rs1: rs, rs2: rs }
-}
-
-/// 伪指令：单精度取负 rd = -rs，展开为 fsgnjn.s rd, rs, rs
-pub fn fneg_s(rd: FReg, rs: FReg) -> RvFInst {
-    RvFInst::FsgnjnS { rd: rd, rs1: rs, rs2: rs }
-}
-
-/// 伪指令：双精度取负 rd = -rs，展开为 fsgnjn.d rd, rs, rs
-pub fn fneg_d(rd: FReg, rs: FReg) -> RvFInst {
-    RvFInst::FsgnjnD { rd: rd, rs1: rs, rs2: rs }
-}
-
-/// 伪指令：单精度取绝对值 rd = |rs|，展开为 fsgnjx.s rd, rs, rs
-pub fn fabs_s(rd: FReg, rs: FReg) -> RvFInst {
-    RvFInst::FsgnjxS { rd: rd, rs1: rs, rs2: rs }
-}
-
-/// 伪指令：双精度取绝对值 rd = |rs|，展开为 fsgnjx.d rd, rs, rs
-pub fn fabs_d(rd: FReg, rs: FReg) -> RvFInst {
-    RvFInst::FsgnjxD { rd: rd, rs1: rs, rs2: rs }
-}
-
-impl fmt::Display for RvFInst {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
             Self::FaddS { rd, rs1, rs2, rm } => {
                 write!(f, "fadd.s {rd}, {rs1}, {rs2}, {rm}")
             },
@@ -878,6 +1133,61 @@ impl fmt::Display for RvFInst {
                 write!(f, "fcvt.wu.d {rd}, {rs1}, {rm}")
             },
 
+            Self::FmaddS { rd, rs1, rs2, rs3, rm } => {
+                write!(f, "fmadd.s {rd}, {rs1}, {rs2}, {rs3}, {rm}")
+            },
+            Self::FmsubS { rd, rs1, rs2, rs3, rm } => {
+                write!(f, "fmsub.s {rd}, {rs1}, {rs2}, {rs3}, {rm}")
+            },
+            Self::FnmsubS { rd, rs1, rs2, rs3, rm } => {
+                write!(f, "fnmsub.s {rd}, {rs1}, {rs2}, {rs3}, {rm}")
+            },
+            Self::FnmaddS { rd, rs1, rs2, rs3, rm } => {
+                write!(f, "fnmadd.s {rd}, {rs1}, {rs2}, {rs3}, {rm}")
+            },
+            Self::FmaddD { rd, rs1, rs2, rs3, rm } => {
+                write!(f, "fmadd.d {rd}, {rs1}, {rs2}, {rs3}, {rm}")
+            },
+            Self::FmsubD { rd, rs1, rs2, rs3, rm } => {
+                write!(f, "fmsub.d {rd}, {rs1}, {rs2}, {rs3}, {rm}")
+            },
+            Self::FnmsubD { rd, rs1, rs2, rs3, rm } => {
+                write!(f, "fnmsub.d {rd}, {rs1}, {rs2}, {rs3}, {rm}")
+            },
+            Self::FnmaddD { rd, rs1, rs2, rs3, rm } => {
+                write!(f, "fnmadd.d {rd}, {rs1}, {rs2}, {rs3}, {rm}")
+            },
+            Self::FclassS { rd, rs1 } => {
+                write!(f, "fclass.s {rd}, {rs1}")
+            },
+            Self::FclassD { rd, rs1 } => {
+                write!(f, "fclass.d {rd}, {rs1}")
+            },
+            Self::FcvtLS { rd, rs1, rm } => {
+                write!(f, "fcvt.l.s {rd}, {rs1}, {rm}")
+            },
+            Self::FcvtLuS { rd, rs1, rm } => {
+                write!(f, "fcvt.lu.s {rd}, {rs1}, {rm}")
+            },
+            Self::FcvtSL { rd, rs1, rm } => {
+                write!(f, "fcvt.s.l {rd}, {rs1}, {rm}")
+            },
+            Self::FcvtSLu { rd, rs1, rm } => {
+                write!(f, "fcvt.s.lu {rd}, {rs1}, {rm}")
+            },
+            Self::FcvtLD { rd, rs1, rm } => {
+                write!(f, "fcvt.l.d {rd}, {rs1}, {rm}")
+            },
+            Self::FcvtLuD { rd, rs1, rm } => {
+                write!(f, "fcvt.lu.d {rd}, {rs1}, {rm}")
+            },
+            Self::FcvtDL { rd, rs1, rm } => {
+                write!(f, "fcvt.d.l {rd}, {rs1}, {rm}")
+            },
+            Self::FcvtDLu { rd, rs1, rm } => {
+                write!(f, "fcvt.d.lu {rd}, {rs1}, {rm}")
+            },
+
             Self::Flw { rd, rs1, imm } => {
                 write!(f, "flw {rd}, {imm}({rs1})")
             },
@@ -890,6 +1200,46 @@ impl fmt::Display for RvFInst {
             Self::Fsd { rs2, rs1, imm } => {
                 write!(f, "fsd {rs2}, {imm}({rs1})")
             },
+
+            Self::Fence { pred, succ } => {
+                write!(f, "fence {pred}, {succ}")
+            },
+            Self::FenceTso => write!(f, "fence.tso"),
+
+            Self::Ecall => write!(f, "ecall"),
+            Self::Ebreak => write!(f, "ebreak"),
+
+            Self::Unimp => write!(f, "unimp"),
         }
     }
+}
+
+/// 伪指令：单精度浮点拷贝 rd = rs，展开为 fsgnj.s rd, rs, rs
+pub fn fmv_s(rd: FReg, rs: FReg) -> RvInst {
+    RvInst::FsgnjS { rd: rd, rs1: rs, rs2: rs }
+}
+
+/// 伪指令：双精度浮点拷贝 rd = rs，展开为 fsgnj.d rd, rs, rs
+pub fn fmv_d(rd: FReg, rs: FReg) -> RvInst {
+    RvInst::FsgnjD { rd: rd, rs1: rs, rs2: rs }
+}
+
+/// 伪指令：单精度取负 rd = -rs，展开为 fsgnjn.s rd, rs, rs
+pub fn fneg_s(rd: FReg, rs: FReg) -> RvInst {
+    RvInst::FsgnjnS { rd: rd, rs1: rs, rs2: rs }
+}
+
+/// 伪指令：双精度取负 rd = -rs，展开为 fsgnjn.d rd, rs, rs
+pub fn fneg_d(rd: FReg, rs: FReg) -> RvInst {
+    RvInst::FsgnjnD { rd: rd, rs1: rs, rs2: rs }
+}
+
+/// 伪指令：单精度取绝对值 rd = |rs|，展开为 fsgnjx.s rd, rs, rs
+pub fn fabs_s(rd: FReg, rs: FReg) -> RvInst {
+    RvInst::FsgnjxS { rd: rd, rs1: rs, rs2: rs }
+}
+
+/// 伪指令：双精度取绝对值 rd = |rs|，展开为 fsgnjx.d rd, rs, rs
+pub fn fabs_d(rd: FReg, rs: FReg) -> RvInst {
+    RvInst::FsgnjxD { rd: rd, rs1: rs, rs2: rs }
 }

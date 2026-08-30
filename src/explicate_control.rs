@@ -13,6 +13,7 @@ pub enum CAtom {
     Var(Ident, Type),
 }
 
+// todo: CExpr应该携带Type信息
 #[derive(Debug, Clone, PartialEq)]
 pub enum CExpr {
     Atom(CAtom),

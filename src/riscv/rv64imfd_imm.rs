@@ -1,74 +1,139 @@
 use std::fmt;
 
-/// signed integers that stores 24-bit numbers
-#[derive(Clone, PartialEq, Debug, Hash)]
-pub struct I24([u8; 3]);
+use bitvec::prelude::*;
 
-/// unsigned integers that stores 24-bit numbers
+/// 12 位有符号立即数（I/S 型）
 #[derive(Clone, PartialEq, Debug, Hash)]
-pub struct U24([u8; 3]);
+pub struct Imm12(BitArr!(for 12, in u8));
 
-// signed integers that stores 24-bit numbers with the lowest LOW_ZEROED_BITS bits zeroed
+/// 13 位有符号立即数，最低 1 位补 0（B 型）
 #[derive(Clone, PartialEq, Debug, Hash)]
-pub struct I24WithZeroedBits<const LOW_ZEROED_BITS: u8>([u8; 3]);
+pub struct Imm13LowZeroBits1(BitArr!(for 13, in u8));
 
-impl fmt::Display for I24 {
+/// 21 位有符号立即数，最低 1 位补 0（J 型）
+#[derive(Clone, PartialEq, Debug, Hash)]
+pub struct Imm21LowZeroBits1(BitArr!(for 21, in u8));
+
+/// 32 位有符号立即数，最低 12 位补 0（U 型）
+#[derive(Clone, PartialEq, Debug, Hash)]
+pub struct Imm32LowZeroBits12(BitArr!(for 32, in u8));
+
+/// 6 位无符号移位量（slli/srli/srai）
+#[derive(Clone, PartialEq, Debug, Hash)]
+pub struct Shamt6(BitArr!(for 6, in u8));
+
+/// 5 位无符号移位量（slliw/srliw/sraiw）
+#[derive(Clone, PartialEq, Debug, Hash)]
+pub struct Shamt5(BitArr!(for 5, in u8));
+
+impl fmt::Display for Imm12 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.to_i16(), f)
+    }
+}
+
+impl fmt::Display for Imm13LowZeroBits1 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.to_i16(), f)
+    }
+}
+
+impl fmt::Display for Imm21LowZeroBits1 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.to_i32(), f)
     }
 }
 
-impl fmt::Display for U24 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.to_u32(), f)
-    }
-}
-
-impl<const LOW_ZEROED_BITS: u8> fmt::Display
-    for I24WithZeroedBits<LOW_ZEROED_BITS>
-{
-    #[inline(always)]
+impl fmt::Display for Imm32LowZeroBits12 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.to_i32(), f)
     }
 }
 
-impl I24 {
-    pub const fn from_i32(v: i32) -> Self {
-        let b = v.to_le_bytes();
-        Self([b[0], b[1], b[2]])
-    }
-
-    pub const fn to_i32(&self) -> i32 {
-        let [a, b, c] = self.0;
-        i32::from_ne_bytes([a, b, c, 0]) << u8::BITS >> u8::BITS
+impl fmt::Display for Shamt6 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.to_u8(), f)
     }
 }
 
-impl U24 {
-    pub const fn from_u32(v: u32) -> Self {
-        let b = v.to_le_bytes();
-        Self([b[0], b[1], b[2]])
-    }
-
-    pub const fn to_u32(&self) -> u32 {
-        let [a, b, c] = self.0;
-        u32::from_ne_bytes([a, b, c, 0])
+impl fmt::Display for Shamt5 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.to_u8(), f)
     }
 }
 
-impl<const LOW_ZEROED_BITS: u8> I24WithZeroedBits<LOW_ZEROED_BITS> {
-    pub const fn from_i32(v_original: i32) -> Self {
-        let v = v_original >> LOW_ZEROED_BITS;
-        let b = v.to_le_bytes();
-        Self([b[0], b[1], b[2]])
+impl Imm12 {
+    pub fn from_i16(v: i16) -> Self {
+        let mut bits: BitArr!(for 12, in u8) = Default::default();
+        bits.store_le((v as u16) & 0x0FFF);
+        Self(bits)
     }
 
-    pub const fn to_i32(&self) -> i32 {
-        let [a, b, c] = self.0;
-        // Sign-extend and shift back
-        ((((i32::from_le_bytes([a, b, c, 0]) << u8::BITS >> u8::BITS)
-            << LOW_ZEROED_BITS) as u32)
-            & (u32::MAX << LOW_ZEROED_BITS)) as i32
+    pub fn to_i16(&self) -> i16 {
+        let raw = self.0.load_le::<u16>();
+        ((raw << 4) as i16) >> 4
+    }
+}
+
+impl Imm13LowZeroBits1 {
+    pub fn from_i16(offset: i16) -> Self {
+        let mut bits: BitArr!(for 13, in u8) = Default::default();
+        bits.store_le(((offset >> 1) as u16) & 0x1FFF);
+        Self(bits)
+    }
+
+    pub fn to_i16(&self) -> i16 {
+        let raw = self.0.load_le::<u16>();
+        (((raw << 3) as i16) >> 3) << 1
+    }
+}
+
+impl Imm21LowZeroBits1 {
+    pub fn from_i32(offset: i32) -> Self {
+        let mut bits: BitArr!(for 21, in u8) = Default::default();
+        bits.store_le(((offset >> 1) as u32) & 0x1F_FFFF);
+        Self(bits)
+    }
+
+    pub fn to_i32(&self) -> i32 {
+        let raw = self.0.load_le::<u32>();
+        (((raw << 11) as i32) >> 11) << 1
+    }
+}
+
+impl Imm32LowZeroBits12 {
+    pub fn from_i32(v: i32) -> Self {
+        let mut bits: BitArr!(for 32, in u8) = Default::default();
+        bits.store_le(((v >> 12) as u32) & 0xF_FFFF);
+        Self(bits)
+    }
+
+    pub fn to_i32(&self) -> i32 {
+        let raw = self.0.load_le::<u32>();
+        (((raw << 12) as i32) >> 12) << 12
+    }
+}
+
+impl Shamt6 {
+    pub fn from_u8(v: u8) -> Self {
+        let mut bits: BitArr!(for 6, in u8) = Default::default();
+        bits.store_le(v & 0x3F);
+        Self(bits)
+    }
+
+    pub fn to_u8(&self) -> u8 {
+        self.0.load_le::<u8>()
+    }
+}
+
+impl Shamt5 {
+    pub fn from_u8(v: u8) -> Self {
+        let mut bits: BitArr!(for 5, in u8) = Default::default();
+        bits.store_le(v & 0x1F);
+        Self(bits)
+    }
+
+    pub fn to_u8(&self) -> u8 {
+        self.0.load_le::<u8>()
     }
 }

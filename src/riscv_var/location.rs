@@ -3,24 +3,20 @@ use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RvVarLocation {
-    Var(String),
+    IVar(String),
+    FVar(String),
     IReg(IReg),
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum RvVarFLocation {
-    Var(String),
     FReg(FReg),
 }
 
 #[inline]
-pub fn fvar(s: String) -> RvVarFLocation {
-    RvVarFLocation::Var(s)
+pub fn fvar(s: String) -> RvVarLocation {
+    RvVarLocation::FVar(s)
 }
 
 #[inline]
 pub fn var(s: String) -> RvVarLocation {
-    RvVarLocation::Var(s)
+    RvVarLocation::IVar(s)
 }
 
 #[inline]
@@ -198,20 +194,173 @@ pub fn t6() -> RvVarLocation {
     RvVarLocation::IReg(IReg::t6())
 }
 
+#[inline]
+pub fn ft0() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::ft0())
+}
+#[inline]
+pub fn ft1() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::ft1())
+}
+
+#[inline]
+pub fn ft2() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::ft2())
+}
+
+#[inline]
+pub fn ft3() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::ft3())
+}
+
+#[inline]
+pub fn ft4() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::ft4())
+}
+
+#[inline]
+pub fn ft5() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::ft5())
+}
+
+#[inline]
+pub fn ft6() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::ft6())
+}
+
+#[inline]
+pub fn ft7() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::ft7())
+}
+
+#[inline]
+pub fn fs0() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fs0())
+}
+
+#[inline]
+pub fn fs1() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fs1())
+}
+
+#[inline]
+pub fn fa0() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fa0())
+}
+
+#[inline]
+pub fn fa1() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fa1())
+}
+
+#[inline]
+pub fn fa2() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fa2())
+}
+
+#[inline]
+pub fn fa3() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fa3())
+}
+
+#[inline]
+pub fn fa4() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fa4())
+}
+
+#[inline]
+pub fn fa5() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fa5())
+}
+
+#[inline]
+pub fn fa6() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fa6())
+}
+
+#[inline]
+pub fn fa7() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fa7())
+}
+
+#[inline]
+pub fn fs2() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fs2())
+}
+
+#[inline]
+pub fn fs3() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fs3())
+}
+
+#[inline]
+pub fn fs4() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fs4())
+}
+
+#[inline]
+pub fn fs5() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fs5())
+}
+
+#[inline]
+pub fn fs6() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fs6())
+}
+
+#[inline]
+pub fn fs7() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fs7())
+}
+
+#[inline]
+pub fn fs8() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fs8())
+}
+
+#[inline]
+pub fn fs9() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fs9())
+}
+
+#[inline]
+pub fn fs10() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fs10())
+}
+
+#[inline]
+pub fn fs11() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::fs11())
+}
+
+#[inline]
+pub fn ft8() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::ft8())
+}
+
+#[inline]
+pub fn ft9() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::ft9())
+}
+
+#[inline]
+pub fn ft10() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::ft10())
+}
+
+#[inline]
+pub fn ft11() -> RvVarLocation {
+    RvVarLocation::FReg(FReg::ft11())
+}
+
 impl fmt::Display for RvVarLocation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            RvVarLocation::Var(name) => write!(f, "{}", name),
+            RvVarLocation::IVar(name) => write!(f, "{}", name),
             RvVarLocation::IReg(reg) => write!(f, "{}", reg),
-        }
-    }
-}
 
-impl fmt::Display for RvVarFLocation {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RvVarFLocation::Var(name) => write!(f, "{}", name),
-            RvVarFLocation::FReg(reg) => write!(f, "{}", reg),
+            RvVarLocation::FVar(name) => write!(f, "{}", name),
+            RvVarLocation::FReg(reg) => write!(f, "{}", reg),
         }
     }
 }
