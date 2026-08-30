@@ -1,113 +1,361 @@
 use crate::riscv::rv64imfd_imm::{I24, I24WithZeroedBits};
-use crate::riscv::rv64imfd_reg::{IReg, FReg};
+use crate::riscv::rv64imfd_reg::{FReg, IReg};
 use std::fmt;
 
 /// RISC-V RV64 instruction
 #[derive(Debug, Clone, PartialEq)]
 pub enum RvInst {
     // R-type
-    Add { rd: IReg, rs1: IReg, rs2: IReg },
-    Sub { rd: IReg, rs1: IReg, rs2: IReg },
-    Sll { rd: IReg, rs1: IReg, rs2: IReg },
-    Slt { rd: IReg, rs1: IReg, rs2: IReg },
-    Sltu { rd: IReg, rs1: IReg, rs2: IReg },
-    Xor { rd: IReg, rs1: IReg, rs2: IReg },
-    Srl { rd: IReg, rs1: IReg, rs2: IReg },
-    Sra { rd: IReg, rs1: IReg, rs2: IReg },
-    Or { rd: IReg, rs1: IReg, rs2: IReg },
-    And { rd: IReg, rs1: IReg, rs2: IReg },
+    Add {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
+    Sub {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
+    Sll {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
+    Slt {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
+    Sltu {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
+    Xor {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
+    Srl {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
+    Sra {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
+    Or {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
+    And {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
 
     // R-type（M 扩展）
     /// 有符号乘法（取低 64 位）：rd = (rs1 *s rs2)[63:0]
-    Mul { rd: IReg, rs1: IReg, rs2: IReg },
+    Mul {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
     /// 有符号乘法（取高 64 位）：rd = (rs1 *s rs2) >> 64
-    Mulh { rd: IReg, rs1: IReg, rs2: IReg },
+    Mulh {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
     /// 无符号乘法（取高 64 位）：rd = (rs1 *u rs2) >> 64
-    Mulhu { rd: IReg, rs1: IReg, rs2: IReg },
+    Mulhu {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
     /// 有符号乘无符号（取高 64 位）：rd = (rs1 *s rs2_u) >> 64
-    Mulhsu { rd: IReg, rs1: IReg, rs2: IReg },
+    Mulhsu {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
     /// 有符号除法（向零截断）：rd = rs1 /s rs2；除零时 rd = -1，溢出（MIN / -1）时 rd = MIN
-    Div { rd: IReg, rs1: IReg, rs2: IReg },
+    Div {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
     /// 无符号除法：rd = rs1 /u rs2；除零时 rd = 2^64 - 1
-    Divu { rd: IReg, rs1: IReg, rs2: IReg },
+    Divu {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
     /// 有符号取余：rd = rs1 %s rs2；除零时 rd = rs1，溢出（MIN % -1）时 rd = 0
-    Rem { rd: IReg, rs1: IReg, rs2: IReg },
+    Rem {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
     /// 无符号取余：rd = rs1 %u rs2；除零时 rd = rs1
-    Remu { rd: IReg, rs1: IReg, rs2: IReg },
+    Remu {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
 
     // RV64 R-type W
-    Addw { rd: IReg, rs1: IReg, rs2: IReg },
-    Subw { rd: IReg, rs1: IReg, rs2: IReg },
-    Sllw { rd: IReg, rs1: IReg, rs2: IReg },
-    Srlw { rd: IReg, rs1: IReg, rs2: IReg },
-    Sraw { rd: IReg, rs1: IReg, rs2: IReg },
+    Addw {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
+    Subw {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
+    Sllw {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
+    Srlw {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
+    Sraw {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
 
     // RV64 R-type W（M 扩展）
     /// 32 位有符号乘法（取低 32 位），结果按 32 位符号扩展
-    Mulw { rd: IReg, rs1: IReg, rs2: IReg },
+    Mulw {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
     /// 32 位有符号除法（向零截断），结果按 32 位符号扩展；除零时 rd = -1，溢出时 rd = sext32(INT32_MIN)
-    Divw { rd: IReg, rs1: IReg, rs2: IReg },
+    Divw {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
     /// 32 位无符号除法，结果按 32 位符号扩展；除零时 rd = 2^32 - 1
-    Divuw { rd: IReg, rs1: IReg, rs2: IReg },
+    Divuw {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
     /// 32 位有符号取余，结果按 32 位符号扩展；除零时 rd = rs1，溢出时 rd = 0
-    Remw { rd: IReg, rs1: IReg, rs2: IReg },
+    Remw {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
     /// 32 位无符号取余，结果按 32 位符号扩展；除零时 rd = rs1
-    Remuw { rd: IReg, rs1: IReg, rs2: IReg },
+    Remuw {
+        rd: IReg,
+        rs1: IReg,
+        rs2: IReg,
+    },
 
     // I-type
-    Addi { rd: IReg, rs1: IReg, imm: i16 },
-    Slti { rd: IReg, rs1: IReg, imm: i16 },
-    Sltiu { rd: IReg, rs1: IReg, imm: i16 },
-    Xori { rd: IReg, rs1: IReg, imm: i16 },
-    Ori { rd: IReg, rs1: IReg, imm: i16 },
-    Andi { rd: IReg, rs1: IReg, imm: i16 },
-    Slli { rd: IReg, rs1: IReg, shamt: u8 },
-    Srli { rd: IReg, rs1: IReg, shamt: u8 },
-    Srai { rd: IReg, rs1: IReg, shamt: u8 },
+    Addi {
+        rd: IReg,
+        rs1: IReg,
+        imm: i16,
+    },
+    Slti {
+        rd: IReg,
+        rs1: IReg,
+        imm: i16,
+    },
+    Sltiu {
+        rd: IReg,
+        rs1: IReg,
+        imm: i16,
+    },
+    Xori {
+        rd: IReg,
+        rs1: IReg,
+        imm: i16,
+    },
+    Ori {
+        rd: IReg,
+        rs1: IReg,
+        imm: i16,
+    },
+    Andi {
+        rd: IReg,
+        rs1: IReg,
+        imm: i16,
+    },
+    Slli {
+        rd: IReg,
+        rs1: IReg,
+        shamt: u8,
+    },
+    Srli {
+        rd: IReg,
+        rs1: IReg,
+        shamt: u8,
+    },
+    Srai {
+        rd: IReg,
+        rs1: IReg,
+        shamt: u8,
+    },
 
     // RV64 I-type W
-    Addiw { rd: IReg, rs1: IReg, imm: i16 },
-    Slliw { rd: IReg, rs1: IReg, shamt: u8 },
-    Srliw { rd: IReg, rs1: IReg, shamt: u8 },
-    Sraiw { rd: IReg, rs1: IReg, shamt: u8 },
+    Addiw {
+        rd: IReg,
+        rs1: IReg,
+        imm: i16,
+    },
+    Slliw {
+        rd: IReg,
+        rs1: IReg,
+        shamt: u8,
+    },
+    Srliw {
+        rd: IReg,
+        rs1: IReg,
+        shamt: u8,
+    },
+    Sraiw {
+        rd: IReg,
+        rs1: IReg,
+        shamt: u8,
+    },
 
     // Loads (I-type)
-    Lb { rd: IReg, rs1: IReg, imm: i16 },
-    Lh { rd: IReg, rs1: IReg, imm: i16 },
-    Lw { rd: IReg, rs1: IReg, imm: i16 },
-    Ld { rd: IReg, rs1: IReg, imm: i16 },
-    Lbu { rd: IReg, rs1: IReg, imm: i16 },
-    Lhu { rd: IReg, rs1: IReg, imm: i16 },
-    Lwu { rd: IReg, rs1: IReg, imm: i16 },
+    Lb {
+        rd: IReg,
+        rs1: IReg,
+        imm: i16,
+    },
+    Lh {
+        rd: IReg,
+        rs1: IReg,
+        imm: i16,
+    },
+    Lw {
+        rd: IReg,
+        rs1: IReg,
+        imm: i16,
+    },
+    Ld {
+        rd: IReg,
+        rs1: IReg,
+        imm: i16,
+    },
+    Lbu {
+        rd: IReg,
+        rs1: IReg,
+        imm: i16,
+    },
+    Lhu {
+        rd: IReg,
+        rs1: IReg,
+        imm: i16,
+    },
+    Lwu {
+        rd: IReg,
+        rs1: IReg,
+        imm: i16,
+    },
 
     // Jalr (I-type)
-    Jalr { rd: IReg, rs1: IReg, imm: i16 },
+    Jalr {
+        rd: IReg,
+        rs1: IReg,
+        imm: i16,
+    },
 
     // S-type
-    Sb { rs2: IReg, rs1: IReg, imm: i16 },
-    Sh { rs2: IReg, rs1: IReg, imm: i16 },
-    Sw { rs2: IReg, rs1: IReg, imm: i16 },
-    Sd { rs2: IReg, rs1: IReg, imm: i16 },
+    Sb {
+        rs2: IReg,
+        rs1: IReg,
+        imm: i16,
+    },
+    Sh {
+        rs2: IReg,
+        rs1: IReg,
+        imm: i16,
+    },
+    Sw {
+        rs2: IReg,
+        rs1: IReg,
+        imm: i16,
+    },
+    Sd {
+        rs2: IReg,
+        rs1: IReg,
+        imm: i16,
+    },
 
     // B-type
-    Beq { rs1: IReg, rs2: IReg, imm: I24 },
-    Bne { rs1: IReg, rs2: IReg, imm: I24 },
-    Blt { rs1: IReg, rs2: IReg, imm: I24 },
-    Bge { rs1: IReg, rs2: IReg, imm: I24 },
-    Bltu { rs1: IReg, rs2: IReg, imm: I24 },
-    Bgeu { rs1: IReg, rs2: IReg, imm: I24 },
+    Beq {
+        rs1: IReg,
+        rs2: IReg,
+        imm: I24,
+    },
+    Bne {
+        rs1: IReg,
+        rs2: IReg,
+        imm: I24,
+    },
+    Blt {
+        rs1: IReg,
+        rs2: IReg,
+        imm: I24,
+    },
+    Bge {
+        rs1: IReg,
+        rs2: IReg,
+        imm: I24,
+    },
+    Bltu {
+        rs1: IReg,
+        rs2: IReg,
+        imm: I24,
+    },
+    Bgeu {
+        rs1: IReg,
+        rs2: IReg,
+        imm: I24,
+    },
 
     // Lui (U-type)
-    Lui { rd: IReg, imm: I24WithZeroedBits<12> },
+    Lui {
+        rd: IReg,
+        imm: I24WithZeroedBits<12>,
+    },
 
     // Auipc (U-type)
-    Auipc { rd: IReg, imm: I24WithZeroedBits<12> },
+    Auipc {
+        rd: IReg,
+        imm: I24WithZeroedBits<12>,
+    },
 
     // Jal (J-type)
-    Jal { rd: IReg, imm: I24 },
+    Jal {
+        rd: IReg,
+        imm: I24,
+    },
 
     // Fence
-    Fence { pred: u8, succ: u8 },
+    Fence {
+        pred: u8,
+        succ: u8,
+    },
     FenceTso,
 
     // System instructions

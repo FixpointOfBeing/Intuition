@@ -1,5 +1,5 @@
-pub mod location;
-pub mod instruction;
 pub mod basicblock;
-pub mod program;
+pub mod instruction;
 pub mod label;
+pub mod location;
+pub mod program;

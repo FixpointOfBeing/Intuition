@@ -12,12 +12,12 @@ pub mod intu_ir;
 pub mod liveness;
 pub mod repl;
 pub mod riscv;
+pub mod riscv_var;
+pub mod select_instructions;
 pub mod syntax;
 pub mod typechecker;
 pub mod uniquify;
 pub mod wasm;
-pub mod riscv_var;
-pub mod select_instructions;
 
 use crate::compile::compile_file;
 use crate::eval::eval_file;

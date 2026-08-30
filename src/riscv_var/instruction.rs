@@ -1,4 +1,4 @@
-use crate::riscv::rv64imfd_imm::{I24WithZeroedBits};
+use crate::riscv::rv64imfd_imm::I24WithZeroedBits;
 use crate::riscv_var::label::Label;
 use crate::riscv_var::location::{
     RvVarFLocation, RvVarLocation, zero,
