@@ -5,11 +5,15 @@ use crate::{
         basicblock::RvVarBasicBlock,
         instruction::{RvVarInstr, li, mv, seqz, snez},
         label::Label,
-        location::{RvVarLocation, a0, ra, t0, x0, zero},
+        location::{RvVarLocation, a0, ra, t0, t1, x0, zero},
         program::RvVarProgram,
     },
     syntax::{BinOp, UnaryOp},
 };
+
+fn bool_not(rd: RvVarLocation, rs1: RvVarLocation) -> RvVarInstr {
+    RvVarInstr::Xori { rd, rs1: rs1, imm: 1 }
+}
 
 fn select_atom(
     atom: CAtom,
@@ -52,124 +56,131 @@ fn select_expr(
         },
         CExpr::BinOp(op, left, right) => match op {
             BinOp::Add => {
-                select_atom(left, instrs, dest.clone());
-                select_atom(right, instrs, t0());
+                select_atom(left, instrs, t0());
+                select_atom(right, instrs, t1());
                 let instr = RvVarInstr::Add {
                     rd: dest.clone(),
-                    rs1: dest,
-                    rs2: t0(),
+                    rs1: t0(),
+                    rs2: t1(),
                 };
                 instrs.push(instr);
             },
             BinOp::Sub => {
-                select_atom(left, instrs, dest.clone());
-                select_atom(right, instrs, t0());
+                select_atom(left, instrs, t0());
+                select_atom(right, instrs, t1());
                 let instr = RvVarInstr::Sub {
-                    rd: dest.clone(),
-                    rs1: dest,
-                    rs2: t0(),
+                    rd: dest,
+                    rs1: t0(),
+                    rs2: t1(),
                 };
                 instrs.push(instr);
             },
             BinOp::Mul => {
-                todo!()
+                // 乘法溢出的处理（回绕）
+                select_atom(left, instrs, t0());
+                select_atom(right, instrs, t1());
+                let instr = RvVarInstr::Mul {
+                    rd: dest,
+                    rs1: t0(),
+                    rs2: t1(),
+                };
+                instrs.push(instr);
             },
-            BinOp::Div => todo!(),
+            BinOp::Div => {
+                select_atom(left, instrs, t0());
+                select_atom(right, instrs, t1());
+                let instr = RvVarInstr::Div {
+                    rd: dest,
+                    rs1: t0(),
+                    rs2: t1(),
+                };
+                instrs.push(instr);
+            },
             BinOp::And => {
-                select_atom(left, instrs, dest.clone());
-                select_atom(right, instrs, t0());
+                select_atom(left, instrs, t0());
+                select_atom(right, instrs, t1());
                 let instr = RvVarInstr::And {
-                    rd: dest.clone(),
-                    rs1: dest,
-                    rs2: t0(),
+                    rd: dest,
+                    rs1: t0(),
+                    rs2: t1(),
                 };
                 instrs.push(instr);
             },
             BinOp::Or => {
-                select_atom(left, instrs, dest.clone());
-                select_atom(right, instrs, t0());
-                let instr = RvVarInstr::Or {
-                    rd: dest.clone(),
-                    rs1: dest,
-                    rs2: t0(),
-                };
+                select_atom(left, instrs, t0());
+                select_atom(right, instrs, t1());
+                let instr =
+                    RvVarInstr::Or { rd: dest, rs1: t0(), rs2: t1() };
                 instrs.push(instr);
             },
             BinOp::Eq => {
-                select_atom(left, instrs, dest.clone());
-                select_atom(right, instrs, t0());
+                select_atom(left, instrs, t0());
+                select_atom(right, instrs, t1());
                 let sub = RvVarInstr::Sub {
                     rd: dest.clone(),
-                    rs1: dest.clone(),
-                    rs2: t0(),
+                    rs1: t0(),
+                    rs2: t1(),
                 };
                 let set_bool = seqz(dest.clone(), dest);
                 instrs.push(sub);
                 instrs.push(set_bool);
             },
             BinOp::Neq => {
-                select_atom(left, instrs, dest.clone());
-                select_atom(right, instrs, t0());
+                select_atom(left, instrs, t0());
+                select_atom(right, instrs, t1());
                 let sub = RvVarInstr::Sub {
                     rd: dest.clone(),
-                    rs1: dest.clone(),
-                    rs2: t0(),
+                    rs1: t0(),
+                    rs2: t1(),
                 };
                 let set_bool = snez(dest.clone(), dest);
                 instrs.push(sub);
                 instrs.push(set_bool);
             },
             BinOp::Lt => {
-                select_atom(left, instrs, dest.clone());
-                select_atom(right, instrs, t0());
+                select_atom(left, instrs, t0());
+                select_atom(right, instrs, t1());
                 let instr = RvVarInstr::Slt {
-                    rd: dest.clone(),
-                    rs1: dest,
-                    rs2: t0(),
+                    rd: dest,
+                    rs1: t0(),
+                    rs2: t1(),
                 };
                 instrs.push(instr);
             },
             BinOp::Gt => {
-                select_atom(left, instrs, dest.clone());
+                select_atom(left, instrs, t0());
                 select_atom(right, instrs, t0());
                 let instr = RvVarInstr::Slt {
-                    rd: dest.clone(),
-                    rs1: t0(),
-                    rs2: dest,
+                    rd: dest,
+                    rs1: t1(),
+                    rs2: t0(),
                 };
                 instrs.push(instr);
             },
             BinOp::Leq => {
                 // left <= right => !(left > right)
-                select_atom(left, instrs, dest.clone());
-                select_atom(right, instrs, t0());
+                select_atom(left, instrs, t0());
+                select_atom(right, instrs, t1());
                 let right_lt_left = RvVarInstr::Slt {
                     rd: dest.clone(),
-                    rs1: t0(),
-                    rs2: dest.clone(),
+                    rs1: t1(),
+                    rs2: t0(),
                 };
-                let reverse = RvVarInstr::Xori {
-                    rd: dest.clone(),
-                    rs1: dest,
-                    imm: 1,
-                };
+                let reverse = bool_not(dest.clone(), dest);
                 instrs.push(right_lt_left);
                 instrs.push(reverse);
             },
             BinOp::Geq => {
                 // left >= right => !(left < right)
-                select_atom(left, instrs, dest.clone());
-                select_atom(right, instrs, t0());
+                select_atom(left, instrs, t0());
+                select_atom(right, instrs, t1());
                 let left_lt_right = RvVarInstr::Slt {
                     rd: dest.clone(),
-                    rs1: dest.clone(),
-                    rs2: t0(),
+                    rs1: t0(),
+                    rs2: t1(),
                 };
-                let reverse = RvVarInstr::Xori {
-                    rd: dest.clone(),
-                    rs1: dest,
-                    imm: 1,
-                };
+
+                let reverse = bool_not(dest.clone(), dest);
                 instrs.push(left_lt_right);
                 instrs.push(reverse);
             },
@@ -186,11 +197,7 @@ fn select_expr(
             },
             UnaryOp::Not => {
                 select_atom(catom, instrs, dest.clone());
-                let reverse = RvVarInstr::Xori {
-                    rd: dest.clone(),
-                    rs1: dest,
-                    imm: 1,
-                };
+                let reverse = bool_not(dest.clone(), dest);
                 instrs.push(reverse);
             },
         },
@@ -242,7 +249,7 @@ pub fn select_tail(
             let else_label = Label::new(else_name);
 
             let branch = RvVarInstr::Beq {
-                rs1: a0(),
+                rs1: t0(),
                 rs2: zero(),
                 label: else_label.clone(),
             };
