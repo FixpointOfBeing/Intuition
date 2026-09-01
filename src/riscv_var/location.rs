@@ -3,6 +3,7 @@ use std::fmt;
 
 #[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub enum RvVarLocation {
+    Dummy(String),
     IVar(String),
     FVar(String),
     IReg(IReg),
@@ -358,9 +359,9 @@ impl fmt::Display for RvVarLocation {
         match self {
             RvVarLocation::IVar(name) => write!(f, "{}", name),
             RvVarLocation::IReg(reg) => write!(f, "{}", reg),
-
             RvVarLocation::FVar(name) => write!(f, "{}", name),
             RvVarLocation::FReg(reg) => write!(f, "{}", reg),
+            RvVarLocation::Dummy(s) => write!(f, "${}", s),
         }
     }
 }

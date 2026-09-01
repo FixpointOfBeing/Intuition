@@ -1,11 +1,8 @@
 use std::collections::HashSet;
 
-use crate::{
-    riscv_var::{
-        basicblock::RvVarBasicBlock, instruction::RvVarInstr,
-        label::Label, location::RvVarLocation,
-    },
-    syntax::Ident,
+use crate::riscv_var::{
+    basicblock::RvVarBasicBlock, instruction::RvVarInstr,
+    label::Label, location::RvVarLocation,
 };
 
 pub struct RvVarInstrLiveness {

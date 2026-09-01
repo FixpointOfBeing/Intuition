@@ -1,6 +1,6 @@
 // pub mod compile_llvm;
 pub mod a_normal_form;
-pub mod allocate_registers;
+pub mod allocate_registers_rv_var;
 pub mod closure_conversion;
 pub mod compile;
 pub mod emit_llvm;
@@ -9,8 +9,8 @@ pub mod eval;
 pub mod explicate_control;
 pub mod gensym;
 pub mod intu_ir;
-pub mod liveness_rv_var;
 pub mod liveness_intu_ir;
+pub mod liveness_rv_var;
 pub mod repl;
 pub mod riscv;
 pub mod riscv_var;
