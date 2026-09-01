@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::intu_ir::instruction::Instruction;
 use crate::{
     intu_ir::name::Name,
-    liveness::{IntuBasicBlock, IntuInstru},
+    liveness_intu_ir::{IntuBasicBlock, IntuInstru},
 };
 use petgraph::data::Build;
 use petgraph::{graph::NodeIndex, graph::UnGraph};

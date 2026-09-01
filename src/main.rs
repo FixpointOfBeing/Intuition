@@ -9,6 +9,7 @@ pub mod eval;
 pub mod explicate_control;
 pub mod gensym;
 pub mod intu_ir;
+pub mod liveness_intu_ir;
 pub mod liveness;
 pub mod repl;
 pub mod riscv;
