@@ -319,156 +319,110 @@ pub enum Instruction {
 impl Typed for Instruction {
     fn get_type(&self, types: &Types) -> TypeRef {
         match self {
-            Instruction::Add { operand0, operand1, dest } => {
+            Instruction::Add { operand0, operand1, .. } => {
                 let ty = types.type_of(operand0);
                 debug_assert_eq!(ty, types.type_of(operand1));
                 ty
             },
-            Instruction::Sub { operand0, operand1, dest } => {
+            Instruction::Sub { operand0, operand1, .. } => {
                 let ty = types.type_of(operand0);
                 debug_assert_eq!(ty, types.type_of(operand1));
                 ty
             },
-            Instruction::Mul { operand0, operand1, dest } => {
+            Instruction::Mul { operand0, operand1, .. } => {
                 let ty = types.type_of(operand0);
                 debug_assert_eq!(ty, types.type_of(operand1));
                 ty
             },
-            Instruction::UDiv { operand0, operand1, dest } => {
+            Instruction::UDiv { operand0, operand1, .. } => {
                 let ty = types.type_of(operand0);
                 debug_assert_eq!(ty, types.type_of(operand1));
                 ty
             },
-            Instruction::SDiv { operand0, operand1, dest } => {
+            Instruction::SDiv { operand0, operand1, .. } => {
                 let ty = types.type_of(operand0);
                 debug_assert_eq!(ty, types.type_of(operand1));
                 ty
             },
-            Instruction::URem { operand0, operand1, dest } => {
+            Instruction::URem { operand0, operand1, .. } => {
                 let ty = types.type_of(operand0);
                 debug_assert_eq!(ty, types.type_of(operand1));
                 ty
             },
-            Instruction::SRem { operand0, operand1, dest } => {
+            Instruction::SRem { operand0, operand1, .. } => {
                 let ty = types.type_of(operand0);
                 debug_assert_eq!(ty, types.type_of(operand1));
                 ty
             },
-            Instruction::And { operand0, operand1, dest } => {
+            Instruction::And { operand0, operand1, .. } => {
                 let ty = types.type_of(operand0);
                 debug_assert_eq!(ty, types.type_of(operand1));
                 ty
             },
-            Instruction::Or { operand0, operand1, dest } => {
+            Instruction::Or { operand0, operand1, .. } => {
                 let ty = types.type_of(operand0);
                 debug_assert_eq!(ty, types.type_of(operand1));
                 ty
             },
-            Instruction::Xor { operand0, operand1, dest } => {
+            Instruction::Xor { operand0, operand1, .. } => {
                 let ty = types.type_of(operand0);
                 debug_assert_eq!(ty, types.type_of(operand1));
                 ty
             },
-            Instruction::Shl { operand0, operand1, dest } => {
+            Instruction::Shl { operand0, .. } => {
                 types.type_of(operand0)
             },
-            Instruction::LShr { operand0, operand1, dest } => {
+            Instruction::LShr { operand0, .. } => {
                 types.type_of(operand0)
             },
-            Instruction::AShr { operand0, operand1, dest } => {
+            Instruction::AShr { operand0, .. } => {
                 types.type_of(operand0)
             },
-            Instruction::FAdd { operand0, operand1, dest } => {
+            Instruction::FAdd { operand0, operand1, .. } => {
                 let ty = types.type_of(operand0);
                 debug_assert_eq!(ty, types.type_of(operand1));
                 ty
             },
-            Instruction::FSub { operand0, operand1, dest } => {
+            Instruction::FSub { operand0, operand1, .. } => {
                 let ty = types.type_of(operand0);
                 debug_assert_eq!(ty, types.type_of(operand1));
                 ty
             },
-            Instruction::FMul { operand0, operand1, dest } => {
+            Instruction::FMul { operand0, operand1, .. } => {
                 let ty = types.type_of(operand0);
                 debug_assert_eq!(ty, types.type_of(operand1));
                 ty
             },
-            Instruction::FDiv { operand0, operand1, dest } => {
+            Instruction::FDiv { operand0, operand1, .. } => {
                 let ty = types.type_of(operand0);
                 debug_assert_eq!(ty, types.type_of(operand1));
                 ty
             },
-            Instruction::FRem { operand0, operand1, dest } => {
+            Instruction::FRem { operand0, operand1, .. } => {
                 let ty = types.type_of(operand0);
                 debug_assert_eq!(ty, types.type_of(operand1));
                 ty
             },
-            Instruction::FNeg { operand, dest } => {
+            Instruction::FNeg { operand, .. } => {
                 types.type_of(operand)
             },
-            Instruction::Alloca {
-                allocated_type,
-                num_elements,
-                dest,
-                alignment,
-            } => types.pointer(),
-            Instruction::Load {
-                address,
-                dest,
-                loaded_ty,
-                alignment,
-            } => loaded_ty.clone(),
-            Instruction::Store { address, value, alignment } => {
-                types.void()
-            },
-            Instruction::GetElementPtr {
-                address,
-                indices,
-                dest,
-                source_element_type,
-            } => types.pointer(),
-            Instruction::Trunc { operand, to_type, dest } => {
-                to_type.clone()
-            },
-            Instruction::ZExt { operand, to_type, dest } => {
-                to_type.clone()
-            },
-            Instruction::SExt { operand, to_type, dest } => {
-                to_type.clone()
-            },
-            Instruction::FPTrunc { operand, to_type, dest } => {
-                to_type.clone()
-            },
-            Instruction::FPExt { operand, to_type, dest } => {
-                to_type.clone()
-            },
-            Instruction::FPToUI { operand, to_type, dest } => {
-                to_type.clone()
-            },
-            Instruction::FPToSI { operand, to_type, dest } => {
-                to_type.clone()
-            },
-            Instruction::UIToFP { operand, to_type, dest } => {
-                to_type.clone()
-            },
-            Instruction::SIToFP { operand, to_type, dest } => {
-                to_type.clone()
-            },
-            Instruction::PtrToInt { operand, to_type, dest } => {
-                to_type.clone()
-            },
-            Instruction::IntToPtr { operand, to_type, dest } => {
-                to_type.clone()
-            },
-            Instruction::BitCast { operand, to_type, dest } => {
-                to_type.clone()
-            },
-            Instruction::ICmp {
-                predicate,
-                operand0,
-                operand1,
-                dest,
-            } => {
+            Instruction::Alloca { .. } => types.pointer(),
+            Instruction::Load { loaded_ty, .. } => loaded_ty.clone(),
+            Instruction::Store { .. } => types.void(),
+            Instruction::GetElementPtr { .. } => types.pointer(),
+            Instruction::Trunc { to_type, .. } => to_type.clone(),
+            Instruction::ZExt { to_type, .. } => to_type.clone(),
+            Instruction::SExt { to_type, .. } => to_type.clone(),
+            Instruction::FPTrunc { to_type, .. } => to_type.clone(),
+            Instruction::FPExt { to_type, .. } => to_type.clone(),
+            Instruction::FPToUI { to_type, .. } => to_type.clone(),
+            Instruction::FPToSI { to_type, .. } => to_type.clone(),
+            Instruction::UIToFP { to_type, .. } => to_type.clone(),
+            Instruction::SIToFP { to_type, .. } => to_type.clone(),
+            Instruction::PtrToInt { to_type, .. } => to_type.clone(),
+            Instruction::IntToPtr { to_type, .. } => to_type.clone(),
+            Instruction::BitCast { to_type, .. } => to_type.clone(),
+            Instruction::ICmp { operand0, operand1, .. } => {
                 let ty = types.type_of(operand0);
                 debug_assert_eq!(ty, types.type_of(operand1));
                 match ty.as_ref() {
@@ -478,12 +432,7 @@ impl Typed for Instruction {
                     _ => types.bool(),
                 }
             },
-            Instruction::FCmp {
-                predicate,
-                operand0,
-                operand1,
-                dest,
-            } => {
+            Instruction::FCmp { operand0, operand1, .. } => {
                 let ty = types.type_of(operand0);
                 debug_assert_eq!(ty, types.type_of(operand1));
                 match ty.as_ref() {
@@ -493,36 +442,27 @@ impl Typed for Instruction {
                     _ => types.bool(),
                 }
             },
-            Instruction::Call {
-                function,
-                function_ty,
-                arguments,
-                dest,
-                is_tail_call,
-            } => match function_ty.as_ref() {
-                InstType::FuncType { result_type, .. } => {
-                    result_type.clone()
-                },
-                ty => panic!(
-                    "Expected Call.function_ty to be a FuncType, got {:?}",
-                    ty
-                ),
+            Instruction::Call { function_ty, .. } => {
+                match function_ty.as_ref() {
+                    InstType::FuncType { result_type, .. } => {
+                        result_type.clone()
+                    },
+                    ty => panic!(
+                        "Expected Call.function_ty to be a FuncType, got {:?}",
+                        ty
+                    ),
+                }
             },
             Instruction::ExtractValue {
-                aggregate,
-                indices,
-                dest,
+                aggregate, indices, ..
             } => ev_type(
                 types.type_of(aggregate),
                 indices.iter().copied(),
             ),
 
-            Instruction::InsertValue {
-                aggregate,
-                element,
-                indices,
-                dest,
-            } => types.type_of(aggregate),
+            Instruction::InsertValue { aggregate, .. } => {
+                types.type_of(aggregate)
+            },
         }
     }
 }

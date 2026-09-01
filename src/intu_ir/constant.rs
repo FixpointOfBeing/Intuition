@@ -47,7 +47,6 @@ impl std::hash::Hash for Float {
             Float::Double(f) => {
                 ordered_float::OrderedFloat(*f).hash(state)
             },
-            _ => {},
         }
     }
 }

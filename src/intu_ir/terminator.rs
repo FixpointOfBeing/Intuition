@@ -71,16 +71,10 @@ pub enum Terminator {
 impl Typed for Terminator {
     fn get_type(&self, types: &Types) -> TypeRef {
         match self {
-            Terminator::Ret { return_operand } => types.void(),
-            Terminator::Br { dest } => types.void(),
-            Terminator::CondBr {
-                condition,
-                true_dest,
-                false_dest,
-            } => types.void(),
-            Terminator::IndirectBr { operand, possible_dests } => {
-                types.void()
-            },
+            Terminator::Ret { .. } => types.void(),
+            Terminator::Br { .. } => types.void(),
+            Terminator::CondBr { .. } => types.void(),
+            Terminator::IndirectBr { .. } => types.void(),
             Terminator::Unreachable => types.void(),
         }
     }

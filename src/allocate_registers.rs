@@ -5,7 +5,7 @@ use crate::{
     intu_ir::name::Name,
     liveness_intu_ir::{IntuBasicBlock, IntuInstru},
 };
-use petgraph::data::Build;
+// use petgraph::data::Build;
 use petgraph::{graph::NodeIndex, graph::UnGraph};
 fn build_infer_graph(block: &IntuBasicBlock) -> UnGraph<Name, Name> {
     let mut graph = UnGraph::<Name, Name>::new_undirected();

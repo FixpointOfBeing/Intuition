@@ -810,10 +810,10 @@ mod instruction_show {
                 },
                 Instruction::Call {
                     function,
-                    function_ty,
                     arguments,
                     dest,
                     is_tail_call,
+                    ..
                 } => {
                     let mut s = String::new();
                     if let Some(dest) = dest {

@@ -88,9 +88,9 @@ fn is_cexpr_float_type(expr: &CExpr) -> bool {
             UnaryOp::Neg => is_catom_float_type(catom),
             UnaryOp::Not => false,
         },
-        CExpr::Call(catom, catoms) => todo!(),
-        CExpr::MakeClosure(catom, catoms, _) => todo!(),
-        CExpr::Project(catom, _, _) => todo!(),
+        CExpr::Call(_catom, _catoms) => todo!(),
+        CExpr::MakeClosure(_catom, _catoms, _) => todo!(),
+        CExpr::Project(_catom, _, _) => todo!(),
     }
 }
 
@@ -463,9 +463,9 @@ fn select_expr(
                 instrs.push(reverse);
             },
         },
-        CExpr::Call(func, args) => todo!(),
-        CExpr::MakeClosure(catom, catoms, _) => todo!(),
-        CExpr::Project(catom, _, _) => todo!(),
+        CExpr::Call(_func, _args) => todo!(),
+        CExpr::MakeClosure(_catom, _catoms, _) => todo!(),
+        CExpr::Project(_catom, _, _) => todo!(),
     }
 }
 
@@ -504,7 +504,7 @@ pub fn select_tail(
             instrs.push(instr);
             prog.append_basic_block(current);
         },
-        CTail::TailCall(func, args) => {
+        CTail::TailCall(_func, _args) => {
             // select_atom(func, instrs);
             // for arg in args {
             //     select_atom(arg, instrs);

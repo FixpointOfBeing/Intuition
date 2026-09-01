@@ -1094,11 +1094,11 @@ use crate::explicate_control::CTail;
 use crate::intu_ir::module::Module;
 use crate::syntax::Type;
 pub fn emit_module(
-    body: CTail,
-    return_type: Type,
-    module_name: String,
-    source_file_name: String,
-    fn_defs: &[(ClosFnDef, CTail)],
+    _body: CTail,
+    _return_type: Type,
+    _module_name: String,
+    _source_file_name: String,
+    _fn_defs: &[(ClosFnDef, CTail)],
 ) -> Module {
     todo!()
 }
