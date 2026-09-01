@@ -1,7 +1,7 @@
 use crate::riscv::rv64imfd_reg::{FReg, IReg};
 use std::fmt;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub enum RvVarLocation {
     IVar(String),
     FVar(String),

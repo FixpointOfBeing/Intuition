@@ -4,6 +4,7 @@ use crate::riscv::rv64imfd_imm::{
 use crate::riscv::rv64imfd_instr::Rm;
 use crate::riscv_var::label::Label;
 use crate::riscv_var::location::{RvVarLocation, ra, zero};
+use std::collections::HashSet;
 use std::{fmt, i64};
 
 /// 带变量操作数的 RISC-V 指令(RV64IMFD)
@@ -1085,6 +1086,841 @@ impl fmt::Display for RvVarInstr {
                 write!(f, "fsd {rs2}, {imm}({rs1})")
             },
         }
+    }
+}
+
+impl RvVarInstr {
+    pub fn dest_location(&self) -> Option<RvVarLocation> {
+        match self {
+            RvVarInstr::Add { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Sub { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Sll { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Slt { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Sltu { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Xor { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Srl { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Sra { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Or { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::And { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Mul { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Mulh { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Mulhu { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Mulhsu { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Div { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Divu { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Rem { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Remu { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Addw { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Subw { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Sllw { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Srlw { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Sraw { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Mulw { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Divw { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Divuw { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Remw { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Remuw { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Addi { rd, rs1, imm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Slti { rd, rs1, imm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Sltiu { rd, rs1, imm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Xori { rd, rs1, imm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Ori { rd, rs1, imm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Andi { rd, rs1, imm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Slli { rd, rs1, shamt } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Srli { rd, rs1, shamt } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Srai { rd, rs1, shamt } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Addiw { rd, rs1, imm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Slliw { rd, rs1, shamt } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Srliw { rd, rs1, shamt } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Sraiw { rd, rs1, shamt } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Lb { rd, rs1, imm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Lh { rd, rs1, imm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Lw { rd, rs1, imm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Ld { rd, rs1, imm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Lbu { rd, rs1, imm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Lhu { rd, rs1, imm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Lwu { rd, rs1, imm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Jalr { rd, rs1, imm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Sb { rs2, rs1, imm } => {
+                None
+            }
+            RvVarInstr::Sh { rs2, rs1, imm } => {
+                None
+            }
+            RvVarInstr::Sw { rs2, rs1, imm } => {
+                None
+            }
+            RvVarInstr::Sd { rs2, rs1, imm } => {
+                None
+            }
+            RvVarInstr::Beq { rs1, rs2, label } => {
+                None
+            }
+            RvVarInstr::Bne { rs1, rs2, label } => {
+                None
+            }
+            RvVarInstr::Blt { rs1, rs2, label } => {
+                None
+            }
+            RvVarInstr::Bge { rs1, rs2, label } => {
+                None
+            }
+            RvVarInstr::Bltu { rs1, rs2, label } => {
+                None
+            }
+            RvVarInstr::Bgeu { rs1, rs2, label } => {
+                None
+            }
+            RvVarInstr::Lui { rd, imm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Auipc { rd, imm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Jal { rd, label } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FaddS { rd, rs1, rs2, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FaddD { rd, rs1, rs2, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FsubS { rd, rs1, rs2, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FsubD { rd, rs1, rs2, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FmulS { rd, rs1, rs2, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FmulD { rd, rs1, rs2, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FdivS { rd, rs1, rs2, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FdivD { rd, rs1, rs2, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FsqrtS { rd, rs1, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FsqrtD { rd, rs1, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FsgnjS { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FsgnjD { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FsgnjnS { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FsgnjnD { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FsgnjxS { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FsgnjxD { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FminS { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FminD { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FmaxS { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FmaxD { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FeqS { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FeqD { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FltS { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FltD { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FleS { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FleD { rd, rs1, rs2 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FmvXW { rd, rs1 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FmvWX { rd, rs1 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FmvXD { rd, rs1 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FmvDX { rd, rs1 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FcvtSW { rd, rs1 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FcvtSWu { rd, rs1 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FcvtDW { rd, rs1 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FcvtDWu { rd, rs1 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FcvtSD { rd, rs1 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FcvtDS { rd, rs1 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FcvtWS { rd, rs1, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FcvtWuS { rd, rs1, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FcvtWD { rd, rs1, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FcvtWuD { rd, rs1, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FmaddS { rd, rs1, rs2, rs3, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FmsubS { rd, rs1, rs2, rs3, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FnmsubS { rd, rs1, rs2, rs3, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FnmaddS { rd, rs1, rs2, rs3, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FmaddD { rd, rs1, rs2, rs3, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FmsubD { rd, rs1, rs2, rs3, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FnmsubD { rd, rs1, rs2, rs3, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FnmaddD { rd, rs1, rs2, rs3, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FclassS { rd, rs1 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FclassD { rd, rs1 } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FcvtLS { rd, rs1, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FcvtLuS { rd, rs1, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FcvtSL { rd, rs1, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FcvtSLu { rd, rs1, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FcvtLD { rd, rs1, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FcvtLuD { rd, rs1, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FcvtDL { rd, rs1, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::FcvtDLu { rd, rs1, rm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Flw { rd, rs1, imm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Fld { rd, rs1, imm } => {
+                Some(rd.clone())
+            }
+            RvVarInstr::Fsw { rs2, rs1, imm } => {
+                None
+            }
+            RvVarInstr::Fsd { rs2, rs1, imm } => {
+                None}
+        }
+    }
+    pub fn source_locations(&self) -> HashSet<RvVarLocation> {
+        let mut sources = HashSet::new();
+        match self {
+            RvVarInstr::Add { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Sub { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Sll { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Slt { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Sltu { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Xor { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Srl { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Sra { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Or { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::And { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Mul { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Mulh { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Mulhu { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Mulhsu { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Div { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Divu { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Rem { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Remu { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Addw { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Subw { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Sllw { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Srlw { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Sraw { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Mulw { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Divw { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Divuw { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Remw { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Remuw { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Addi { rd, rs1, imm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Slti { rd, rs1, imm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Sltiu { rd, rs1, imm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Xori { rd, rs1, imm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Ori { rd, rs1, imm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Andi { rd, rs1, imm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Slli { rd, rs1, shamt } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Srli { rd, rs1, shamt } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Srai { rd, rs1, shamt } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Addiw { rd, rs1, imm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Slliw { rd, rs1, shamt } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Srliw { rd, rs1, shamt } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Sraiw { rd, rs1, shamt } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Lb { rd, rs1, imm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Lh { rd, rs1, imm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Lw { rd, rs1, imm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Ld { rd, rs1, imm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Lbu { rd, rs1, imm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Lhu { rd, rs1, imm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Lwu { rd, rs1, imm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Jalr { rd, rs1, imm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Sb { rs2, rs1, imm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Sh { rs2, rs1, imm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Sw { rs2, rs1, imm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Sd { rs2, rs1, imm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+
+            RvVarInstr::Beq { rs1, rs2, label } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Bne { rs1, rs2, label } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Blt { rs1, rs2, label } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Bge { rs1, rs2, label } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Bltu { rs1, rs2, label } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Bgeu { rs1, rs2, label } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Lui { rd, imm } => {},
+            RvVarInstr::Auipc { rd, imm } => {
+                // even though read PC
+            },
+            RvVarInstr::Jal { rd, label } => {
+                // also only read PC
+            },
+            RvVarInstr::FaddS { rd, rs1, rs2, rm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FaddD { rd, rs1, rs2, rm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FsubS { rd, rs1, rs2, rm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FsubD { rd, rs1, rs2, rm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FmulS { rd, rs1, rs2, rm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FmulD { rd, rs1, rs2, rm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FdivS { rd, rs1, rs2, rm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FdivD { rd, rs1, rs2, rm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FsqrtS { rd, rs1, rm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FsqrtD { rd, rs1, rm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FsgnjS { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FsgnjD { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FsgnjnS { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FsgnjnD { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FsgnjxS { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FsgnjxD { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FminS { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FminD { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FmaxS { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FmaxD { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FeqS { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FeqD { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FltS { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FltD { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FleS { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FleD { rd, rs1, rs2 } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::FmvXW { rd, rs1 } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FmvWX { rd, rs1 } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FmvXD { rd, rs1 } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FmvDX { rd, rs1 } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FcvtSW { rd, rs1 } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FcvtSWu { rd, rs1 } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FcvtDW { rd, rs1 } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FcvtDWu { rd, rs1 } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FcvtSD { rd, rs1 } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FcvtDS { rd, rs1 } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FcvtWS { rd, rs1, rm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FcvtWuS { rd, rs1, rm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FcvtWD { rd, rs1, rm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FcvtWuD { rd, rs1, rm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FmaddS { rd, rs1, rs2, rs3, rm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+                sources.insert(rs3.clone());
+            },
+            RvVarInstr::FmsubS { rd, rs1, rs2, rs3, rm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+                sources.insert(rs3.clone());
+            },
+            RvVarInstr::FnmsubS { rd, rs1, rs2, rs3, rm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+                sources.insert(rs3.clone());
+            },
+            RvVarInstr::FnmaddS { rd, rs1, rs2, rs3, rm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+                sources.insert(rs3.clone());
+            },
+            RvVarInstr::FmaddD { rd, rs1, rs2, rs3, rm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+                sources.insert(rs3.clone());
+            },
+            RvVarInstr::FmsubD { rd, rs1, rs2, rs3, rm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+                sources.insert(rs3.clone());
+            },
+            RvVarInstr::FnmsubD { rd, rs1, rs2, rs3, rm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+                sources.insert(rs3.clone());
+            },
+            RvVarInstr::FnmaddD { rd, rs1, rs2, rs3, rm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+                sources.insert(rs3.clone());
+            },
+            RvVarInstr::FclassS { rd, rs1 } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FclassD { rd, rs1 } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FcvtLS { rd, rs1, rm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FcvtLuS { rd, rs1, rm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FcvtSL { rd, rs1, rm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FcvtSLu { rd, rs1, rm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FcvtLD { rd, rs1, rm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FcvtLuD { rd, rs1, rm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FcvtDL { rd, rs1, rm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::FcvtDLu { rd, rs1, rm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Flw { rd, rs1, imm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Fld { rd, rs1, imm } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::Fsw { rs2, rs1, imm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+            RvVarInstr::Fsd { rs2, rs1, imm } => {
+                sources.insert(rs1.clone());
+                sources.insert(rs2.clone());
+            },
+        }
+        sources
     }
 }
 
