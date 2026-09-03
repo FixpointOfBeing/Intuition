@@ -2,7 +2,7 @@ use crate::riscv::rv64imfd_imm::{
     Imm12, Imm13LowZeroBits1, Imm21LowZeroBits1, Imm32LowZeroBits12,
     Shamt5, Shamt6,
 };
-use crate::riscv::rv64imfd_reg::{FReg, IReg};
+use crate::riscv::rv64imfd_reg::{FReg, XReg};
 use std::fmt;
 
 /// 浮点舍入模式
@@ -41,347 +41,347 @@ impl fmt::Display for Rm {
 pub enum RvInst {
     // R-type
     Add {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     Sub {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     Sll {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     Slt {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     Sltu {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     Xor {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     Srl {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     Sra {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     Or {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     And {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
 
     // R-type（M 扩展）
     /// 有符号乘法（取低 64 位）：rd = (rs1 *s rs2)[63:0]
     Mul {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     /// 有符号乘法（取高 64 位）：rd = (rs1 *s rs2) >> 64
     Mulh {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     /// 无符号乘法（取高 64 位）：rd = (rs1 *u rs2) >> 64
     Mulhu {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     /// 有符号乘无符号（取高 64 位）：rd = (rs1 *s rs2_u) >> 64
     Mulhsu {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     /// 有符号除法（向零截断）：rd = rs1 /s rs2；除零时 rd = -1，溢出（MIN / -1）时 rd = MIN
     Div {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     /// 无符号除法：rd = rs1 /u rs2；除零时 rd = 2^64 - 1
     Divu {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     /// 有符号取余：rd = rs1 %s rs2；除零时 rd = rs1，溢出（MIN % -1）时 rd = 0
     Rem {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     /// 无符号取余：rd = rs1 %u rs2；除零时 rd = rs1
     Remu {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
 
     // RV64 R-type W
     Addw {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     Subw {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     Sllw {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     Srlw {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     Sraw {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
 
     // RV64 R-type W（M 扩展）
     /// 32 位有符号乘法（取低 32 位），结果按 32 位符号扩展
     Mulw {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     /// 32 位有符号除法（向零截断），结果按 32 位符号扩展；除零时 rd = -1，溢出时 rd = sext32(INT32_MIN)
     Divw {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     /// 32 位无符号除法，结果按 32 位符号扩展；除零时 rd = 2^32 - 1
     Divuw {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     /// 32 位有符号取余，结果按 32 位符号扩展；除零时 rd = rs1，溢出时 rd = 0
     Remw {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
     /// 32 位无符号取余，结果按 32 位符号扩展；除零时 rd = rs1
     Remuw {
-        rd: IReg,
-        rs1: IReg,
-        rs2: IReg,
+        rd: XReg,
+        rs1: XReg,
+        rs2: XReg,
     },
 
     // I-type
     Addi {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         imm: Imm12,
     },
     Slti {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         imm: Imm12,
     },
     Sltiu {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         imm: Imm12,
     },
     Xori {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         imm: Imm12,
     },
     Ori {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         imm: Imm12,
     },
     Andi {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         imm: Imm12,
     },
     Slli {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         shamt: Shamt6,
     },
     Srli {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         shamt: Shamt6,
     },
     Srai {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         shamt: Shamt6,
     },
 
     // RV64 I-type W
     Addiw {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         imm: Imm12,
     },
     Slliw {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         shamt: Shamt5,
     },
     Srliw {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         shamt: Shamt5,
     },
     Sraiw {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         shamt: Shamt5,
     },
 
     // Loads (I-type)
     Lb {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         imm: Imm12,
     },
     Lh {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         imm: Imm12,
     },
     Lw {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         imm: Imm12,
     },
     Ld {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         imm: Imm12,
     },
     Lbu {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         imm: Imm12,
     },
     Lhu {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         imm: Imm12,
     },
     Lwu {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         imm: Imm12,
     },
 
     // Jalr (I-type)
     Jalr {
-        rd: IReg,
-        rs1: IReg,
+        rd: XReg,
+        rs1: XReg,
         imm: Imm12,
     },
 
     // S-type
     Sb {
-        rs2: IReg,
-        rs1: IReg,
+        rs2: XReg,
+        rs1: XReg,
         imm: Imm12,
     },
     Sh {
-        rs2: IReg,
-        rs1: IReg,
+        rs2: XReg,
+        rs1: XReg,
         imm: Imm12,
     },
     Sw {
-        rs2: IReg,
-        rs1: IReg,
+        rs2: XReg,
+        rs1: XReg,
         imm: Imm12,
     },
     Sd {
-        rs2: IReg,
-        rs1: IReg,
+        rs2: XReg,
+        rs1: XReg,
         imm: Imm12,
     },
 
     // B-type
     Beq {
-        rs1: IReg,
-        rs2: IReg,
+        rs1: XReg,
+        rs2: XReg,
         imm: Imm13LowZeroBits1,
     },
     Bne {
-        rs1: IReg,
-        rs2: IReg,
+        rs1: XReg,
+        rs2: XReg,
         imm: Imm13LowZeroBits1,
     },
     Blt {
-        rs1: IReg,
-        rs2: IReg,
+        rs1: XReg,
+        rs2: XReg,
         imm: Imm13LowZeroBits1,
     },
     Bge {
-        rs1: IReg,
-        rs2: IReg,
+        rs1: XReg,
+        rs2: XReg,
         imm: Imm13LowZeroBits1,
     },
     Bltu {
-        rs1: IReg,
-        rs2: IReg,
+        rs1: XReg,
+        rs2: XReg,
         imm: Imm13LowZeroBits1,
     },
     Bgeu {
-        rs1: IReg,
-        rs2: IReg,
+        rs1: XReg,
+        rs2: XReg,
         imm: Imm13LowZeroBits1,
     },
 
     // Lui (U-type)
     Lui {
-        rd: IReg,
+        rd: XReg,
         imm: Imm32LowZeroBits12,
     },
 
     // Auipc (U-type)
     Auipc {
-        rd: IReg,
+        rd: XReg,
         imm: Imm32LowZeroBits12,
     },
 
     // Jal (J-type)
     Jal {
-        rd: IReg,
+        rd: XReg,
         imm: Imm21LowZeroBits1,
     },
 
@@ -522,37 +522,37 @@ pub enum RvInst {
     // 浮点比较（结果写入整数寄存器）
     /// 单精度浮点相等比较：rs1 == rs2 时 rd = 1，否则 rd = 0
     FeqS {
-        rd: IReg,
+        rd: XReg,
         rs1: FReg,
         rs2: FReg,
     },
     /// 双精度浮点相等比较：rs1 == rs2 时 rd = 1，否则 rd = 0
     FeqD {
-        rd: IReg,
+        rd: XReg,
         rs1: FReg,
         rs2: FReg,
     },
     /// 单精度浮点小于比较：rs1 < rs2 时 rd = 1，否则 rd = 0
     FltS {
-        rd: IReg,
+        rd: XReg,
         rs1: FReg,
         rs2: FReg,
     },
     /// 双精度浮点小于比较：rs1 < rs2 时 rd = 1，否则 rd = 0
     FltD {
-        rd: IReg,
+        rd: XReg,
         rs1: FReg,
         rs2: FReg,
     },
     /// 单精度浮点小于等于比较：rs1 <= rs2 时 rd = 1，否则 rd = 0
     FleS {
-        rd: IReg,
+        rd: XReg,
         rs1: FReg,
         rs2: FReg,
     },
     /// 双精度浮点小于等于比较：rs1 <= rs2 时 rd = 1，否则 rd = 0
     FleD {
-        rd: IReg,
+        rd: XReg,
         rs1: FReg,
         rs2: FReg,
     },
@@ -560,45 +560,45 @@ pub enum RvInst {
     // 寄存器移动（整数 ↔ 浮点，位模式不变）
     /// 将浮点寄存器的位模式按 32 位符号扩展移到整数寄存器：rd = sext32(bits(rs1))
     FmvXW {
-        rd: IReg,
+        rd: XReg,
         rs1: FReg,
     },
     /// 将整数寄存器的低 32 位位模式移到浮点寄存器：rd = bits(rs1)[31:0]
     FmvWX {
         rd: FReg,
-        rs1: IReg,
+        rs1: XReg,
     },
     /// 将浮点寄存器的位模式（64 位）移到整数寄存器：rd = bits(rs1)
     FmvXD {
-        rd: IReg,
+        rd: XReg,
         rs1: FReg,
     },
     /// 将整数寄存器的位模式（64 位）移到浮点寄存器：rd = bits(rs1)
     FmvDX {
         rd: FReg,
-        rs1: IReg,
+        rs1: XReg,
     },
 
     // 类型转换（整数 → 浮点，无舍入）
     /// 有符号整数转单精度浮点：rd = (float)rs1
     FcvtSW {
         rd: FReg,
-        rs1: IReg,
+        rs1: XReg,
     },
     /// 无符号整数转单精度浮点：rd = (float)rs1
     FcvtSWu {
         rd: FReg,
-        rs1: IReg,
+        rs1: XReg,
     },
     /// 有符号整数转双精度浮点：rd = (double)rs1
     FcvtDW {
         rd: FReg,
-        rs1: IReg,
+        rs1: XReg,
     },
     /// 无符号整数转双精度浮点：rd = (double)rs1
     FcvtDWu {
         rd: FReg,
-        rs1: IReg,
+        rs1: XReg,
     },
 
     // 类型转换（浮点 ↔ 浮点，无舍入）
@@ -616,25 +616,25 @@ pub enum RvInst {
     // 类型转换（浮点 → 整数，带舍入模式）
     /// 单精度浮点转有符号整数（按 rm 舍入，向零截断等价于 rtz）
     FcvtWS {
-        rd: IReg,
+        rd: XReg,
         rs1: FReg,
         rm: Rm,
     },
     /// 单精度浮点转无符号整数（按 rm 舍入）
     FcvtWuS {
-        rd: IReg,
+        rd: XReg,
         rs1: FReg,
         rm: Rm,
     },
     /// 双精度浮点转有符号整数（按 rm 舍入）
     FcvtWD {
-        rd: IReg,
+        rd: XReg,
         rs1: FReg,
         rm: Rm,
     },
     /// 双精度浮点转无符号整数（按 rm 舍入）
     FcvtWuD {
-        rd: IReg,
+        rd: XReg,
         rs1: FReg,
         rm: Rm,
     },
@@ -708,62 +708,62 @@ pub enum RvInst {
     // 浮点分类（结果写入整数寄存器）
     /// 单精度浮点分类：rd = 指示 rs1 类型的位掩码
     FclassS {
-        rd: IReg,
+        rd: XReg,
         rs1: FReg,
     },
     /// 双精度浮点分类：rd = 指示 rs1 类型的位掩码
     FclassD {
-        rd: IReg,
+        rd: XReg,
         rs1: FReg,
     },
 
     // RV64F/D 64 位整数转换（带舍入模式）
     /// 单精度浮点转有符号 64 位整数（按 rm 舍入）
     FcvtLS {
-        rd: IReg,
+        rd: XReg,
         rs1: FReg,
         rm: Rm,
     },
     /// 单精度浮点转无符号 64 位整数（按 rm 舍入）
     FcvtLuS {
-        rd: IReg,
+        rd: XReg,
         rs1: FReg,
         rm: Rm,
     },
     /// 有符号 64 位整数转单精度浮点（按 rm 舍入）
     FcvtSL {
         rd: FReg,
-        rs1: IReg,
+        rs1: XReg,
         rm: Rm,
     },
     /// 无符号 64 位整数转单精度浮点（按 rm 舍入）
     FcvtSLu {
         rd: FReg,
-        rs1: IReg,
+        rs1: XReg,
         rm: Rm,
     },
     /// 双精度浮点转有符号 64 位整数（按 rm 舍入）
     FcvtLD {
-        rd: IReg,
+        rd: XReg,
         rs1: FReg,
         rm: Rm,
     },
     /// 双精度浮点转无符号 64 位整数（按 rm 舍入）
     FcvtLuD {
-        rd: IReg,
+        rd: XReg,
         rs1: FReg,
         rm: Rm,
     },
     /// 有符号 64 位整数转双精度浮点（按 rm 舍入）
     FcvtDL {
         rd: FReg,
-        rs1: IReg,
+        rs1: XReg,
         rm: Rm,
     },
     /// 无符号 64 位整数转双精度浮点（按 rm 舍入）
     FcvtDLu {
         rd: FReg,
-        rs1: IReg,
+        rs1: XReg,
         rm: Rm,
     },
 
@@ -771,25 +771,25 @@ pub enum RvInst {
     /// 加载单精度浮点：rd = Mem[rs1 + sext(imm)]
     Flw {
         rd: FReg,
-        rs1: IReg,
+        rs1: XReg,
         imm: Imm12,
     },
     /// 加载双精度浮点：rd = Mem[rs1 + sext(imm)]
     Fld {
         rd: FReg,
-        rs1: IReg,
+        rs1: XReg,
         imm: Imm12,
     },
     /// 存单精度浮点：Mem[rs1 + sext(imm)] = rs2
     Fsw {
         rs2: FReg,
-        rs1: IReg,
+        rs1: XReg,
         imm: Imm12,
     },
     /// 存双精度浮点：Mem[rs1 + sext(imm)] = rs2
     Fsd {
         rs2: FReg,
-        rs1: IReg,
+        rs1: XReg,
         imm: Imm12,
     },
 

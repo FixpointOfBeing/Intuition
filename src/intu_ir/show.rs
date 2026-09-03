@@ -964,11 +964,13 @@ mod types_show {
                 types::InstType::ArrayType {
                     element_type,
                     num_elements,
-                } => format!(
-                    "[{} x {}]",
-                    num_elements,
-                    element_type.show(types)
-                ),
+                } => {
+                    format!(
+                        "[{} x {}]",
+                        num_elements,
+                        element_type.show(types)
+                    )
+                },
                 types::InstType::StructType { element_types } => {
                     let mut s = String::new();
                     write!(s, "{{ ").unwrap();

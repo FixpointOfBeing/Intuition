@@ -817,9 +817,7 @@ mod tests {
 
     #[test]
     fn test_parse_letrec_multi_args() {
-        let expr = parser::ExprParser::new()
-            .parse("let rec add (x: Int) (y: Int) : Int = x + y in add 1 2")
-            .unwrap();
+        let expr = parser::ExprParser::new().parse("let rec add (x: Int) (y: Int) : Int = x + y in add 1 2").unwrap();
         match *expr {
             Expr::LetRec(fname, fargs, fret_ty, _, _) => {
                 assert_eq!(fname, "add");

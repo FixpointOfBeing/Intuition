@@ -1,12 +1,15 @@
-use crate::riscv::rv64imfd_reg::{FReg, IReg};
+use crate::{
+    riscv::rv64imfd_reg::{FReg, XReg},
+    syntax::Ident,
+};
 use std::fmt;
 
 #[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub enum RvVarLocation {
     Dummy(String),
-    IVar(String),
-    FVar(String),
-    IReg(IReg),
+    XVar(Ident),
+    FVar(Ident),
+    XReg(XReg),
     FReg(FReg),
 }
 
@@ -17,12 +20,12 @@ pub fn fvar(s: String) -> RvVarLocation {
 
 #[inline]
 pub fn var(s: String) -> RvVarLocation {
-    RvVarLocation::IVar(s)
+    RvVarLocation::XVar(s)
 }
 
 #[inline]
 pub fn x(n: u8) -> RvVarLocation {
-    RvVarLocation::IReg(IReg::from_u8(n))
+    RvVarLocation::XReg(XReg::from_u8(n))
 }
 
 #[inline]
@@ -32,167 +35,167 @@ pub fn x0() -> RvVarLocation {
 
 #[inline]
 pub fn zero() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::zero())
+    RvVarLocation::XReg(XReg::zero())
 }
 
 #[inline]
 pub fn ra() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::ra())
+    RvVarLocation::XReg(XReg::ra())
 }
 
 #[inline]
 pub fn sp() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::sp())
+    RvVarLocation::XReg(XReg::sp())
 }
 
 #[inline]
 pub fn gp() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::gp())
+    RvVarLocation::XReg(XReg::gp())
 }
 
 #[inline]
 pub fn tp() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::tp())
+    RvVarLocation::XReg(XReg::tp())
 }
 
 #[inline]
 pub fn t0() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::t0())
+    RvVarLocation::XReg(XReg::t0())
 }
 
 #[inline]
 pub fn t1() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::t1())
+    RvVarLocation::XReg(XReg::t1())
 }
 
 #[inline]
 pub fn t2() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::t2())
+    RvVarLocation::XReg(XReg::t2())
 }
 
 #[inline]
 pub fn s0() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::s0())
+    RvVarLocation::XReg(XReg::s0())
 }
 
 #[inline]
 pub fn fp() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::fp())
+    RvVarLocation::XReg(XReg::fp())
 }
 
 #[inline]
 pub fn s1() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::s1())
+    RvVarLocation::XReg(XReg::s1())
 }
 
 #[inline]
 pub fn a0() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::a0())
+    RvVarLocation::XReg(XReg::a0())
 }
 
 #[inline]
 pub fn a1() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::a1())
+    RvVarLocation::XReg(XReg::a1())
 }
 
 #[inline]
 pub fn a2() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::a2())
+    RvVarLocation::XReg(XReg::a2())
 }
 
 #[inline]
 pub fn a3() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::a3())
+    RvVarLocation::XReg(XReg::a3())
 }
 
 #[inline]
 pub fn a4() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::a4())
+    RvVarLocation::XReg(XReg::a4())
 }
 
 #[inline]
 pub fn a5() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::a5())
+    RvVarLocation::XReg(XReg::a5())
 }
 
 #[inline]
 pub fn a6() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::a6())
+    RvVarLocation::XReg(XReg::a6())
 }
 
 #[inline]
 pub fn a7() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::a7())
+    RvVarLocation::XReg(XReg::a7())
 }
 
 #[inline]
 pub fn s2() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::s2())
+    RvVarLocation::XReg(XReg::s2())
 }
 
 #[inline]
 pub fn s3() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::s3())
+    RvVarLocation::XReg(XReg::s3())
 }
 
 #[inline]
 pub fn s4() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::s4())
+    RvVarLocation::XReg(XReg::s4())
 }
 
 #[inline]
 pub fn s5() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::s5())
+    RvVarLocation::XReg(XReg::s5())
 }
 
 #[inline]
 pub fn s6() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::s6())
+    RvVarLocation::XReg(XReg::s6())
 }
 
 #[inline]
 pub fn s7() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::s7())
+    RvVarLocation::XReg(XReg::s7())
 }
 
 #[inline]
 pub fn s8() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::s8())
+    RvVarLocation::XReg(XReg::s8())
 }
 
 #[inline]
 pub fn s9() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::s9())
+    RvVarLocation::XReg(XReg::s9())
 }
 
 #[inline]
 pub fn s10() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::s10())
+    RvVarLocation::XReg(XReg::s10())
 }
 
 #[inline]
 pub fn s11() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::s11())
+    RvVarLocation::XReg(XReg::s11())
 }
 
 #[inline]
 pub fn t3() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::t3())
+    RvVarLocation::XReg(XReg::t3())
 }
 
 #[inline]
 pub fn t4() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::t4())
+    RvVarLocation::XReg(XReg::t4())
 }
 
 #[inline]
 pub fn t5() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::t5())
+    RvVarLocation::XReg(XReg::t5())
 }
 
 #[inline]
 pub fn t6() -> RvVarLocation {
-    RvVarLocation::IReg(IReg::t6())
+    RvVarLocation::XReg(XReg::t6())
 }
 
 #[inline]
@@ -357,8 +360,8 @@ pub fn ft11() -> RvVarLocation {
 impl fmt::Display for RvVarLocation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            RvVarLocation::IVar(name) => write!(f, "{}", name),
-            RvVarLocation::IReg(reg) => write!(f, "{}", reg),
+            RvVarLocation::XVar(name) => write!(f, "{}", name),
+            RvVarLocation::XReg(reg) => write!(f, "{}", reg),
             RvVarLocation::FVar(name) => write!(f, "{}", name),
             RvVarLocation::FReg(reg) => write!(f, "{}", reg),
             RvVarLocation::Dummy(s) => write!(f, "${}", s),

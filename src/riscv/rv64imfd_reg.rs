@@ -1,7 +1,7 @@
 use std::fmt;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub enum IReg {
+pub enum XReg {
     /// SPECIAL: Always 0
     /// x0
     ZERO = 0,
@@ -131,47 +131,47 @@ pub enum IReg {
     T6 = 31,
 }
 
-impl fmt::Display for IReg {
+impl fmt::Display for XReg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
-            IReg::ZERO => "zero",
-            IReg::RA => "ra",
-            IReg::SP => "sp",
-            IReg::GP => "gp",
-            IReg::TP => "tp",
-            IReg::T0 => "t0",
-            IReg::T1 => "t1",
-            IReg::T2 => "t2",
-            IReg::S0 => "s0",
-            IReg::S1 => "s1",
-            IReg::A0 => "a0",
-            IReg::A1 => "a1",
-            IReg::A2 => "a2",
-            IReg::A3 => "a3",
-            IReg::A4 => "a4",
-            IReg::A5 => "a5",
-            IReg::A6 => "a6",
-            IReg::A7 => "a7",
-            IReg::S2 => "s2",
-            IReg::S3 => "s3",
-            IReg::S4 => "s4",
-            IReg::S5 => "s5",
-            IReg::S6 => "s6",
-            IReg::S7 => "s7",
-            IReg::S8 => "s8",
-            IReg::S9 => "s9",
-            IReg::S10 => "s10",
-            IReg::S11 => "s11",
-            IReg::T3 => "t3",
-            IReg::T4 => "t4",
-            IReg::T5 => "t5",
-            IReg::T6 => "t6",
+            XReg::ZERO => "zero",
+            XReg::RA => "ra",
+            XReg::SP => "sp",
+            XReg::GP => "gp",
+            XReg::TP => "tp",
+            XReg::T0 => "t0",
+            XReg::T1 => "t1",
+            XReg::T2 => "t2",
+            XReg::S0 => "s0",
+            XReg::S1 => "s1",
+            XReg::A0 => "a0",
+            XReg::A1 => "a1",
+            XReg::A2 => "a2",
+            XReg::A3 => "a3",
+            XReg::A4 => "a4",
+            XReg::A5 => "a5",
+            XReg::A6 => "a6",
+            XReg::A7 => "a7",
+            XReg::S2 => "s2",
+            XReg::S3 => "s3",
+            XReg::S4 => "s4",
+            XReg::S5 => "s5",
+            XReg::S6 => "s6",
+            XReg::S7 => "s7",
+            XReg::S8 => "s8",
+            XReg::S9 => "s9",
+            XReg::S10 => "s10",
+            XReg::S11 => "s11",
+            XReg::T3 => "t3",
+            XReg::T4 => "t4",
+            XReg::T5 => "t5",
+            XReg::T6 => "t6",
         };
         f.write_str(name)
     }
 }
 
-impl IReg {
+impl XReg {
     pub fn from_u8(num: u8) -> Self {
         match num {
             0 => Self::ZERO,

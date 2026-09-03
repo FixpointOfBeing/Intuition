@@ -57,7 +57,7 @@ fn select_atom(
                 let mv = fmv_d(dest, var);
                 instrs.push(mv);
             } else {
-                let var = RvVarLocation::IVar(name);
+                let var = RvVarLocation::XVar(name);
                 let mv = mv(dest, var);
                 instrs.push(mv);
             }
@@ -94,7 +94,7 @@ fn is_cexpr_float_type(expr: &CExpr) -> bool {
     }
 }
 
-fn select_expr_binop_int(
+fn select_expr_binop_xreg(
     op: BinOp,
     left: CAtom,
     right: CAtom,
@@ -103,7 +103,7 @@ fn select_expr_binop_int(
 ) {
     debug_assert!(matches!(
         dest,
-        RvVarLocation::IVar(_) | RvVarLocation::IReg(_)
+        RvVarLocation::XVar(_) | RvVarLocation::XReg(_)
     ));
 
     match op {
@@ -208,7 +208,7 @@ fn select_expr_binop_int(
     }
 }
 
-fn select_expr_binop_float(
+fn select_expr_binop_freg(
     op: BinOp,
     left: CAtom,
     right: CAtom,
@@ -283,7 +283,7 @@ fn select_expr_binop_float(
         BinOp::Eq => {
             debug_assert!(matches!(
                 dest,
-                RvVarLocation::IVar(_) | RvVarLocation::IReg(_)
+                RvVarLocation::XVar(_) | RvVarLocation::XReg(_)
             ));
 
             select_atom(left, instrs, ft0());
@@ -295,7 +295,7 @@ fn select_expr_binop_float(
         BinOp::Neq => {
             debug_assert!(matches!(
                 dest,
-                RvVarLocation::IVar(_) | RvVarLocation::IReg(_)
+                RvVarLocation::XVar(_) | RvVarLocation::XReg(_)
             ));
 
             select_atom(left, instrs, ft0());
@@ -312,7 +312,7 @@ fn select_expr_binop_float(
         BinOp::Lt => {
             debug_assert!(matches!(
                 dest,
-                RvVarLocation::IVar(_) | RvVarLocation::IReg(_)
+                RvVarLocation::XVar(_) | RvVarLocation::XReg(_)
             ));
 
             select_atom(left, instrs, ft0());
@@ -324,7 +324,7 @@ fn select_expr_binop_float(
         BinOp::Gt => {
             debug_assert!(matches!(
                 dest,
-                RvVarLocation::IVar(_) | RvVarLocation::IReg(_)
+                RvVarLocation::XVar(_) | RvVarLocation::XReg(_)
             ));
 
             // left > right => right < left
@@ -337,7 +337,7 @@ fn select_expr_binop_float(
         BinOp::Leq => {
             debug_assert!(matches!(
                 dest,
-                RvVarLocation::IVar(_) | RvVarLocation::IReg(_)
+                RvVarLocation::XVar(_) | RvVarLocation::XReg(_)
             ));
 
             select_atom(left, instrs, ft0());
@@ -349,7 +349,7 @@ fn select_expr_binop_float(
         BinOp::Geq => {
             debug_assert!(matches!(
                 dest,
-                RvVarLocation::IVar(_) | RvVarLocation::IReg(_)
+                RvVarLocation::XVar(_) | RvVarLocation::XReg(_)
             ));
 
             // left >= right => right <= left
@@ -363,7 +363,7 @@ fn select_expr_binop_float(
     }
 }
 
-fn select_expr_unaryop_float(
+fn select_expr_unaryop_freg(
     op: UnaryOp,
     atom: CAtom,
     instrs: &mut Vec<RvVarInstr>,
@@ -384,7 +384,7 @@ fn select_expr_unaryop_float(
     }
 }
 
-fn select_expr_unaryop_int(
+fn select_expr_unaryop_xreg(
     op: UnaryOp,
     atom: CAtom,
     instrs: &mut Vec<RvVarInstr>,
@@ -394,7 +394,7 @@ fn select_expr_unaryop_int(
         UnaryOp::Neg => {
             debug_assert!(matches!(
                 dest,
-                RvVarLocation::IVar(_) | RvVarLocation::IReg(_)
+                RvVarLocation::XVar(_) | RvVarLocation::XReg(_)
             ));
 
             select_atom(atom, instrs, dest.clone());
@@ -437,11 +437,11 @@ fn select_expr(
             },
             _ => {
                 if is_catom_float_type(&left) {
-                    select_expr_binop_float(
+                    select_expr_binop_freg(
                         op, left, right, instrs, dest,
                     );
                 } else {
-                    select_expr_binop_int(
+                    select_expr_binop_xreg(
                         op, left, right, instrs, dest,
                     );
                 }
@@ -450,11 +450,9 @@ fn select_expr(
         CExpr::UnaryOp(op, catom) => match op {
             UnaryOp::Neg => {
                 if is_catom_float_type(&catom) {
-                    select_expr_unaryop_float(
-                        op, catom, instrs, dest,
-                    );
+                    select_expr_unaryop_freg(op, catom, instrs, dest);
                 } else {
-                    select_expr_unaryop_int(op, catom, instrs, dest);
+                    select_expr_unaryop_xreg(op, catom, instrs, dest);
                 }
             },
             UnaryOp::Not => {
@@ -475,7 +473,7 @@ fn select_stmt(stmt: CStmt, instrs: &mut Vec<RvVarInstr>) {
             let var = if matches!(ty, Type::Float) {
                 RvVarLocation::FVar(name)
             } else {
-                RvVarLocation::IVar(name)
+                RvVarLocation::XVar(name)
             };
             select_expr(cexpr, instrs, var);
         },
