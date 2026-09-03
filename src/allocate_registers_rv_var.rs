@@ -1,14 +1,14 @@
-use std::cell::Cell;
-use std::collections::{BinaryHeap, HashMap, HashSet};
-
 use crate::liveness_rv_var::{
     RvVarBasicBlockLiveness, RvVarInstrLiveness,
 };
 use crate::riscv::rv64imfd_reg::{FReg, XReg};
-use crate::riscv_var::location::{self, RvVarLocation, x};
+use crate::riscv_var::location::{RvVarLocation, x};
 use crate::syntax::Ident;
-use petgraph::graph;
 use petgraph::{graph::NodeIndex, graph::UnGraph};
+use priority_queue::PriorityQueue;
+use std::cell::Cell;
+use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 
 struct RvVarLocationGraph {
     ungraph: UnGraph<RvVarLocation, RvVarLocation>,
@@ -185,52 +185,70 @@ type Variable = Ident;
 
 type Color = i8;
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(Clone)]
 struct LocationStaturation {
-    staturation: Vec<Color>,
+    staturation: BinaryHeap<Color>,
     color: Cell<Color>,
+    location: RvVarLocation,
+}
+
+impl PartialEq for LocationStaturation {
+    fn eq(&self, other: &Self) -> bool {
+        self.location == other.location
+    }
+}
+impl Eq for LocationStaturation {}
+
+impl Hash for LocationStaturation {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.location.hash(state);
+    }
 }
 
 impl LocationStaturation {
-    fn new() -> Self {
+    fn new(location: RvVarLocation) -> Self {
         let color = Cell::new(0);
-        let staturation = Vec::new();
-        LocationStaturation { color, staturation }
+        let staturation = BinaryHeap::new();
+        LocationStaturation { color, staturation, location }
     }
 }
 
-impl PartialOrd for LocationStaturation {
-    fn partial_cmp(
-        &self,
-        other: &Self,
-    ) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for LocationStaturation {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.staturation.len().cmp(&other.staturation.len())
-    }
-}
-
+// impl PartialOrd for LocationStaturation {
+//     fn partial_cmp(
+//         &self,
+//         other: &Self,
+//     ) -> Option<std::cmp::Ordering> {
+//         Some(self.cmp(other))
+//     }
+// }
+//
+// impl Ord for LocationStaturation {
+//     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+//         self.staturation.len().cmp(&other.staturation.len())
+//     }
+// }
+// todo: 复用 RvVarLocationGraph
 struct RvVarLocationStaturationGraph {
     graph: UnGraph<RvVarLocation, RvVarLocation>,
     location_nodes: HashMap<RvVarLocation, NodeIndex>,
     location_staturation_map:
         HashMap<RvVarLocation, LocationStaturation>,
+    location_staturation_queue:
+        PriorityQueue<LocationStaturation, usize>,
 }
 
 impl RvVarLocationStaturationGraph {
-    fn new(location_graph: &RvVarLocationGraph) -> Self {
+    pub fn new() -> Self {
         let graph =
             UnGraph::<RvVarLocation, RvVarLocation>::new_undirected();
         let location_nodes = HashMap::new();
         let location_staturation_map = HashMap::new();
+        let location_staturation_queue = PriorityQueue::new();
         RvVarLocationStaturationGraph {
             graph,
             location_nodes,
             location_staturation_map,
+            location_staturation_queue,
         }
     }
 
@@ -240,9 +258,31 @@ impl RvVarLocationStaturationGraph {
     ) -> NodeIndex {
         let node_idx = self.graph.add_node(location.clone());
         self.location_nodes.insert(location.clone(), node_idx);
-        let ls = LocationStaturation::new();
-        self.location_staturation_map.insert(location.clone(), ls);
+        let ls = LocationStaturation::new(location.clone());
+        self.location_staturation_map
+            .insert(location.clone(), ls.clone());
+        let color = ls.color.get();
+        if color == 0 {
+            let priority = ls.staturation.len();
+            self.location_staturation_queue.push(ls, priority);
+        }
         node_idx
+    }
+
+    fn neighbors(
+        &self,
+        location: &RvVarLocation,
+    ) -> Vec<RvVarLocation> {
+        if let Some(idx) = self.location_nodes.get(location) {
+            let mut neighbors = Vec::new();
+            for adj_idx in self.graph.neighbors(*idx) {
+                neighbors.push(self.graph[adj_idx].clone());
+            }
+
+            neighbors
+        } else {
+            Vec::new()
+        }
     }
 
     fn link(
@@ -288,12 +328,30 @@ impl RvVarLocationStaturationGraph {
         if color1 != 0 {
             self.add_staturation(location2, color1);
         }
+        if color1 == 0 {
+            if let Some(ls) =
+                self.location_staturation_map.get(location1)
+            {
+                let priority = ls.staturation.len();
+                self.location_staturation_queue
+                    .change_priority(ls, priority);
+            }
+        }
         if color2 != 0 {
             self.add_staturation(location1, color2);
         }
+        if color2 == 0 {
+            if let Some(ls) =
+                self.location_staturation_map.get(location2)
+            {
+                let priority = ls.staturation.len();
+                self.location_staturation_queue
+                    .change_priority(ls, priority);
+            }
+        }
     }
 
-    fn init(&mut self, location_graph: &RvVarLocationGraph) {
+    pub fn init(&mut self, location_graph: &RvVarLocationGraph) {
         // 初始化不能分配的x寄存器的saturation和color
         let non_allocatable = non_allocatable_xregs();
         let non_allocatable_xregs_color =
@@ -350,10 +408,41 @@ fn non_allocatable_xregs_color() -> HashMap<RvVarLocation, Color> {
 
 fn color_graph(
     graph: &RvVarLocationGraph,
-    xvars: Vec<Variable>,
-    fvars: Vec<Variable>,
-) -> (HashMap<Variable, Color>, HashMap<Variable, Color>) {
-    todo!()
+) -> HashMap<RvVarLocation, Color> {
+    let mut location_staturation_graph =
+        RvVarLocationStaturationGraph::new();
+    location_staturation_graph.init(graph);
+    let mut queue =
+        location_staturation_graph.location_staturation_queue.clone();
+    while !queue.is_empty() {
+        if let Some((mut location_staturation, _)) = queue.pop() {
+            assert!(location_staturation.color.get() == 0);
+
+            let location = location_staturation.location;
+            let mut location_color = 1;
+            if let Some(color) =
+                location_staturation.staturation.pop()
+            {
+                location_color = color + 1;
+            }
+
+            location_staturation_graph
+                .set_color(&location, location_color);
+            for neighbor in
+                location_staturation_graph.neighbors(&location)
+            {
+                location_staturation_graph
+                    .add_staturation(&neighbor, location_color);
+            }
+        }
+    }
+    let mut color_map = HashMap::<RvVarLocation, Color>::new();
+    for (location, location_staturation) in
+        location_staturation_graph.location_staturation_map
+    {
+        color_map.insert(location, location_staturation.color.get());
+    }
+    color_map
 }
 
 pub fn allocate_registers() {
