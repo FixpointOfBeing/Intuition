@@ -227,10 +227,8 @@ impl LocationStaturation {
 //         self.staturation.len().cmp(&other.staturation.len())
 //     }
 // }
-// todo: 复用 RvVarLocationGraph
 struct RvVarLocationStaturationGraph {
-    graph: UnGraph<RvVarLocation, RvVarLocation>,
-    location_nodes: HashMap<RvVarLocation, NodeIndex>,
+    location_graph: RvVarLocationGraph,
     location_staturation_map:
         HashMap<RvVarLocation, LocationStaturation>,
     location_staturation_queue:
@@ -239,14 +237,11 @@ struct RvVarLocationStaturationGraph {
 
 impl RvVarLocationStaturationGraph {
     pub fn new() -> Self {
-        let graph =
-            UnGraph::<RvVarLocation, RvVarLocation>::new_undirected();
-        let location_nodes = HashMap::new();
+        let graph = RvVarLocationGraph::new();
         let location_staturation_map = HashMap::new();
         let location_staturation_queue = PriorityQueue::new();
         RvVarLocationStaturationGraph {
-            graph,
-            location_nodes,
+            location_graph: graph,
             location_staturation_map,
             location_staturation_queue,
         }
@@ -256,8 +251,8 @@ impl RvVarLocationStaturationGraph {
         &mut self,
         location: &RvVarLocation,
     ) -> NodeIndex {
-        let node_idx = self.graph.add_node(location.clone());
-        self.location_nodes.insert(location.clone(), node_idx);
+        let node_idx = self.location_graph.ungraph.add_node(location.clone());
+        self.location_graph.location_nodes.insert(location.clone(), node_idx);
         let ls = LocationStaturation::new(location.clone());
         self.location_staturation_map
             .insert(location.clone(), ls.clone());
@@ -273,16 +268,7 @@ impl RvVarLocationStaturationGraph {
         &self,
         location: &RvVarLocation,
     ) -> Vec<RvVarLocation> {
-        if let Some(idx) = self.location_nodes.get(location) {
-            let mut neighbors = Vec::new();
-            for adj_idx in self.graph.neighbors(*idx) {
-                neighbors.push(self.graph[adj_idx].clone());
-            }
-
-            neighbors
-        } else {
-            Vec::new()
-        }
+        self.location_graph.neighbors(location)
     }
 
     fn link(
@@ -294,19 +280,19 @@ impl RvVarLocationStaturationGraph {
             return;
         }
 
-        let node1 = match self.location_nodes.get(location1) {
+        let node1 = match self.location_graph.location_nodes.get(location1) {
             Some(idx) => *idx,
             None => self.add_location(location1),
         };
-        let node2 = match self.location_nodes.get(location1) {
+        let node2 = match self.location_graph.location_nodes.get(location1) {
             Some(idx) => *idx,
             None => self.add_location(location2),
         };
         let edge_location_name =
             format!("{}<->{}", location1, location2);
 
-        if !self.graph.contains_edge(node1, node2) {
-            self.graph.add_edge(
+        if !self.location_graph.ungraph.contains_edge(node1, node2) {
+            self.location_graph.ungraph.add_edge(
                 node1,
                 node2,
                 RvVarLocation::Dummy(edge_location_name),
