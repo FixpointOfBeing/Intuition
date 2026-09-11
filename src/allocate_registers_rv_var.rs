@@ -1,4 +1,4 @@
-use crate::liveness_rv_var::{RvVarBasicBlockLiveness, RvVarInstrLiveness, liveness_analysis};
+use crate::liveness_rv_var::{RvVarBasicBlockLiveness, liveness_analysis};
 use crate::riscv::{FReg, XReg};
 use crate::riscv_var::RvVarBasicBlock;
 use crate::riscv_var::RvVarInstr;
@@ -50,15 +50,7 @@ impl RvVarLocationGraph {
 
         let node1 = self.location_nodes[location1];
         let node2 = self.location_nodes[location2];
-        // let node1 = match self.location_nodes.get(location1) {
-        //     Some(idx) => idx.clone(),
-        //     None => self.add_location(location1),
-        // };
-        //
-        // let node2 = match self.location_nodes.get(location2) {
-        //     Some(idx) => idx.clone(),
-        //     None => self.add_location(location2),
-        // };
+
         let edge_location_name = format!("{}<->{}", location1, location2);
 
         if !self.ungraph.contains_edge(node1, node2) {
@@ -144,12 +136,6 @@ fn interfere_block_live_in(
 ) {
     let live_in: Vec<RvVarLocation> = block.live_in.iter().cloned().collect();
     for (i, loc0) in live_in.iter().enumerate() {
-        // if is_x_location(loc0) && loc0 != &RvVarLocation::XReg(XReg::ZERO) {
-        //     x_graph.add_location(loc0);
-        // }
-        // if is_float_location(loc0) {
-        //     f_graph.add_location(loc0);
-        // }
         for loc1 in &live_in[i + 1..] {
             if is_x_location(loc0) && is_x_location(loc1) {
                 x_graph.interfere(loc0, loc1);
@@ -179,20 +165,14 @@ fn add_write_live_edge(
             return;
         }
         if is_x_location(&write) {
-            // x_graph.add_location(&write);
             for live in live_after {
                 if is_x_location(live) {
-                    // if live != &RvVarLocation::XReg(XReg::ZERO) {
-                    //     x_graph.add_location(&live);
-                    // }
                     x_graph.interfere(&write, live);
                 }
             }
         } else if is_float_location(&write) {
-            // f_graph.add_location(&write);
             for live in live_after {
                 if is_float_location(live) {
-                    // f_graph.add_location(&live);
                     f_graph.interfere(&write, live);
                 }
             }
@@ -592,12 +572,12 @@ pub fn allocate_registers(var_prog: RvVarProgram) -> RvVarProgram {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::liveness_rv_var::RvVarInstrLiveness;
     use crate::riscv::rv64imfd_instr::Rm;
-    use crate::riscv::rv64imfd_reg::{FReg, XReg};
-    use crate::riscv_var::instruction::RvVarInstr;
+    use crate::riscv::{FReg, XReg};
+    use crate::riscv_var::RvVarInstr;
     use crate::riscv_var::location::{fvar, var, x0};
     use std::collections::{HashMap, HashSet};
-
     type Graph = UnGraph<RvVarLocation, RvVarLocation>;
 
     fn ivar(name: &str) -> RvVarLocation {
