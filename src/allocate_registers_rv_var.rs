@@ -48,15 +48,17 @@ impl RvVarLocationGraph {
             return;
         }
 
-        let node1 = match self.location_nodes.get(location1) {
-            Some(idx) => idx.clone(),
-            None => self.add_location(location1),
-        };
-
-        let node2 = match self.location_nodes.get(location2) {
-            Some(idx) => idx.clone(),
-            None => self.add_location(location2),
-        };
+        let node1 = self.location_nodes[location1];
+        let node2 = self.location_nodes[location2];
+        // let node1 = match self.location_nodes.get(location1) {
+        //     Some(idx) => idx.clone(),
+        //     None => self.add_location(location1),
+        // };
+        //
+        // let node2 = match self.location_nodes.get(location2) {
+        //     Some(idx) => idx.clone(),
+        //     None => self.add_location(location2),
+        // };
         let edge_location_name = format!("{}<->{}", location1, location2);
 
         if !self.ungraph.contains_edge(node1, node2) {
@@ -83,16 +85,39 @@ impl RvVarLocationGraph {
     }
 }
 
+fn dest_and_lives(block: &RvVarBasicBlockLiveness) -> HashSet<RvVarLocation> {
+    let mut locs = HashSet::<RvVarLocation>::new();
+    for instr in &block.instrs {
+        locs.extend(instr.live_before.clone());
+        if let Some(dest) = instr.instr.dest_location() {
+            locs.insert(dest);
+        }
+    }
+    for loc in &block.live_in {
+        locs.insert(loc.clone());
+    }
+    locs
+}
+
 // todo:
 /*
 *死定义（dead def）会产生多余干涉边
  一个定义后从不再被用的变量，仍会与它的 live-in 操作数连边。这不会导致错误代码，但会过度约束 → 可能多 spill，降低着色质量。可先做死代码消除，或对「不在任何后续 live 集合里的 def」跳过
 */
-
 pub fn build_infer_graph(block: &RvVarBasicBlockLiveness) -> (RvVarLocationGraph, RvVarLocationGraph) {
     let mut x_graph = RvVarLocationGraph::new();
     let mut f_graph = RvVarLocationGraph::new();
 
+    // 每个定义都登记为节点，即使没有任何干涉边（如死定义），
+    // 否则 color_one_class 会漏掉它，后续 location_to_reg 查不到颜色。
+    for loc in dest_and_lives(block) {
+        if is_x_location(&loc) && loc != RvVarLocation::XReg(XReg::ZERO) {
+            x_graph.add_location(&loc);
+        }
+        if is_float_location(&loc) {
+            f_graph.add_location(&loc);
+        }
+    }
     // block的live-in在入口处同时存活，必须两两分到不同寄存器
     // 这里也保证了「同一riscv指令两个 source 必须不同」
     // 它本质是「同时存活 ⇒ 干涉」的一个推论，而不是独立规则。设两个 source 是 s1、s2，某指令 d = s1 op s2：
@@ -119,12 +144,12 @@ fn interfere_block_live_in(
 ) {
     let live_in: Vec<RvVarLocation> = block.live_in.iter().cloned().collect();
     for (i, loc0) in live_in.iter().enumerate() {
-        if is_x_location(loc0) && loc0 != &RvVarLocation::XReg(XReg::ZERO) {
-            x_graph.add_location(loc0);
-        }
-        if is_float_location(loc0) {
-            f_graph.add_location(loc0);
-        }
+        // if is_x_location(loc0) && loc0 != &RvVarLocation::XReg(XReg::ZERO) {
+        //     x_graph.add_location(loc0);
+        // }
+        // if is_float_location(loc0) {
+        //     f_graph.add_location(loc0);
+        // }
         for loc1 in &live_in[i + 1..] {
             if is_x_location(loc0) && is_x_location(loc1) {
                 x_graph.interfere(loc0, loc1);
@@ -154,22 +179,20 @@ fn add_write_live_edge(
             return;
         }
         if is_x_location(&write) {
-            // 每个定义都登记为节点，即使没有任何干涉边（如死定义），
-            // 否则 color_one_class 会漏掉它，后续 location_to_reg 查不到颜色。
-            x_graph.add_location(&write);
+            // x_graph.add_location(&write);
             for live in live_after {
                 if is_x_location(live) {
-                    if live != &RvVarLocation::XReg(XReg::ZERO) {
-                        x_graph.add_location(&live);
-                    }
+                    // if live != &RvVarLocation::XReg(XReg::ZERO) {
+                    //     x_graph.add_location(&live);
+                    // }
                     x_graph.interfere(&write, live);
                 }
             }
         } else if is_float_location(&write) {
-            f_graph.add_location(&write);
+            // f_graph.add_location(&write);
             for live in live_after {
                 if is_float_location(live) {
-                    f_graph.add_location(&live);
+                    // f_graph.add_location(&live);
                     f_graph.interfere(&write, live);
                 }
             }
@@ -677,7 +700,7 @@ mod tests {
             RvVarInstr::Add { rd: x0(), rs1: ivar("a"), rs2: ivar("b") },
             &[ivar("a"), ivar("b")],
         )]);
-        assert_eq!(g.node_count(), 0);
+        assert_eq!(g.node_count(), 2);
         assert_eq!(g.edge_count(), 0);
     }
 
@@ -824,6 +847,14 @@ mod tests {
     #[test]
     fn colors_interfering_vars_distinctly() {
         let mut g = RvVarLocationGraph::new();
+        let a = ivar("a");
+        let b = ivar("b");
+        let c = ivar("c");
+
+        g.add_location(&a);
+        g.add_location(&b);
+        g.add_location(&c);
+
         g.interfere(&ivar("a"), &ivar("b"));
         g.interfere(&ivar("b"), &ivar("c"));
         g.interfere(&ivar("a"), &ivar("c"));
@@ -840,7 +871,12 @@ mod tests {
     #[test]
     fn interfering_float_vars_get_distinct_colors() {
         let mut f = RvVarLocationGraph::new();
-        f.interfere(&fv("a"), &fv("b"));
+        let a = fv("a");
+        let b = fv("b");
+        f.add_location(&a);
+        f.add_location(&b);
+
+        f.interfere(&a, &b);
         let empty = RvVarLocationGraph::new();
         let (_, f_colors) = color_graph(&empty, &f);
         assert_ne!(f_colors[&fv("a")], f_colors[&fv("b")]);
@@ -850,7 +886,12 @@ mod tests {
     fn var_avoids_precolored_physical_register() {
         // t0 的预着色是 color 1，变量必须避开，否则会被分到 t0 与 live 的 t0 冲突。
         let mut g = RvVarLocationGraph::new();
-        g.interfere(&ivar("a"), &RvVarLocation::XReg(XReg::T0));
+        let a = ivar("a");
+        let t0 = RvVarLocation::XReg(XReg::T0);
+        g.add_location(&a);
+        g.add_location(&t0);
+
+        g.interfere(&a, &t0);
         let empty = RvVarLocationGraph::new();
         let (x_colors, _) = color_graph(&g, &empty);
         assert_ne!(x_colors[&ivar("a")], 1);
@@ -860,7 +901,12 @@ mod tests {
     fn float_var_avoids_precolored_physical_register() {
         // ft0 的预着色是 color 1，变量必须避开。
         let mut f = RvVarLocationGraph::new();
-        f.interfere(&fv("a"), &RvVarLocation::FReg(FReg::FT0));
+        let a = fv("a");
+        let ft0 = RvVarLocation::FReg(FReg::FT0);
+        f.add_location(&a);
+        f.add_location(&ft0);
+
+        f.interfere(&a, &ft0);
         let empty = RvVarLocationGraph::new();
         let (_, f_colors) = color_graph(&empty, &f);
         assert_ne!(f_colors[&fv("a")], 1);
@@ -917,7 +963,11 @@ mod tests {
         let mut g = RvVarLocationGraph::new();
         for i in 0..27 {
             for j in (i + 1)..27 {
-                g.interfere(&ivar(&format!("v{i}")), &ivar(&format!("v{j}")));
+                let vi = ivar(&format!("v{i}"));
+                let vj = ivar(&format!("v{j}"));
+                g.add_location(&vi);
+                g.add_location(&vj);
+                g.interfere(&vi, &vj);
             }
         }
         let empty = RvVarLocationGraph::new();
@@ -942,7 +992,11 @@ mod tests {
         let mut f = RvVarLocationGraph::new();
         for i in 0..33 {
             for j in (i + 1)..33 {
-                f.interfere(&fv(&format!("v{i}")), &fv(&format!("v{j}")));
+                let vi = fv(&format!("v{i}"));
+                let vj = fv(&format!("v{j}"));
+                f.add_location(&vi);
+                f.add_location(&vj);
+                f.interfere(&vi, &vj);
             }
         }
         let empty = RvVarLocationGraph::new();
@@ -966,7 +1020,11 @@ mod tests {
     fn var_avoids_live_argument_register() {
         // 参数常驻 a0 等物理寄存器，变量与之干涉时必须避开其颜色。
         let mut g = RvVarLocationGraph::new();
-        g.interfere(&ivar("a"), &RvVarLocation::XReg(XReg::A0));
+        let a = ivar("a");
+        let a0 = RvVarLocation::XReg(XReg::A0);
+        g.add_location(&a);
+        g.add_location(&a0);
+        g.interfere(&a, &a0);
         let empty = RvVarLocationGraph::new();
         let (x_colors, _) = color_graph(&g, &empty);
         assert_ne!(color_to_xreg(x_colors[&ivar("a")] as u8), XReg::A0);
@@ -976,7 +1034,12 @@ mod tests {
     fn var_interfering_with_non_allocatable_reg_gets_register() {
         // 与不可分配的物理寄存器（sp 等）干涉不应 panic，也不应把变量挤出寄存器。
         let mut g = RvVarLocationGraph::new();
-        g.interfere(&ivar("a"), &RvVarLocation::XReg(XReg::SP));
+        let a = ivar("a");
+        let sp = RvVarLocation::XReg(XReg::SP);
+        g.add_location(&a);
+        g.add_location(&sp);
+
+        g.interfere(&a, &sp);
         let empty = RvVarLocationGraph::new();
         let (x_colors, _) = color_graph(&g, &empty);
         let color = x_colors[&ivar("a")];
@@ -986,7 +1049,12 @@ mod tests {
     #[test]
     fn non_interfering_vars_share_a_register() {
         let mut g = RvVarLocationGraph::new();
-        g.interfere(&ivar("a"), &ivar("b"));
+        let a = ivar("a");
+        let b = ivar("b");
+        g.add_location(&a);
+        g.add_location(&b);
+
+        g.interfere(&a, &b);
         g.add_location(&ivar("c")); // c 与 a、b 均不干涉
         let empty = RvVarLocationGraph::new();
         let (x_colors, _) = color_graph(&g, &empty);
