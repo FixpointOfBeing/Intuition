@@ -512,4 +512,120 @@ mod tests {
             )
         );
     }
+    #[test]
+    fn test_nested_if_predicate() {
+        // let x = 10 in
+        // let y = 12 in
+        // if if x < 1 then x == 0 else x == 2
+        // then y + 2
+        // else y + 10
+        //
+        // --->
+        // let x = 10 in
+        // let y = 12 in
+        // let $0 = x < 1
+        // let $1 = if $0 then x == 0 else x == 2 in
+        // if $1 then y + 2 else y + 10
+        
+        let e = TypedExpr::Let(
+            "x".to_string(),
+            Type::Int,
+            Box::new(int(10)),
+            Box::new(TypedExpr::Let(
+                "y".to_string(),
+                Type::Int,
+                Box::new(int(12)),
+                Box::new(TypedExpr::If(
+                    Box::new(TypedExpr::If(
+                        Box::new(TypedExpr::BinOp(
+                            BinOp::Lt,
+                            Box::new(v("x", Type::Int)),
+                            Box::new(int(1)),
+                            Type::Bool,
+                        )),
+                        Box::new(TypedExpr::BinOp(
+                            BinOp::Eq,
+                            Box::new(v("x", Type::Int)),
+                            Box::new(int(0)),
+                            Type::Bool,
+                        )),
+                        Box::new(TypedExpr::BinOp(
+                            BinOp::Eq,
+                            Box::new(v("x", Type::Int)),
+                            Box::new(int(2)),
+                            Type::Bool,
+                        )),
+                        Type::Bool,
+                    )),
+                    Box::new(TypedExpr::BinOp(
+                        BinOp::Add,
+                        Box::new(v("y", Type::Int)),
+                        Box::new(int(2)),
+                        Type::Int,
+                    )),
+                    Box::new(TypedExpr::BinOp(
+                        BinOp::Add,
+                        Box::new(v("y", Type::Int)),
+                        Box::new(int(10)),
+                        Type::Int,
+                    )),
+                    Type::Int,
+                )),
+                Type::Int,
+            )),
+            Type::Int,
+        );
+        let anf = anf_convert(e);
+        let expected = AnfExpr::Let(
+            "x".to_string(),
+            CompExpr::Atom(AExpr::Int(10)),
+            Box::new(AnfExpr::Let(
+                "y".to_string(),
+                CompExpr::Atom(AExpr::Int(12)),
+                Box::new(AnfExpr::Let(
+                    "$0".to_string(),
+                    CompExpr::BinOp(
+                        BinOp::Lt,
+                        AExpr::Var("x".to_string(), Type::Int),
+                        AExpr::Int(1),
+                    ),
+                    Box::new(AnfExpr::Let(
+                        "$1".to_string(),
+                        CompExpr::If(
+                            AExpr::Var("$0".to_string(), Type::Bool),
+                            Box::new(AnfExpr::Complex(CompExpr::BinOp(
+                                BinOp::Eq,
+                                AExpr::Var("x".to_string(), Type::Int),
+                                AExpr::Int(0),
+                            ))),
+                            Box::new(AnfExpr::Complex(CompExpr::BinOp(
+                                BinOp::Eq,
+                                AExpr::Var("x".to_string(), Type::Int),
+                                AExpr::Int(2),
+                            ))),
+                        ),
+                        Box::new(AnfExpr::Complex(CompExpr::If(
+                            AExpr::Var("$1".to_string(), Type::Bool),
+                            Box::new(AnfExpr::Complex(CompExpr::BinOp(
+                                BinOp::Add,
+                                AExpr::Var("y".to_string(), Type::Int),
+                                AExpr::Int(2),
+                            ))),
+                            Box::new(AnfExpr::Complex(CompExpr::BinOp(
+                                BinOp::Add,
+                                AExpr::Var("y".to_string(), Type::Int),
+                                AExpr::Int(10),
+                            ))),
+                        ))),
+                    )),
+                )),
+            )),
+        );
+        assert_eq!(anf, expected);
+    }
+    
+    #[test]
+    fn test_nested_if_branch() {
+        todo!()
+    }
 }
