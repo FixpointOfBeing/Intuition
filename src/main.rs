@@ -19,6 +19,7 @@ pub mod syntax;
 pub mod typechecker;
 pub mod uniquify;
 pub mod wasm;
+pub mod shrink;
 
 use crate::compile::compile_file;
 use crate::eval::eval_file;
