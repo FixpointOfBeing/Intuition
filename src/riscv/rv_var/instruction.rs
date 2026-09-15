@@ -1,7 +1,7 @@
-use crate::riscv::rv64imfd_imm::{Imm12, Imm32LowZeroBits12, Shamt5, Shamt6};
-use crate::riscv::rv64imfd_instr::Rm;
-use crate::riscv::Label;
-use crate::riscv_var::location::{RvVarLocation, ra, zero};
+use crate::riscv::rv64imfd::rv64imfd_imm::{Imm12, Imm32LowZeroBits12, Shamt5, Shamt6};
+use crate::riscv::rv64imfd::rv64imfd_instr::Rm;
+use crate::riscv::rv64imfd::Label;
+use crate::riscv::rv_var::location::{RvVarLocation, ra, zero};
 use std::collections::HashSet;
 use std::{fmt, i64};
 
@@ -1882,7 +1882,7 @@ impl RvVarInstr {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::riscv_var::location::var;
+    use crate::riscv::rv_var::location::var;
 
     fn sext(v: i64, bits: u32) -> i64 {
         (v << (64 - bits)) >> (64 - bits)

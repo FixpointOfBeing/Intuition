@@ -1,5 +1,5 @@
-use crate::riscv::rv64imfd_imm::{Imm12, Imm13LowZeroBits1, Imm21LowZeroBits1, Imm32LowZeroBits12, Shamt5, Shamt6};
-use crate::riscv::rv64imfd_reg::{FReg, XReg};
+use crate::riscv::rv64imfd::rv64imfd_imm::{Imm12, Imm13LowZeroBits1, Imm21LowZeroBits1, Imm32LowZeroBits12, Shamt5, Shamt6};
+use crate::riscv::rv64imfd::rv64imfd_reg::{FReg, XReg};
 use std::fmt;
 
 /// 浮点舍入模式

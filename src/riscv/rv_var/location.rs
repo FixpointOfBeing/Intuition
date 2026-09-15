@@ -1,5 +1,5 @@
 use crate::{
-    riscv::rv64imfd_reg::{FReg, XReg},
+    riscv::rv64imfd::rv64imfd_reg::{FReg, XReg},
     syntax::Ident,
 };
 use std::fmt;

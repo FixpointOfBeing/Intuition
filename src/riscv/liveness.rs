@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-use crate::riscv::Label;
-use crate::riscv_var::{RvVarBasicBlock, RvVarInstr, RvVarLocation};
+use crate::riscv::rv64imfd::Label;
+use crate::riscv::rv_var::{RvVarBasicBlock, RvVarInstr, RvVarLocation};
 
 pub struct RvVarInstrLiveness {
     pub instr: RvVarInstr,
@@ -54,9 +54,9 @@ pub fn liveness_analysis(basic_block: &RvVarBasicBlock) -> RvVarBasicBlockLivene
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::riscv::rv64imfd_imm::Imm12;
-    use crate::riscv::rv64imfd_instr::Rm;
-    use crate::riscv_var::location::var;
+    use crate::riscv::rv64imfd::rv64imfd_imm::Imm12;
+    use crate::riscv::rv64imfd::rv64imfd_instr::Rm;
+    use crate::riscv::rv_var::location::var;
 
     fn loc(name: &str) -> RvVarLocation {
         var(name.to_string())
@@ -151,7 +151,7 @@ mod tests {
     fn lui_has_no_sources() {
         let bb = mk_bb(vec![RvVarInstr::Lui {
             rd: loc("a"),
-            imm: crate::riscv::rv64imfd_imm::Imm32LowZeroBits12::from_i32(0),
+            imm: crate::riscv::rv64imfd::rv64imfd_imm::Imm32LowZeroBits12::from_i32(0),
         }]);
         let result = analyze(&bb);
         assert_eq!(result.instrs[0].live_before, HashSet::new());

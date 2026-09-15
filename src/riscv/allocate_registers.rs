@@ -1,10 +1,10 @@
-use crate::liveness_rv_var::{RvVarBasicBlockLiveness, liveness_analysis};
-use crate::riscv::{FReg, XReg};
-use crate::riscv_var::RvVarBasicBlock;
-use crate::riscv_var::RvVarInstr;
-use crate::riscv_var::RvVarLocation;
-use crate::riscv_var::RvVarProgram;
-use crate::riscv_var::location::x;
+use crate::riscv::liveness::{RvVarBasicBlockLiveness, liveness_analysis};
+use crate::riscv::rv64imfd::{FReg, XReg};
+use crate::riscv::rv_var::RvVarBasicBlock;
+use crate::riscv::rv_var::RvVarInstr;
+use crate::riscv::rv_var::RvVarLocation;
+use crate::riscv::rv_var::RvVarProgram;
+use crate::riscv::rv_var::location::x;
 use petgraph::{graph::NodeIndex, graph::UnGraph};
 use priority_queue::PriorityQueue;
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -572,11 +572,11 @@ pub fn allocate_registers(var_prog: RvVarProgram) -> RvVarProgram {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::liveness_rv_var::RvVarInstrLiveness;
-    use crate::riscv::rv64imfd_instr::Rm;
-    use crate::riscv::{FReg, XReg};
-    use crate::riscv_var::RvVarInstr;
-    use crate::riscv_var::location::{fvar, var, x0};
+    use crate::riscv::liveness::RvVarInstrLiveness;
+    use crate::riscv::rv64imfd::rv64imfd_instr::Rm;
+    use crate::riscv::rv64imfd::{FReg, XReg};
+    use crate::riscv::rv_var::RvVarInstr;
+    use crate::riscv::rv_var::location::{fvar, var, x0};
     use std::collections::{HashMap, HashSet};
     type Graph = UnGraph<RvVarLocation, RvVarLocation>;
 
@@ -601,7 +601,7 @@ mod tests {
         live_in: &[RvVarLocation],
     ) -> (RvVarLocationGraph, RvVarLocationGraph) {
         let block = RvVarBasicBlockLiveness {
-            name: crate::riscv::Label::new("bb".to_string()),
+            name: crate::riscv::rv64imfd::Label::new("bb".to_string()),
             instrs,
             live_in: locs(live_in),
         };
@@ -780,7 +780,7 @@ mod tests {
 
     #[test]
     fn spills_to_stack_when_x_registers_exhausted() {
-        use crate::riscv::rv64imfd_imm::Imm12;
+        use crate::riscv::rv64imfd::rv64imfd_imm::Imm12;
 
         // 27 个同时活跃的整数变量构成 27 团，超过 26 个可分配 X 寄存器，必须溢出。
         let mut instrs = Vec::new();
@@ -794,7 +794,7 @@ mod tests {
         }
 
         let mut prog = RvVarProgram::new();
-        prog.append_basic_block(RvVarBasicBlock { name: crate::riscv::Label::new("bb".to_string()), instrs });
+        prog.append_basic_block(RvVarBasicBlock { name: crate::riscv::rv64imfd::Label::new("bb".to_string()), instrs });
 
         let allocated = allocate_registers(prog);
         let instrs = &allocated.blocks[0].instrs;
@@ -1046,7 +1046,7 @@ mod tests {
 
     #[test]
     fn allocate_registers_leaves_no_virtual_locations() {
-        use crate::riscv::rv64imfd_imm::Imm12;
+        use crate::riscv::rv64imfd::rv64imfd_imm::Imm12;
 
         /*   live-after: {x, y}
          * addi a, x0, 1
@@ -1065,7 +1065,7 @@ mod tests {
             RvVarInstr::FaddS { rd: fv("d"), rs1: fv("x"), rs2: fv("y"), rm: Rm::Rne },
         ];
         let mut prog = RvVarProgram::new();
-        prog.append_basic_block(RvVarBasicBlock { name: crate::riscv::Label::new("bb".to_string()), instrs });
+        prog.append_basic_block(RvVarBasicBlock { name: crate::riscv::rv64imfd::Label::new("bb".to_string()), instrs });
 
         let allocated = allocate_registers(prog);
         for instr in &allocated.blocks[0].instrs {

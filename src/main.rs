@@ -1,25 +1,20 @@
 // pub mod compile_llvm;
 pub mod a_normal_form;
-pub mod allocate_registers_rv_var;
 pub mod closure_conversion;
-pub mod compile;
 pub mod env;
 pub mod eval;
 pub mod explicate_control;
 pub mod gensym;
 pub mod llvm;
-pub mod liveness_rv_var;
 pub mod repl;
 pub mod riscv;
-pub mod riscv_var;
-pub mod select_instructions;
 pub mod syntax;
 pub mod typechecker;
 pub mod uniquify;
 pub mod wasm;
 pub mod shrink;
 
-use crate::compile::compile_file;
+use crate::riscv::compile::compile_file;
 use crate::eval::eval_file;
 use crate::repl::repl;
 use clap::{Parser, Subcommand};

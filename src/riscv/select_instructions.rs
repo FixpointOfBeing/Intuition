@@ -1,8 +1,8 @@
 use crate::{
     explicate_control::{CAtom, CExpr, CStmt, CTail},
     gensym::Gensym,
-    riscv::rv64imfd_instr::Rm,
-    riscv_var::{
+    riscv::rv64imfd::rv64imfd_instr::Rm,
+    riscv::rv_var::{
         basicblock::RvVarBasicBlock,
         instruction::{RvVarInstr, fmv_d, fneg_d, li, mv, seqz, snez},
         location::{RvVarLocation, a0, fa0, ft0, ft1, ra, t0, t1, x0, zero},
@@ -11,8 +11,8 @@ use crate::{
     syntax::{BinOp, Type, UnaryOp},
 };
 
-use crate::riscv::Label;
-use crate::riscv::Imm12;
+use crate::riscv::rv64imfd::Label;
+use crate::riscv::rv64imfd::Imm12;
 
 fn bool_not(rd: RvVarLocation, rs1: RvVarLocation) -> RvVarInstr {
     RvVarInstr::Xori { rd, rs1: rs1, imm: Imm12::from_i16(1) }
