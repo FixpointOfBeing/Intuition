@@ -4,6 +4,9 @@ use crate::{
     syntax::{BinOp, Ident, Type, UnaryOp},
 };
 
+/*
+ * For the integers and variables, we needed assignment and tail positions. The if expressions introduced predicate positions. For While , the begin expression introduces yet another kind of position: effect position.
+ */
 #[derive(Debug, Clone, PartialEq)]
 pub enum CAtom {
     Unit,

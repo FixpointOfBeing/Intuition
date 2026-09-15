@@ -2,6 +2,9 @@ use crate::gensym::Gensym;
 use crate::syntax::{BinOp, Ident, Type, UnaryOp};
 use crate::typechecker::TypedExpr;
 
+/*
+ * an atomic expression ends up as an immediate argument of an assembly instruction
+ */
 #[derive(Debug, Clone, PartialEq)]
 pub enum AExpr {
     Unit,
