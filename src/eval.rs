@@ -38,6 +38,10 @@ pub fn eval(env: &Env, expr: &Expr) -> EvalResult {
             todo!()
         },
 
+        Expr::PrimIO(prim_io) => {
+          todo!() 
+        },
+
         Expr::UnaryOp(op, e) => {
             let v = eval(env, e)?;
             eval_unary(op, v)

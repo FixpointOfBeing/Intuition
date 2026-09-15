@@ -136,6 +136,9 @@ fn infer(ctx: &Context, expr: Expr) -> Result<(Type, TypedExpr), TypeError> {
             // Ok((tuple_ty.clone(), TypedExpr::Tuple(typed_exprs, tuple_ty)))
         },
         
+        Expr::PrimIO(prim_io) => {
+            todo!()
+        },
         Expr::UnaryOp(op, operand) => {
             let (ty, typed_operand) = infer(ctx, *operand)?;
             match op {

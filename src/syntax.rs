@@ -19,6 +19,7 @@ pub enum Expr {
     Float(f64),
     Var(Ident),
     Tuple(Vec<Expr>),
+    PrimIO(PrimIO),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
     UnaryOp(UnaryOp, Box<Expr>),
     Ann(Box<Expr>, Type),
@@ -33,6 +34,15 @@ pub enum Expr {
     ),
     App(Box<Expr>, Vec<Expr>),
     Lambda(Vec<(Ident, Type)>, Option<Type>, Box<Expr>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum PrimIO {
+    PrintInt(Box<Expr>),
+    PrintFloat(Box<Expr>),
+    PrintBool(Box<Expr>),
+    ReadInt,
+    ReadFloat,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -171,6 +181,9 @@ impl std::fmt::Display for Expr {
                     .collect::<Vec<String>>()
                     .join(", ");
                 write!(f, "({})", exprs_str)
+            },
+            Expr::PrimIO(prim_io) => {
+                todo!()
             },
             Expr::BinOp(op, left, right) => {
                 write!(f, "({} {} {})", left, op, right)
@@ -356,6 +369,36 @@ mod tests {
     fn test_parse_var() {
         let expr = parser::ExprParser::new().parse("foo").unwrap();
         assert_eq!(*expr, Expr::Var("foo".to_string()));
+    }
+
+    #[test]
+    fn test_parse_read_int() {
+        let expr = parser::ExprParser::new().parse("read_int ()").unwrap();
+        assert_eq!(*expr, Expr::PrimIO(PrimIO::ReadInt));
+    }
+
+    #[test]
+    fn test_parse_print_int() {
+        let expr = parser::ExprParser::new().parse("print_int 42").unwrap();
+        assert_eq!(*expr, Expr::PrimIO(PrimIO::PrintInt(Box::new(Expr::Int(42)))));
+    }
+
+    #[test]
+    fn test_parse_read_float() {
+        let expr = parser::ExprParser::new().parse("read_float ()").unwrap();
+        assert_eq!(*expr, Expr::PrimIO(PrimIO::ReadFloat));
+    }
+
+    #[test]
+    fn test_parse_print_float() {
+        let expr = parser::ExprParser::new().parse("print_float 3.14").unwrap();
+        assert_eq!(*expr, Expr::PrimIO(PrimIO::PrintFloat(Box::new(Expr::Float(3.14)))));
+    }
+
+    #[test]
+    fn test_parse_print_bool() {
+        let expr = parser::ExprParser::new().parse("print_bool true").unwrap();
+        assert_eq!(*expr, Expr::PrimIO(PrimIO::PrintBool(Box::new(Expr::Bool(true)))));
     }
 
     #[test]
@@ -719,23 +762,39 @@ mod tests {
 
     #[test]
     fn test_parse_if_nested() {
-        let expr = parser::ExprParser::new()
-            .parse("if true then if false then 1 else 2 else 3")
-            .unwrap();
+        let source = r#"
+            if read_int () > 0 then
+                if read_int () < 10 then 1 else 2
+            else
+                3
+        "#;
+        let expr = parser::ExprParser::new().parse(source).unwrap();
         match *expr {
             Expr::If(cond, then_branch, else_branch) => {
-                assert_eq!(*cond, Expr::Bool(true));
-                assert_eq!(*else_branch, Expr::Int(3));
+                match *cond {
+                    Expr::BinOp(BinOp::Gt, left, right) => {
+                        assert_eq!(*left, Expr::PrimIO(PrimIO::ReadInt));
+                        assert_eq!(*right, Expr::Int(0));
+                    },
+                    _ => panic!("Expected BinOp in condition"),
+                }
                 match *then_branch {
                     Expr::If(inner_cond, inner_then, inner_else) => {
-                        assert_eq!(*inner_cond, Expr::Bool(false));
+                        match *inner_cond {
+                            Expr::BinOp(BinOp::Lt, left, right) => {
+                                assert_eq!(*left, Expr::PrimIO(PrimIO::ReadInt));
+                                assert_eq!(*right, Expr::Int(10));
+                            },
+                            _ => panic!("Expected BinOp in inner condition"),
+                        }
                         assert_eq!(*inner_then, Expr::Int(1));
                         assert_eq!(*inner_else, Expr::Int(2));
                     },
-                    _ => panic!("Expected nested If"),
+                    _ => panic!("Expected inner If in then branch"),
                 }
+                assert_eq!(*else_branch, Expr::Int(3));
             },
-            _ => panic!("Expected Expr::If"),
+            _ => panic!("Expected outer If"),
         }
     }
 
@@ -811,18 +870,30 @@ mod tests {
     #[test]
     fn test_parse_program() {
         let source = r#"
-        let x: Int = 42;
-        let y: Bool = true;
-        let add (a: Int) (b: Int) : Int = a + b;
-        if x then add x 1 else add x (-1)
+            let x: Int = read_int ();
+            let y: Bool = true;
+            let add (a: Int) (b: Int) : Int = a + b;
+            
+            if x == 42 then add x 1 else add x (-1)
         "#;
 
         let program = parser::ProgramParser::new().parse(source).unwrap();
         assert_eq!(program.defs.len(), 3);
+        assert_eq!(program.defs[0], Def::ValDef("x".to_string(), Some(Type::Int), Expr::PrimIO(PrimIO::ReadInt)));
+        assert_eq!(program.defs[1], Def::ValDef("y".to_string(), Some(Type::Bool), Expr::Bool(true)));
+        assert_eq!(
+            program.defs[2],
+            Def::FunDef(
+                "add".to_string(),
+                vec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)],
+                Some(Type::Int),
+                Expr::BinOp(BinOp::Add, Box::new(Expr::Var("a".to_string())), Box::new(Expr::Var("b".to_string())))
+            )
+        );
         assert_eq!(
             program.main,
             Expr::If(
-                Box::new(Expr::Var("x".to_string())),
+                Box::new(Expr::BinOp(BinOp::Eq, Box::new(Expr::Var("x".to_string())), Box::new(Expr::Int(42)))),
                 Box::new(Expr::App(
                     Box::new(Expr::Var("add".to_string())),
                     vec![Expr::Var("x".to_string()), Expr::Int(1)]
