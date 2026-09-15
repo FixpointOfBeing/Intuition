@@ -1,10 +1,11 @@
 use std::collections::HashSet;
 
-use crate::intu_ir::basicblock::BasicBlock;
-use crate::intu_ir::operand::Operand;
+use crate::llvm::ir::BasicBlock;
+use crate::llvm::ir::Operand;
 
-use crate::intu_ir::terminator::Terminator;
-use crate::intu_ir::{instruction::Instruction, name::Name};
+use crate::llvm::ir::Terminator;
+use crate::llvm::ir::Instruction;
+use crate::llvm::ir::Name;
 
 pub struct IntuInstru {
     pub instr: Instruction,
@@ -344,8 +345,9 @@ fn write_instr(instr: &Instruction, live: &mut HashSet<Name>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::intu_ir::constant::{Constant, ConstantRef};
-    use crate::intu_ir::types::Types;
+    use crate::llvm::ir::ConstantRef;
+    use crate::llvm::ir::Constant ;
+    use crate::llvm::ir::Types;
 
     fn mk_local(name: &str) -> Operand {
         Operand::LocalOperand { name: Name::Name(name.into()), ty: Types::new().i32() }

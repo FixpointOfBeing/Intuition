@@ -1,6 +1,9 @@
-use crate::intu_ir::name::Name;
-use crate::intu_ir::operand::Operand;
-use crate::intu_ir::types::{InstType, TypeRef, Typed, Types};
+use crate::llvm::ir::Name;
+use crate::llvm::ir::Operand;
+use crate::llvm::ir::InstType ;
+use crate::llvm::ir::TypeRef;
+use crate::llvm::ir:: Typed;
+use crate::llvm::ir:: Types;
 use std::fmt::Debug;
 
 ///

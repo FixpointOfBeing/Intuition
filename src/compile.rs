@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use crate::{
     a_normal_form::anf_convert,
     closure_conversion::{ClosFnDef, closure_convert},
-    emit_llvm::emit_module,
     explicate_control::explicate_control_convert,
     uniquify::uniquify_convert,
 };
@@ -49,17 +48,17 @@ pub fn compile_file(file_path: &Path, output: &Option<PathBuf>) -> Result<(), St
         .map(|d| (d.clone(), explicate_control_convert(d.body.clone())))
         .collect();
 
-    // Emit LLVM
-    let module = emit_module(body_ctail, return_ty, module_name, source_file_name, &fn_ctails);
-
-    match output {
-        Some(output_path) => {
-            module.print_to_file(output_path).map_err(|e| e.to_string())?;
-        },
-        None => {
-            println!("{:?}", module);
-            println!("{}", module.to_string());
-        },
-    }
+    // // Emit LLVM
+    // let module = emit_module(body_ctail, return_ty, module_name, source_file_name, &fn_ctails);
+    //
+    // match output {
+    //     Some(output_path) => {
+    //         module.print_to_file(output_path).map_err(|e| e.to_string())?;
+    //     },
+    //     None => {
+    //         println!("{:?}", module);
+    //         println!("{}", module.to_string());
+    //     },
+    // }
     Ok(())
 }

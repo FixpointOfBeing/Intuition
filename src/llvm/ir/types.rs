@@ -1,4 +1,4 @@
-use crate::intu_ir::module::AddrSpace;
+use crate::llvm::ir::AddrSpace;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;

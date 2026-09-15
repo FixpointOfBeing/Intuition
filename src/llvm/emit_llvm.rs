@@ -1,23 +1,23 @@
 // use either::Either;
 // use std::collections::HashMap;
-// use crate::intu_ir::module::Module;
+// use crate::llvm::module::Module;
 // use crate::syntax::Type;
 
 // use crate::closure_conversion::ClosFnDef;
 // use crate::explicate_control::{CAtom, CExpr, CStmt, CTail};
 // use crate::gensym::Gensym;
-// use crate::intu_ir::basicblock::BasicBlock;
-// use crate::intu_ir::constant::{Constant, ConstantRef, Float};
-// use crate::intu_ir::function::{
+// use crate::llvm::basicblock::BasicBlock;
+// use crate::llvm::constant::{Constant, ConstantRef, Float};
+// use crate::llvm::function::{
 //      Function, FunctionDeclaration, Parameter,
 
 // };
-// use crate::intu_ir::instruction::*;
-// use crate::intu_ir::module::*;
-// use crate::intu_ir::name::Name;
-// use crate::intu_ir::operand::Operand;
-// use crate::intu_ir::terminator::*;
-// use crate::intu_ir::types::{InstType, TypeRef, Types};
+// use crate::llvm::instruction::*;
+// use crate::llvm::module::*;
+// use crate::llvm::name::Name;
+// use crate::llvm::operand::Operand;
+// use crate::llvm::terminator::*;
+// use crate::llvm::types::{InstType, TypeRef, Types};
 // use crate::syntax::{BinOp, Ident, Type, UnaryOp};
 
 // pub fn emit_module(
@@ -519,7 +519,7 @@
 //             if is_float {
 //                 Instruction::FCmp(FCmp {
 //                     predicate:
-//                         crate::intu_ir::instruction::FPPredicate::OEQ,
+//                         crate::llvm::instruction::FPPredicate::OEQ,
 //                     operand0: left,
 //                     operand1: right,
 //                     dest,
@@ -527,7 +527,7 @@
 //             } else {
 //                 Instruction::ICmp(ICmp {
 //                     predicate:
-//                         crate::intu_ir::instruction::IntPredicate::EQ,
+//                         crate::llvm::instruction::IntPredicate::EQ,
 //                     operand0: left,
 //                     operand1: right,
 //                     dest,
@@ -538,7 +538,7 @@
 //             if is_float {
 //                 Instruction::FCmp(FCmp {
 //                     predicate:
-//                         crate::intu_ir::instruction::FPPredicate::ONE,
+//                         crate::llvm::instruction::FPPredicate::ONE,
 //                     operand0: left,
 //                     operand1: right,
 //                     dest,
@@ -546,7 +546,7 @@
 //             } else {
 //                 Instruction::ICmp(ICmp {
 //                     predicate:
-//                         crate::intu_ir::instruction::IntPredicate::NE,
+//                         crate::llvm::instruction::IntPredicate::NE,
 //                     operand0: left,
 //                     operand1: right,
 //                     dest,
@@ -557,7 +557,7 @@
 //             if is_float {
 //                 Instruction::FCmp(FCmp {
 //                     predicate:
-//                         crate::intu_ir::instruction::FPPredicate::OLT,
+//                         crate::llvm::instruction::FPPredicate::OLT,
 //                     operand0: left,
 //                     operand1: right,
 //                     dest,
@@ -565,7 +565,7 @@
 //             } else {
 //                 Instruction::ICmp(ICmp {
 //                     predicate:
-//                         crate::intu_ir::instruction::IntPredicate::SLT,
+//                         crate::llvm::instruction::IntPredicate::SLT,
 //                     operand0: left,
 //                     operand1: right,
 //                     dest,
@@ -576,7 +576,7 @@
 //             if is_float {
 //                 Instruction::FCmp(FCmp {
 //                     predicate:
-//                         crate::intu_ir::instruction::FPPredicate::OGT,
+//                         crate::llvm::instruction::FPPredicate::OGT,
 //                     operand0: left,
 //                     operand1: right,
 //                     dest,
@@ -584,7 +584,7 @@
 //             } else {
 //                 Instruction::ICmp(ICmp {
 //                     predicate:
-//                         crate::intu_ir::instruction::IntPredicate::SGT,
+//                         crate::llvm::instruction::IntPredicate::SGT,
 //                     operand0: left,
 //                     operand1: right,
 //                     dest,
@@ -595,7 +595,7 @@
 //             if is_float {
 //                 Instruction::FCmp(FCmp {
 //                     predicate:
-//                         crate::intu_ir::instruction::FPPredicate::OLE,
+//                         crate::llvm::instruction::FPPredicate::OLE,
 //                     operand0: left,
 //                     operand1: right,
 //                     dest,
@@ -603,7 +603,7 @@
 //             } else {
 //                 Instruction::ICmp(ICmp {
 //                     predicate:
-//                         crate::intu_ir::instruction::IntPredicate::SLE,
+//                         crate::llvm::instruction::IntPredicate::SLE,
 //                     operand0: left,
 //                     operand1: right,
 //                     dest,
@@ -614,7 +614,7 @@
 //             if is_float {
 //                 Instruction::FCmp(FCmp {
 //                     predicate:
-//                         crate::intu_ir::instruction::FPPredicate::OGE,
+//                         crate::llvm::instruction::FPPredicate::OGE,
 //                     operand0: left,
 //                     operand1: right,
 //                     dest,
@@ -622,7 +622,7 @@
 //             } else {
 //                 Instruction::ICmp(ICmp {
 //                     predicate:
-//                         crate::intu_ir::instruction::IntPredicate::SGE,
+//                         crate::llvm::instruction::IntPredicate::SGE,
 //                     operand0: left,
 //                     operand1: right,
 //                     dest,
@@ -1091,7 +1091,7 @@
 //
 use crate::closure_conversion::ClosFnDef;
 use crate::explicate_control::CTail;
-use crate::intu_ir::module::Module;
+use crate::llvm::module::Module;
 use crate::syntax::Type;
 pub fn emit_module(
     _body: CTail,

@@ -1,4 +1,7 @@
-use crate::intu_ir::types::{FPType, TypeRef, Typed, Types};
+use crate::llvm::ir::FPType;
+use crate::llvm::ir::TypeRef;
+use crate::llvm::ir::Typed;
+use crate::llvm::ir::Types;
 use std::ops::Deref;
 use std::sync::Arc;
 

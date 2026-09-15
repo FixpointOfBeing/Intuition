@@ -1,6 +1,8 @@
-use crate::intu_ir::basicblock::BasicBlock;
-use crate::intu_ir::name::Name;
-use crate::intu_ir::types::{TypeRef, Typed, Types};
+use crate::llvm::ir::BasicBlock;
+use crate::llvm::ir::Name;
+use crate::llvm::ir::TypeRef;
+use crate::llvm::ir::Typed;
+use crate::llvm::ir::Types;
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct Function {

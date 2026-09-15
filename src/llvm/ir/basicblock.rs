@@ -1,6 +1,6 @@
-use crate::intu_ir::instruction::Instruction;
-use crate::intu_ir::name::Name;
-use crate::intu_ir::terminator::Terminator;
+use crate::llvm::ir::Instruction;
+use crate::llvm::ir::Name;
+use crate::llvm::ir::Terminator;
 
 #[derive(PartialEq, Clone, Debug, Hash)]
 pub struct BasicBlock {

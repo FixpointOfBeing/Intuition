@@ -1,17 +1,18 @@
-use crate::intu_ir::types::Types;
+use crate::llvm::ir::Types;
 
 pub trait Show {
     fn show(&self, types: &Types) -> String;
 }
 
 mod module_show {
-    use crate::intu_ir::module;
-    use crate::intu_ir::types::Types;
+    use crate::llvm::ir::GlobalVariable;
+    use crate::llvm::ir::Module;
+    use crate::llvm::ir::Types;
     use std::fmt::Write;
 
     use super::Show;
 
-    impl Show for module::Module {
+    impl Show for Module {
         fn show(&self, types: &Types) -> String {
             let mut parts: Vec<String> = Vec::new();
 
@@ -41,7 +42,7 @@ mod module_show {
         }
     }
 
-    impl Show for module::GlobalVariable {
+    impl Show for GlobalVariable {
         fn show(&self, types: &Types) -> String {
             let mut s = String::new();
             write!(s, "@{} = ", self.name.show(types)).unwrap();
@@ -60,14 +61,16 @@ mod module_show {
 }
 
 mod function_show {
-    use crate::intu_ir::function;
-    use crate::intu_ir::name::Name;
-    use crate::intu_ir::types::Types;
+    use crate::llvm::ir::Function;
+    use crate::llvm::ir::FunctionDeclaration;
+    use crate::llvm::ir::Name;
+    use crate::llvm::ir::Parameter;
+    use crate::llvm::ir::Types;
     use std::fmt::Write;
 
     use super::Show;
 
-    impl Show for function::Function {
+    impl Show for Function {
         fn show(&self, types: &Types) -> String {
             let mut s = String::new();
             write!(s, "define ").unwrap();
@@ -99,7 +102,7 @@ mod function_show {
         }
     }
 
-    impl Show for function::FunctionDeclaration {
+    impl Show for FunctionDeclaration {
         fn show(&self, types: &Types) -> String {
             let mut s = String::new();
             write!(s, "declare ").unwrap();
@@ -116,7 +119,7 @@ mod function_show {
         }
     }
 
-    impl Show for function::Parameter {
+    impl Show for Parameter {
         fn show(&self, types: &Types) -> String {
             let mut s = String::new();
             write!(s, "{} {}", self.ty.show(types), self.name.show(types)).unwrap();
@@ -126,14 +129,13 @@ mod function_show {
 }
 
 mod operand_show {
-    use crate::intu_ir::operand;
-    use crate::intu_ir::operand::Operand;
-    use crate::intu_ir::types::Types;
+    use crate::llvm::ir::Operand;
+    use crate::llvm::ir::Types;
     use std::fmt::Write;
 
     use super::Show;
 
-    impl Show for operand::Operand {
+    impl Show for Operand {
         fn show(&self, types: &Types) -> String {
             let mut s = String::new();
             match self {
@@ -146,53 +148,54 @@ mod operand_show {
 }
 
 mod instruction_show {
-    use crate::intu_ir::instruction;
-    use crate::intu_ir::types::Types;
+    use crate::llvm::ir::FPPredicate;
+    use crate::llvm::ir::Instruction;
+    use crate::llvm::ir::IntPredicate;
+    use crate::llvm::ir::Types;
     use std::fmt::Write;
 
     use super::Show;
-    impl Show for instruction::FPPredicate {
+    impl Show for FPPredicate {
         fn show(&self, _types: &Types) -> String {
             match self {
-                instruction::FPPredicate::False => "false".to_string(),
-                instruction::FPPredicate::OEQ => "oeq".to_string(),
-                instruction::FPPredicate::OGT => "ogt".to_string(),
-                instruction::FPPredicate::OGE => "oge".to_string(),
-                instruction::FPPredicate::OLT => "olt".to_string(),
-                instruction::FPPredicate::OLE => "ole".to_string(),
-                instruction::FPPredicate::ONE => "one".to_string(),
-                instruction::FPPredicate::ORD => "ord".to_string(),
-                instruction::FPPredicate::UNO => "uno".to_string(),
-                instruction::FPPredicate::UEQ => "ueq".to_string(),
-                instruction::FPPredicate::UGT => "ugt".to_string(),
-                instruction::FPPredicate::UGE => "uge".to_string(),
-                instruction::FPPredicate::ULT => "ult".to_string(),
-                instruction::FPPredicate::ULE => "ule".to_string(),
-                instruction::FPPredicate::UNE => "une".to_string(),
-                instruction::FPPredicate::True => "true".to_string(),
+                FPPredicate::False => "false".to_string(),
+                FPPredicate::OEQ => "oeq".to_string(),
+                FPPredicate::OGT => "ogt".to_string(),
+                FPPredicate::OGE => "oge".to_string(),
+                FPPredicate::OLT => "olt".to_string(),
+                FPPredicate::OLE => "ole".to_string(),
+                FPPredicate::ONE => "one".to_string(),
+                FPPredicate::ORD => "ord".to_string(),
+                FPPredicate::UNO => "uno".to_string(),
+                FPPredicate::UEQ => "ueq".to_string(),
+                FPPredicate::UGT => "ugt".to_string(),
+                FPPredicate::UGE => "uge".to_string(),
+                FPPredicate::ULT => "ult".to_string(),
+                FPPredicate::ULE => "ule".to_string(),
+                FPPredicate::UNE => "une".to_string(),
+                FPPredicate::True => "true".to_string(),
             }
         }
     }
 
-    impl Show for instruction::IntPredicate {
+    impl Show for IntPredicate {
         fn show(&self, _types: &Types) -> String {
             match self {
-                instruction::IntPredicate::EQ => "eq".to_string(),
-                instruction::IntPredicate::NE => "ne".to_string(),
-                instruction::IntPredicate::UGT => "ugt".to_string(),
-                instruction::IntPredicate::UGE => "uge".to_string(),
-                instruction::IntPredicate::ULT => "ult".to_string(),
-                instruction::IntPredicate::ULE => "ule".to_string(),
-                instruction::IntPredicate::SGT => "sgt".to_string(),
-                instruction::IntPredicate::SGE => "sge".to_string(),
-                instruction::IntPredicate::SLT => "slt".to_string(),
-                instruction::IntPredicate::SLE => "sle".to_string(),
+                IntPredicate::EQ => "eq".to_string(),
+                IntPredicate::NE => "ne".to_string(),
+                IntPredicate::UGT => "ugt".to_string(),
+                IntPredicate::UGE => "uge".to_string(),
+                IntPredicate::ULT => "ult".to_string(),
+                IntPredicate::ULE => "ule".to_string(),
+                IntPredicate::SGT => "sgt".to_string(),
+                IntPredicate::SGE => "sge".to_string(),
+                IntPredicate::SLT => "slt".to_string(),
+                IntPredicate::SLE => "sle".to_string(),
             }
         }
     }
-    impl Show for instruction::Instruction {
+    impl Show for Instruction {
         fn show(&self, types: &Types) -> String {
-            use instruction::Instruction;
             match self {
                 Instruction::Add { operand0, operand1, dest } => {
                     let mut s = String::new();
@@ -708,13 +711,16 @@ mod instruction_show {
 }
 
 mod types_show {
-    use crate::intu_ir::types;
-    use crate::intu_ir::types::{NamedStructDef, Types};
+    use crate::llvm::ir::FPType;
+    use crate::llvm::ir::InstType;
+    use crate::llvm::ir::NamedStructDef;
+    use crate::llvm::ir::TypeRef;
+    use crate::llvm::ir::Types;
     use std::fmt::Write;
 
     use super::Show;
 
-    impl Show for types::NamedStructDef {
+    impl Show for NamedStructDef {
         fn show(&self, types: &Types) -> String {
             let mut s = String::new();
             match self {
@@ -725,16 +731,16 @@ mod types_show {
         }
     }
 
-    impl Show for types::InstType {
+    impl Show for InstType {
         fn show(&self, types: &Types) -> String {
             match self {
-                types::InstType::VoidType => "void".to_string(),
-                types::InstType::IntegerType { bits } => {
+                InstType::VoidType => "void".to_string(),
+                InstType::IntegerType { bits } => {
                     format!("i{}", bits)
                 },
-                types::InstType::PointerType { .. } => "ptr".to_string(),
-                types::InstType::FPType(fpt) => fpt.show(types),
-                types::InstType::FuncType { result_type, param_types } => {
+                InstType::PointerType { .. } => "ptr".to_string(),
+                InstType::FPType(fpt) => fpt.show(types),
+                InstType::FuncType { result_type, param_types } => {
                     let mut s = String::new();
                     write!(s, "{} (", result_type.show(types)).unwrap();
                     for (i, param_ty) in param_types.iter().enumerate() {
@@ -748,13 +754,13 @@ mod types_show {
                     write!(s, ")").unwrap();
                     s
                 },
-                types::InstType::VectorType { element_type, num_elements } => {
+                InstType::VectorType { element_type, num_elements } => {
                     format!("<{} x {}>", num_elements, element_type.show(types))
                 },
-                types::InstType::ArrayType { element_type, num_elements } => {
+                InstType::ArrayType { element_type, num_elements } => {
                     format!("[{} x {}]", num_elements, element_type.show(types))
                 },
-                types::InstType::StructType { element_types } => {
+                InstType::StructType { element_types } => {
                     let mut s = String::new();
                     write!(s, "{{ ").unwrap();
                     for (i, element_ty) in element_types.iter().enumerate() {
@@ -767,23 +773,23 @@ mod types_show {
                     write!(s, " }}").unwrap();
                     s
                 },
-                types::InstType::NamedStructType { name } => {
+                InstType::NamedStructType { name } => {
                     format!("%{}", name)
                 },
             }
         }
     }
 
-    impl Show for types::FPType {
+    impl Show for FPType {
         fn show(&self, _types: &Types) -> String {
             match self {
-                types::FPType::Single => "float".to_string(),
-                types::FPType::Double => "double".to_string(),
+                FPType::Single => "float".to_string(),
+                FPType::Double => "double".to_string(),
             }
         }
     }
 
-    impl Show for types::TypeRef {
+    impl Show for TypeRef {
         fn show(&self, types: &Types) -> String {
             self.as_ref().show(types)
         }
@@ -791,26 +797,27 @@ mod types_show {
 }
 
 mod constant_show {
-    use crate::intu_ir::constant;
+    use crate::llvm::ir::Float;
+    use crate::llvm::ir::Constant;
 
-    use crate::intu_ir::types::Types;
+    use crate::llvm::ir::Types;
     use std::fmt::Write;
 
     use super::Show;
 
-    impl Show for constant::Float {
+    impl Show for Float {
         fn show(&self, _types: &Types) -> String {
             match self {
-                constant::Float::Single(s) => format!("float {}", s),
-                constant::Float::Double(d) => format!("double {}", d),
+                Float::Single(s) => format!("float {}", s),
+                Float::Double(d) => format!("double {}", d),
             }
         }
     }
-    impl Show for constant::Constant {
+    impl Show for Constant {
         fn show(&self, types: &Types) -> String {
             let mut s = String::new();
             match self {
-                constant::Constant::Int { bits, value } => {
+                Constant::Int { bits, value } => {
                     if *bits == 1 {
                         if *value == 0 { write!(s, "false").unwrap() } else { write!(s, "true").unwrap() }
                     } else {
@@ -822,8 +829,8 @@ mod constant_show {
                         }
                     }
                 },
-                constant::Constant::Float(f) => write!(s, "{}", f.show(types)).unwrap(),
-                constant::Constant::Struct { name: _, values, is_packed } => {
+                Constant::Float(f) => write!(s, "{}", f.show(types)).unwrap(),
+                Constant::Struct { name: _, values, is_packed } => {
                     if *is_packed {
                         write!(s, "<").unwrap();
                     }
@@ -837,7 +844,7 @@ mod constant_show {
                     }
                     write!(s, " }}").unwrap();
                 },
-                constant::Constant::Array { element_type: _, elements } => {
+                Constant::Array { element_type: _, elements } => {
                     write!(s, "[ ").unwrap();
                     for (i, elt) in elements.iter().enumerate() {
                         if i == elements.len() - 1 {
@@ -848,7 +855,7 @@ mod constant_show {
                     }
                     write!(s, " ]").unwrap();
                 },
-                constant::Constant::Vector(constant_refs) => {
+                Constant::Vector(constant_refs) => {
                     write!(s, "< ").unwrap();
                     for (i, elt) in constant_refs.iter().enumerate() {
                         if i == constant_refs.len() - 1 {
@@ -866,15 +873,15 @@ mod constant_show {
 }
 
 mod terminator_show {
-    use crate::intu_ir::terminator;
-    use crate::intu_ir::types::Types;
+    use crate::llvm::ir::Terminator;
+    use crate::llvm::ir::Types;
     use std::fmt::Write;
 
     use super::Show;
 
-    impl Show for terminator::Terminator {
+    impl Show for Terminator {
         fn show(&self, types: &Types) -> String {
-            use terminator::Terminator;
+            use Terminator;
             match self {
                 Terminator::Ret { return_operand } => {
                     let mut s = String::new();
@@ -926,16 +933,16 @@ mod terminator_show {
 
 mod name_show {
     use super::Show;
-    use crate::intu_ir::name;
-    use crate::intu_ir::types::Types;
+    use crate::llvm::ir::Name;
+    use crate::llvm::ir::Types;
     use std::fmt::Write;
 
-    impl Show for name::Name {
+    impl Show for Name {
         fn show(&self, _types: &Types) -> String {
             let mut s = String::new();
             match self {
-                name::Name::Name(name) => write!(s, "%{}", name).unwrap(),
-                name::Name::Number(num) => write!(s, "%{}", num).unwrap(),
+                Name::Name(name) => write!(s, "%{}", name).unwrap(),
+                Name::Number(num) => write!(s, "%{}", num).unwrap(),
             };
             s
         }
@@ -945,15 +952,26 @@ mod name_show {
 #[cfg(test)]
 mod tests {
     use super::Show;
-    use crate::intu_ir::basicblock::BasicBlock;
-    use crate::intu_ir::constant::{Constant, ConstantRef, Float};
-    use crate::intu_ir::function::{Function, FunctionDeclaration, Parameter};
-    use crate::intu_ir::instruction::{FPPredicate, Instruction, IntPredicate};
-    use crate::intu_ir::module::{GlobalVariable, Module};
-    use crate::intu_ir::name::Name;
-    use crate::intu_ir::operand::Operand;
-    use crate::intu_ir::terminator::Terminator;
-    use crate::intu_ir::types::{FPType, NamedStructDef, TypeRef, Types};
+    use crate::llvm::ir::BasicBlock;
+    use crate::llvm::ir::Constant;
+    use crate::llvm::ir::ConstantRef;
+    use crate::llvm::ir::FPPredicate;
+    use crate::llvm::ir::Float;
+    use crate::llvm::ir::Function;
+    use crate::llvm::ir::FunctionDeclaration;
+    use crate::llvm::ir::Parameter;
+
+    use crate::llvm::ir::FPType;
+    use crate::llvm::ir::GlobalVariable;
+    use crate::llvm::ir::Instruction;
+    use crate::llvm::ir::IntPredicate;
+    use crate::llvm::ir::Module;
+    use crate::llvm::ir::Name;
+    use crate::llvm::ir::NamedStructDef;
+    use crate::llvm::ir::Operand;
+    use crate::llvm::ir::Terminator;
+    use crate::llvm::ir::TypeRef;
+    use crate::llvm::ir::Types;
 
     fn mk_types() -> Types {
         Types::new()
