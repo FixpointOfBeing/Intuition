@@ -21,32 +21,32 @@ pub Program: Box<Program> = {
     <defs:(Def)*> <main:Expr> => {
         let defs = defs.into_iter().map(|def| *def).collect::<Vec<Def>>();
         let main = *main;
-        Box::new(Program { defs, main})
+        Box::new(Program { defs, main })
     }
 }
 
 pub Def: Box<Def> = {
-    "let" <v:Ident> <opty: (":" Type)?>  "=" <e:Expr>  ";" => {
+    "let" <v:Ident> <opty:(":" Type)?> "=" <e:Expr> ";" => {
         match opty {
             None => Box::new(Def::ValDef(v, None, *e)),
             Some((_, ty)) => Box::new(Def::ValDef(v, Some(*ty), *e))
         }
     },
-    
-    "let" <name:Ident> <params: ("(" Ident ":" Type ")")+> <opty: (":" Type)?> "=" <e:Expr> ";" => {
-       let mut params1: Vec<(Ident, Type)> = vec![];
-       let mut lambda_ty: Vec<Type> = vec![];
-       for (_lp, id, _colon, ty, _rp) in params {
-           params1.push((id.to_string(), (*ty).clone()));
-           lambda_ty.push(*ty);
-       }
 
-       let rt_ty = match opty {
-           None => None,
-           Some((_, rt_ty)) => Some(*rt_ty),
-       };
+    "let" <name:Ident> <params:("(" Ident ":" Type ")")+> <opty:(":" Type)?> "=" <e:Expr> ";" => {
+        let mut params1: Vec<(Ident, Type)> = vec![];
+        let mut lambda_ty: Vec<Type> = vec![];
+        for (_lp, id, _colon, ty, _rp) in params {
+            params1.push((id.to_string(), (*ty).clone()));
+            lambda_ty.push(*ty);
+        }
 
-       Box::new(Def::FunDef(name, params1, rt_ty, *e))
+        let rt_ty = match opty {
+            None => None,
+            Some((_, rt_ty)) => Some(*rt_ty),
+        };
+
+        Box::new(Def::FunDef(name, params1, rt_ty, *e))
     }
 }
 
@@ -55,10 +55,10 @@ pub Expr: Box<Expr> = {
 };
 
 Term: Box<Expr> = {
-    "fun" <params: ("(" Ident ":" Type ")")+> <opty: (":" Type)?> "=>" <e:Expr> => {
+    "fun" <params:("(" Ident ":" Type ")")+> <opty:(":" Type)?> "=>" <e:Expr> => {
         let mut params1: Vec<(Ident, Type)> = vec![];
         for (_lp, id, _colon, ty, _rp) in params {
-          params1.push((id.to_string(), *ty));
+            params1.push((id.to_string(), *ty));
         }
         match opty {
             None => Box::new(Expr::Lambda(params1, None, e)),
@@ -66,21 +66,21 @@ Term: Box<Expr> = {
         }
     },
 
-    "let" <v:Ident> <opty: (":" Type)?>  "=" <e1:Expr> "in" <e2:Expr> => {
+    "let" <v:Ident> <opty:(":" Type)?> "=" <e1:Expr> "in" <e2:Expr> => {
         match opty {
             None => Box::new(Expr::Let(v, None, e1, e2)),
             Some((_, ty)) => Box::new(Expr::Let(v, Some(*ty), e1, e2))
         }
     },
 
-   "let" <v:Ident> <params: ("(" Ident ":" Type ")")+> <opty: (":" Type)?> "=" <e1:Expr> "in" <e2:Expr> => {
-       let mut params1: Vec<(Ident, Type)> = vec![];
-       let mut lambda_ty: Vec<Type> = vec![];
-       for (_lp, id, _colon, ty, _rp) in params {
-           params1.push((id.to_string(), (*ty).clone()));
-           lambda_ty.push(*ty);
-       }
-       match opty {
+    "let" <v:Ident> <params:("(" Ident ":" Type ")")+> <opty:(":" Type)?> "=" <e1:Expr> "in" <e2:Expr> => {
+        let mut params1: Vec<(Ident, Type)> = vec![];
+        let mut lambda_ty: Vec<Type> = vec![];
+        for (_lp, id, _colon, ty, _rp) in params {
+            params1.push((id.to_string(), (*ty).clone()));
+            lambda_ty.push(*ty);
+        }
+        match opty {
             None => {
                 let lambda = Box::new(Expr::Lambda(params1, None, e1));
                 Box::new(Expr::Let(v, None, lambda, e2))
@@ -88,22 +88,22 @@ Term: Box<Expr> = {
             Some((_, rt_ty)) => {
                 let lambda = Box::new(Expr::Lambda(params1, Some((*rt_ty).clone()), e1));
                 let arrow = lambda_ty
-                        .into_iter()
-                        .rev()
-                        .fold(*rt_ty, |acc, p| Type::Arrow(Box::new(p), Box::new(acc)));
+                    .into_iter()
+                    .rev()
+                    .fold(*rt_ty, |acc, p| Type::Arrow(Box::new(p), Box::new(acc)));
                 Box::new(Expr::Let(v, Some(arrow), lambda, e2))
             }
-
-       }
+        }
     },
 
-    "let" "rec"  <fname:Ident> <params: ("(" Ident ":" Type ")")+> ":" <fret_ty:Type> "=" <fbody:Expr> "in" <body:Expr> => {
+    "let" "rec" <fname:Ident> <params:("(" Ident ":" Type ")")+> ":" <fret_ty:Type> "=" <fbody:Expr> "in" <body:Expr> => {
         let mut fparams: Vec<(Ident, Type)> = vec![];
         for (_lp, id, _colon, ty, _rp) in params {
-          fparams.push((id.to_string(), *ty));
+            fparams.push((id.to_string(), *ty));
         }
-       Box::new(Expr::LetRec(fname, fparams, *fret_ty , fbody, body))
+        Box::new(Expr::LetRec(fname, fparams, *fret_ty, fbody, body))
     },
+
     "if" <e1:Expr> "then" <e2:Expr> "else" <e3:Expr> => Box::new(Expr::If(e1, e2, e3)),
     OrExpr,
 };
@@ -151,7 +151,6 @@ UnaryOp: Box<Expr> = {
     App,
 };
 
-// <e1:App> <e2:Factor> => Box::new(Expr::App(e1, e2)),
 App: Box<Expr> = {
     <f:Factor> <args:Factor+> => {
         let mut args_vec = Vec::new();
@@ -165,7 +164,7 @@ App: Box<Expr> = {
 
 Factor: Box<Expr> = {
     <v:Ident> => Box::new(Expr::Var(v)),
-    
+
     <n:r"[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?"> => {
         if n.contains('.') || n.contains('e') || n.contains('E') {
             Box::new(Expr::Float(n.parse().unwrap()))
@@ -173,7 +172,7 @@ Factor: Box<Expr> = {
             Box::new(Expr::Int(n.parse().unwrap()))
         }
     },
-    
+
     "true" => Box::new(Expr::Bool(true)),
     "false" => Box::new(Expr::Bool(false)),
 
@@ -194,7 +193,6 @@ Factor: Box<Expr> = {
 
     // unit
     "(" ")" => Box::new(Expr::Unit)
-
 };
 
 // Types

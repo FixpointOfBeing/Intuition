@@ -60,16 +60,16 @@ pub enum UnaryOp {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Def {
     ValDef(
-        Ident, // name
+        Ident,        // name
         Option<Type>, // optional type annotation
-        Expr,  // expresion
+        Expr,         // expresion
     ),
     FunDef(
         Ident,              // function name
         Vec<(Ident, Type)>, // function arguments with their types
         Option<Type>,       // optional function return type
         Expr,               // function body
-    )
+    ),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -99,8 +99,8 @@ impl std::fmt::Display for Type {
                     .iter()
                     .map(|ty| format!("{}", ty))
                     .collect::<Vec<String>>()
-                    .join(" * ");
-                write!(f, "{}", types_str)
+                    .join(", ");
+                write!(f, "({})", types_str)
             },
             Type::Var(name) => {
                 write!(f, "{}", name)
@@ -753,6 +753,92 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_tuple() {
+        let expr = parser::ExprParser::new().parse("(1, true, 3.14)").unwrap();
+        match *expr {
+            Expr::Tuple(elements) => {
+                assert_eq!(elements.len(), 3);
+                assert_eq!(elements[0], Expr::Int(1));
+                assert_eq!(elements[1], Expr::Bool(true));
+                assert!(
+                    (match elements[2] {
+                        Expr::Float(f) => (f - 3.14).abs() < 1e-10,
+                        _ => false,
+                    })
+                );
+            },
+            _ => panic!("Expected Expr::Tuple"),
+        }
+    }
+
+    #[test]
+    fn test_parse_val_def() {
+        let def = parser::DefParser::new().parse("let x: Int = 42;").unwrap();
+        match *def {
+            Def::ValDef(name, ann, val) => {
+                assert_eq!(name, "x");
+                assert_eq!(ann, Some(Type::Int));
+                assert_eq!(val, Expr::Int(42));
+            },
+            _ => panic!("Expected Def::ValDef"),
+        }
+    }
+
+    #[test]
+    fn test_parse_fun_def() {
+        let def = parser::DefParser::new()
+            .parse("let add (x: Int) (y: Int) : Int = x + y;")
+            .unwrap();
+        match *def {
+            Def::FunDef(name, args, ret_ty, body) => {
+                assert_eq!(name, "add");
+                assert_eq!(args.len(), 2);
+                assert_eq!(args[0], ("x".to_string(), Type::Int));
+                assert_eq!(args[1], ("y".to_string(), Type::Int));
+                assert_eq!(ret_ty, Some(Type::Int));
+                match body {
+                    Expr::BinOp(BinOp::Add, left, right) => {
+                        assert_eq!(*left, Expr::Var("x".to_string()));
+                        assert_eq!(*right, Expr::Var("y".to_string()));
+                    },
+                    _ => panic!("Expected body to be a BinOp"),
+                }
+            },
+            _ => panic!("Expected Def::FunDef"),
+        }
+    }
+
+    #[test]
+    fn test_parse_program() {
+        let source = r#"
+        let x: Int = 42;
+        let y: Bool = true;
+        let add (a: Int) (b: Int) : Int = a + b;
+        if x then add x 1 else add x (-1)
+        "#;
+
+        let program = parser::ProgramParser::new().parse(source).unwrap();
+        assert_eq!(program.defs.len(), 3);
+        assert_eq!(
+            program.main,
+            Expr::If(
+                Box::new(Expr::Var("x".to_string())),
+                Box::new(Expr::App(
+                    Box::new(Expr::Var("add".to_string())),
+                    vec![Expr::Var("x".to_string()), Expr::Int(1)]
+                )),
+                Box::new(Expr::App(
+                    Box::new(Expr::Var("add".to_string())),
+                    vec![
+                        Expr::Var("x".to_string()),
+                        Expr::UnaryOp(UnaryOp::Neg, Box::new(Expr::Int(1)))
+                    ]
+                ))
+            )
+        );
+    }
+
+    #[test]
     fn test_parse_type_arrow_right_assoc() {
         let expr = parser::ExprParser::new().parse("(f : Int -> Int -> Bool)").unwrap();
         match *expr {
@@ -774,6 +860,28 @@ mod tests {
                 assert_eq!(ty, Type::Var("a".to_string()));
             },
             _ => panic!("Expected Expr::Ann with type var"),
+        }
+    }
+
+    #[test]
+    fn test_parse_type_tuple() {
+        let expr = parser::ExprParser::new().parse("(x : (Int, Bool))").unwrap();
+        match *expr {
+            Expr::Ann(_, ty) => {
+                assert_eq!(ty, Type::Tuple(vec![Type::Int, Type::Bool]));
+            },
+            _ => panic!("Expected Expr::Ann with tuple type"),
+        }
+    }
+
+    #[test]
+    fn test_parse_type_unit() {
+        let expr = parser::ExprParser::new().parse("(x : Unit)").unwrap();
+        match *expr {
+            Expr::Ann(_, ty) => {
+                assert_eq!(ty, Type::Unit);
+            },
+            _ => panic!("Expected Expr::Ann with Unit type"),
         }
     }
 
