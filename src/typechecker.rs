@@ -10,6 +10,7 @@ pub enum TypedExpr {
     Int(i64),
     Float(f64),
     Var(Ident, Type),
+    // Tuple(Vec<TypedExpr>, Type),
     BinOp(BinOp, Box<TypedExpr>, Box<TypedExpr>, Type),
     UnaryOp(UnaryOp, Box<TypedExpr>, Type),
     Ann(Box<TypedExpr>, Type),
@@ -122,6 +123,19 @@ fn infer(ctx: &Context, expr: Expr) -> Result<(Type, TypedExpr), TypeError> {
             Ok(res)
         },
 
+        Expr::Tuple(exprs) => {
+            todo!()
+            // let mut typed_exprs = Vec::new();
+            // let mut types = Vec::new();
+            // for expr in exprs {
+            //     let (ty, typed_expr) = infer(ctx, expr)?;
+            //     types.push(ty);
+            //     typed_exprs.push(typed_expr);
+            // }
+            // let tuple_ty = Type::Tuple(types);
+            // Ok((tuple_ty.clone(), TypedExpr::Tuple(typed_exprs, tuple_ty)))
+        },
+        
         Expr::UnaryOp(op, operand) => {
             let (ty, typed_operand) = infer(ctx, *operand)?;
             match op {

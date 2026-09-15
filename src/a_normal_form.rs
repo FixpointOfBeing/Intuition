@@ -52,6 +52,7 @@ fn expr_type(expr: &TypedExpr) -> Type {
         TypedExpr::LetRec(_, _, _, _, _, ty) => ty.clone(),
         TypedExpr::App(_, _, ty) => ty.clone(),
         TypedExpr::Lambda(_, _, _, ty) => ty.clone(),
+        // TypedExpr::Tuple(exprs, ty) => ty.clone(),
     }
 }
 
@@ -529,7 +530,7 @@ mod tests {
         // let $0 = x < 1
         // let $1 = if $0 then x == 0 else x == 2 in
         // if $1 then y + 2 else y + 10
-        
+
         let e = TypedExpr::Let(
             "x".to_string(),
             Type::Int,
@@ -560,18 +561,8 @@ mod tests {
                         )),
                         Type::Bool,
                     )),
-                    Box::new(TypedExpr::BinOp(
-                        BinOp::Add,
-                        Box::new(v("y", Type::Int)),
-                        Box::new(int(2)),
-                        Type::Int,
-                    )),
-                    Box::new(TypedExpr::BinOp(
-                        BinOp::Add,
-                        Box::new(v("y", Type::Int)),
-                        Box::new(int(10)),
-                        Type::Int,
-                    )),
+                    Box::new(TypedExpr::BinOp(BinOp::Add, Box::new(v("y", Type::Int)), Box::new(int(2)), Type::Int)),
+                    Box::new(TypedExpr::BinOp(BinOp::Add, Box::new(v("y", Type::Int)), Box::new(int(10)), Type::Int)),
                     Type::Int,
                 )),
                 Type::Int,
@@ -587,11 +578,7 @@ mod tests {
                 CompExpr::Atom(AExpr::Int(12)),
                 Box::new(AnfExpr::Let(
                     "$0".to_string(),
-                    CompExpr::BinOp(
-                        BinOp::Lt,
-                        AExpr::Var("x".to_string(), Type::Int),
-                        AExpr::Int(1),
-                    ),
+                    CompExpr::BinOp(BinOp::Lt, AExpr::Var("x".to_string(), Type::Int), AExpr::Int(1)),
                     Box::new(AnfExpr::Let(
                         "$1".to_string(),
                         CompExpr::If(
@@ -626,7 +613,7 @@ mod tests {
         );
         assert_eq!(anf, expected);
     }
-    
+
     #[test]
     fn test_nested_if_branch() {
         todo!()

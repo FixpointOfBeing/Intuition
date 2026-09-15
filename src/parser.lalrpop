@@ -17,12 +17,45 @@ match {
     _
 }
 
+pub Program: Box<Program> = {
+    <defs:(Def)*> <main:Expr> => {
+        let defs = defs.into_iter().map(|def| *def).collect::<Vec<Def>>();
+        let main = *main;
+        Box::new(Program { defs, main})
+    }
+}
+
+pub Def: Box<Def> = {
+    "let" <v:Ident> <opty: (":" Type)?>  "=" <e:Expr>  ";" => {
+        match opty {
+            None => Box::new(Def::ValDef(v, None, *e)),
+            Some((_, ty)) => Box::new(Def::ValDef(v, Some(*ty), *e))
+        }
+    },
+    
+    "let" <name:Ident> <params: ("(" Ident ":" Type ")")+> <opty: (":" Type)?> "=" <e:Expr> ";" => {
+       let mut params1: Vec<(Ident, Type)> = vec![];
+       let mut lambda_ty: Vec<Type> = vec![];
+       for (_lp, id, _colon, ty, _rp) in params {
+           params1.push((id.to_string(), (*ty).clone()));
+           lambda_ty.push(*ty);
+       }
+
+       let rt_ty = match opty {
+           None => None,
+           Some((_, rt_ty)) => Some(*rt_ty),
+       };
+
+       Box::new(Def::FunDef(name, params1, rt_ty, *e))
+    }
+}
+
 pub Expr: Box<Expr> = {
     Term,
 };
 
 Term: Box<Expr> = {
-    "fun" <params: ("(" Ident ":" Type ")")+> <opty: (":" Type)?>"=>" <e:Expr> => {
+    "fun" <params: ("(" Ident ":" Type ")")+> <opty: (":" Type)?> "=>" <e:Expr> => {
         let mut params1: Vec<(Ident, Type)> = vec![];
         for (_lp, id, _colon, ty, _rp) in params {
           params1.push((id.to_string(), *ty));
@@ -40,7 +73,7 @@ Term: Box<Expr> = {
         }
     },
 
-   "let" <v:Ident> <params: ("(" Ident ":" Type ")")+> <opty: (":" Type)?> "=" <e1:Expr> "in" <e2:Expr>=> {
+   "let" <v:Ident> <params: ("(" Ident ":" Type ")")+> <opty: (":" Type)?> "=" <e1:Expr> "in" <e2:Expr> => {
        let mut params1: Vec<(Ident, Type)> = vec![];
        let mut lambda_ty: Vec<Type> = vec![];
        for (_lp, id, _colon, ty, _rp) in params {
@@ -118,7 +151,7 @@ UnaryOp: Box<Expr> = {
     App,
 };
 
-    // <e1:App> <e2:Factor> => Box::new(Expr::App(e1, e2)),
+// <e1:App> <e2:Factor> => Box::new(Expr::App(e1, e2)),
 App: Box<Expr> = {
     <f:Factor> <args:Factor+> => {
         let mut args_vec = Vec::new();
@@ -132,6 +165,7 @@ App: Box<Expr> = {
 
 Factor: Box<Expr> = {
     <v:Ident> => Box::new(Expr::Var(v)),
+    
     <n:r"[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?"> => {
         if n.contains('.') || n.contains('e') || n.contains('E') {
             Box::new(Expr::Float(n.parse().unwrap()))
@@ -139,10 +173,26 @@ Factor: Box<Expr> = {
             Box::new(Expr::Int(n.parse().unwrap()))
         }
     },
+    
     "true" => Box::new(Expr::Bool(true)),
     "false" => Box::new(Expr::Bool(false)),
+
+    // tuple, at least 2 elements
+    "(" <e1:Expr> "," <e2:Expr> <rest:("," <Expr>)*> ")" => {
+        let mut elems = vec![*e1, *e2];
+        for e in rest {
+            elems.push(*e);
+        }
+        Box::new(Expr::Tuple(elems))
+    },
+
+    // annotation
     "(" <e:Expr> ":" <t:Type> ")" => Box::new(Expr::Ann(e, (*t).clone())),
+
+    // parenthesized expression
     "(" <e:Expr> ")" => e,
+
+    // unit
     "(" ")" => Box::new(Expr::Unit)
 
 };
@@ -163,6 +213,17 @@ AtomType: Box<Type> = {
     "Bool" => Box::new(Type::Bool),
     "Unit" => Box::new(Type::Unit),
     <v:Ident> => Box::new(Type::Var(v)),
+
+    // tuple type, at least 2 elements
+    "(" <t1:Type> "," <t2:Type> <rest:("," <Type>)*> ")" => {
+        let mut elems = vec![*t1, *t2];
+        for t in rest {
+            elems.push(*t);
+        }
+        Box::new(Type::Tuple(elems))
+    },
+
+    // parenthesized type
     "(" <t:Type> ")" => t,
 };
 

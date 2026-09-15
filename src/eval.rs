@@ -34,6 +34,10 @@ pub fn eval(env: &Env, expr: &Expr) -> EvalResult {
 
         Expr::Ann(e, _) => eval(env, e),
 
+        Expr::Tuple(exprs) => {
+            todo!()
+        },
+
         Expr::UnaryOp(op, e) => {
             let v = eval(env, e)?;
             eval_unary(op, v)

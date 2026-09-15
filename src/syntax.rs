@@ -6,6 +6,7 @@ pub enum Type {
     Bool,
     Float,
     Int,
+    Tuple(Vec<Type>),
     Arrow(Box<Type>, Box<Type>),
     Var(Ident),
 }
@@ -17,6 +18,7 @@ pub enum Expr {
     Int(i64),
     Float(f64),
     Var(Ident),
+    Tuple(Vec<Expr>),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
     UnaryOp(UnaryOp, Box<Expr>),
     Ann(Box<Expr>, Type),
@@ -55,6 +57,27 @@ pub enum UnaryOp {
     Not,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Def {
+    ValDef(
+        Ident, // name
+        Option<Type>, // optional type annotation
+        Expr,  // expresion
+    ),
+    FunDef(
+        Ident,              // function name
+        Vec<(Ident, Type)>, // function arguments with their types
+        Option<Type>,       // optional function return type
+        Expr,               // function body
+    )
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Program {
+    pub defs: Vec<Def>,
+    pub main: Expr,
+}
+
 // ----------------------------------------------------------------------------------------------------
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -70,6 +93,14 @@ impl std::fmt::Display for Type {
             },
             Type::Float => {
                 write!(f, "Float")
+            },
+            Type::Tuple(types) => {
+                let types_str = types
+                    .iter()
+                    .map(|ty| format!("{}", ty))
+                    .collect::<Vec<String>>()
+                    .join(" * ");
+                write!(f, "{}", types_str)
             },
             Type::Var(name) => {
                 write!(f, "{}", name)
@@ -132,6 +163,14 @@ impl std::fmt::Display for Expr {
             },
             Expr::Var(name) => {
                 write!(f, "{}", name)
+            },
+            Expr::Tuple(exprs) => {
+                let exprs_str = exprs
+                    .iter()
+                    .map(|expr| format!("{}", expr))
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                write!(f, "({})", exprs_str)
             },
             Expr::BinOp(op, left, right) => {
                 write!(f, "({} {} {})", left, op, right)
