@@ -1,5 +1,5 @@
 // auto-generated: "lalrpop 0.23.1"
-// sha3: 326990b204b381316680889cb94d5f248bce2ab6464c24008f069e411b8a7057
+// sha3: 362f04721c07480ffb6ab0f521b6d25336d5b76579580309ca12d0c58ff5d37e
 use crate::syntax::*;
 #[allow(unused_extern_crates)]
 extern crate lalrpop_util as __lalrpop_util;
@@ -14771,7 +14771,52 @@ fn __action35<
         for arg in args {
             args_vec.push(*arg);
         }
-        Box::new(Expr::App(f, args_vec))
+        
+        if let Expr::Var(ref v) = *f {
+            match v.as_str() {
+                "print_int" => {
+                    if args_vec.len() != 1 {
+                        panic!("print_int expects exactly one argument")
+                    } else {
+                      Box::new(Expr::PrimIO(PrimIO::PrintInt(Box::new(args_vec.remove(0)))))
+                    }
+                },
+                "print_float" => {
+                    if args_vec.len() != 1 {
+                        panic!("print_float expects exactly one argument")
+                    } else {
+                      Box::new(Expr::PrimIO(PrimIO::PrintFloat(Box::new(args_vec.remove(0)))))
+                    }
+                },
+                "print_bool" => {
+                    if args_vec.len() != 1 {
+                        panic!("print_bool expects exactly one argument")
+                    } else {
+                      Box::new(Expr::PrimIO(PrimIO::PrintBool(Box::new(args_vec.remove(0)))))
+                    }
+                },
+                "read_int" => {
+                    // read_int takes an unit as argument
+                    if args_vec.len() != 1 && !matches!(args_vec[0], Expr::Unit) {
+                        panic!("read_int expects exactly one argument (unit)")
+                    } else {
+                      Box::new(Expr::PrimIO(PrimIO::ReadInt))
+                    }
+                },
+                "read_float" => {
+                    // read_float takes an unit as argument
+                    if args_vec.len() != 1 && !matches!(args_vec[0], Expr::Unit) {
+                        panic!("read_float expects exactly one argument (unit)")
+                    } else {
+                      Box::new(Expr::PrimIO(PrimIO::ReadFloat))
+                    }
+                },
+                _ => Box::new(Expr::App(f, args_vec)),
+                
+            }
+        } else {
+           Box::new(Expr::App(f, args_vec))
+        }
     }
 }
 
