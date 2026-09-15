@@ -62,7 +62,10 @@ pub fn explicate_assign(expr: ClosExpr, name: &str, cont: CTail) -> CTail {
                 CTail::Seq(stmt, Box::new(cont))
             },
             ClosCompExpr::App(func, args) => {
-                let cexpr = CExpr::Call(aexpr_to_catom(func), args.into_iter().map(aexpr_to_catom).collect());
+                let cexpr = CExpr::Call(
+                    aexpr_to_catom(func),
+                    args.into_iter().map(aexpr_to_catom).collect(),
+                );
                 let ty = type_of_cexpr(&cexpr);
                 let stmt = CStmt::Assign(name.to_string(), cexpr, ty);
                 CTail::Seq(stmt, Box::new(cont))
@@ -112,7 +115,13 @@ fn type_of_cexpr(cexpr: &CExpr) -> Type {
         CExpr::Atom(catom) => type_of_catom(catom),
         CExpr::BinOp(op, left, _) => match op {
             BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div => type_of_catom(left),
-            BinOp::And | BinOp::Or | BinOp::Eq | BinOp::Lt | BinOp::Gt | BinOp::Leq | BinOp::Geq => Type::Bool,
+            BinOp::And
+            | BinOp::Or
+            | BinOp::Eq
+            | BinOp::Lt
+            | BinOp::Gt
+            | BinOp::Leq
+            | BinOp::Geq => Type::Bool,
             BinOp::Neq => Type::Bool,
         },
         CExpr::UnaryOp(op, catom) => match op {
@@ -228,7 +237,12 @@ mod tests {
             |_| Type::Bool,
             |_| Type::Float,
             |_| Type::Int,
-            |d| Type::Arrow(Box::new(random_type_with_depth(d - 1)), Box::new(random_type_with_depth(d - 1))),
+            |d| {
+                Type::Arrow(
+                    Box::new(random_type_with_depth(d - 1)),
+                    Box::new(random_type_with_depth(d - 1)),
+                )
+            },
             |_| Type::Var("$dummy".to_string()),
         ];
         all_variants.choose(&mut rng).unwrap()(depth)
@@ -293,7 +307,11 @@ mod tests {
     #[test]
     fn tail_binop() {
         let ty = Type::Int;
-        let input = ClosExpr::Complex(ClosCompExpr::BinOp(BinOp::Add, anf_var("x", ty.clone()), anf_int(1)));
+        let input = ClosExpr::Complex(ClosCompExpr::BinOp(
+            BinOp::Add,
+            anf_var("x", ty.clone()),
+            anf_int(1),
+        ));
         let expected = CTail::Return(CExpr::BinOp(BinOp::Add, c_var("x", ty), c_int(1)));
         assert_eq!(explicate_tail(input), expected);
     }
@@ -301,7 +319,8 @@ mod tests {
     #[test]
     fn tail_unaryop() {
         let ty = Type::Float;
-        let input = ClosExpr::Complex(ClosCompExpr::UnaryOp(UnaryOp::Neg, anf_var("x", ty.clone())));
+        let input =
+            ClosExpr::Complex(ClosCompExpr::UnaryOp(UnaryOp::Neg, anf_var("x", ty.clone())));
         let expected = CTail::Return(CExpr::UnaryOp(UnaryOp::Neg, c_var("x", ty)));
         assert_eq!(explicate_tail(input), expected);
     }
@@ -310,8 +329,10 @@ mod tests {
     fn tail_app_becomes_tailcall() {
         let x_ty = random_type();
         let y_ty = random_type();
-        let fn_ty =
-            Type::Arrow(Box::new(x_ty.clone()), Box::new(Type::Arrow(Box::new(y_ty.clone()), Box::new(Type::Unit))));
+        let fn_ty = Type::Arrow(
+            Box::new(x_ty.clone()),
+            Box::new(Type::Arrow(Box::new(y_ty.clone()), Box::new(Type::Unit))),
+        );
         let input = ClosExpr::Complex(ClosCompExpr::App(
             anf_var("f", fn_ty.clone()),
             vec![anf_var("x", x_ty.clone()), anf_var("y", y_ty.clone())],
@@ -337,8 +358,10 @@ mod tests {
 
     #[test]
     fn tail_let_single() {
-        let input = anf_let("x", anf_atom_to_comp(anf_int(1)), anf_atom_to_anf(anf_var("x", Type::Int)));
-        let expected = c_assign("x", CExpr::Atom(c_int(1)), CTail::Return(CExpr::Atom(c_var("x", Type::Int))));
+        let input =
+            anf_let("x", anf_atom_to_comp(anf_int(1)), anf_atom_to_anf(anf_var("x", Type::Int)));
+        let expected =
+            c_assign("x", CExpr::Atom(c_int(1)), CTail::Return(CExpr::Atom(c_var("x", Type::Int))));
         assert_eq!(explicate_tail(input), expected);
     }
 
@@ -395,19 +418,27 @@ mod tests {
 
     #[test]
     fn assign_binop() {
-        let input =
-            ClosExpr::Complex(ClosCompExpr::BinOp(BinOp::Mul, anf_var("a", Type::Float), anf_var("b", Type::Float)));
+        let input = ClosExpr::Complex(ClosCompExpr::BinOp(
+            BinOp::Mul,
+            anf_var("a", Type::Float),
+            anf_var("b", Type::Float),
+        ));
         let cont = CTail::Return(CExpr::Atom(c_var("x", Type::Float)));
-        let expected =
-            c_assign("x", CExpr::BinOp(BinOp::Mul, c_var("a", Type::Float), c_var("b", Type::Float)), cont.clone());
+        let expected = c_assign(
+            "x",
+            CExpr::BinOp(BinOp::Mul, c_var("a", Type::Float), c_var("b", Type::Float)),
+            cont.clone(),
+        );
         assert_eq!(explicate_assign(input, "x", cont), expected);
     }
 
     #[test]
     fn assign_unaryop() {
-        let input = ClosExpr::Complex(ClosCompExpr::UnaryOp(UnaryOp::Not, anf_var("a", Type::Bool)));
+        let input =
+            ClosExpr::Complex(ClosCompExpr::UnaryOp(UnaryOp::Not, anf_var("a", Type::Bool)));
         let cont = CTail::Return(CExpr::Atom(c_var("x", Type::Bool)));
-        let expected = c_assign("x", CExpr::UnaryOp(UnaryOp::Not, c_var("a", Type::Bool)), cont.clone());
+        let expected =
+            c_assign("x", CExpr::UnaryOp(UnaryOp::Not, c_var("a", Type::Bool)), cont.clone());
         assert_eq!(explicate_assign(input, "x", cont), expected);
     }
 
@@ -425,8 +456,11 @@ mod tests {
             vec![anf_var("a", a_ty.clone()), anf_var("b", b_ty.clone())],
         ));
         let cont = CTail::Return(CExpr::Atom(c_var("x", result_ty.clone())));
-        let expected =
-            c_assign("x", CExpr::Call(c_var("f", f_ty), vec![c_var("a", a_ty), c_var("b", b_ty)]), cont.clone());
+        let expected = c_assign(
+            "x",
+            CExpr::Call(c_var("f", f_ty), vec![c_var("a", a_ty), c_var("b", b_ty)]),
+            cont.clone(),
+        );
         assert_eq!(explicate_assign(input, "x", cont), expected);
     }
 
@@ -479,10 +513,14 @@ mod tests {
 
     #[test]
     fn assign_let_forwards_correctly() {
-        let input = anf_let("a", anf_atom_to_comp(anf_int(1)), anf_atom_to_anf(anf_var("a", Type::Int)));
+        let input =
+            anf_let("a", anf_atom_to_comp(anf_int(1)), anf_atom_to_anf(anf_var("a", Type::Int)));
         let cont = CTail::Return(CExpr::Atom(c_var("x", Type::Int)));
-        let expected =
-            c_assign("a", CExpr::Atom(c_int(1)), c_assign("x", CExpr::Atom(c_var("a", Type::Int)), cont.clone()));
+        let expected = c_assign(
+            "a",
+            CExpr::Atom(c_int(1)),
+            c_assign("x", CExpr::Atom(c_var("a", Type::Int)), cont.clone()),
+        );
         assert_eq!(explicate_assign(input, "x", cont), expected);
     }
 

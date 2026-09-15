@@ -244,7 +244,12 @@ mod tests {
                 "x".to_string(),
                 Type::Int,
                 Box::new(int(2)),
-                Box::new(TypedExpr::BinOp(BinOp::Add, Box::new(v("x", Type::Int)), Box::new(int(1)), Type::Int)),
+                Box::new(TypedExpr::BinOp(
+                    BinOp::Add,
+                    Box::new(v("x", Type::Int)),
+                    Box::new(int(1)),
+                    Type::Int,
+                )),
                 Type::Int,
             )),
             Type::Int,
@@ -258,7 +263,11 @@ mod tests {
                 CompExpr::Atom(AExpr::Int(2)),
                 Box::new(AnfExpr::Let(
                     "$0".to_string(),
-                    CompExpr::BinOp(BinOp::Add, AExpr::Var("x".to_string(), Type::Int), AExpr::Int(1)),
+                    CompExpr::BinOp(
+                        BinOp::Add,
+                        AExpr::Var("x".to_string(), Type::Int),
+                        AExpr::Int(1)
+                    ),
                     Box::new(AnfExpr::Complex(CompExpr::BinOp(
                         BinOp::Add,
                         AExpr::Int(1),
@@ -335,7 +344,12 @@ mod tests {
                     "x".to_string(),
                     Type::Int,
                     Box::new(int(5)),
-                    Box::new(TypedExpr::BinOp(BinOp::Mul, Box::new(v("x", Type::Int)), Box::new(int(3)), Type::Int)),
+                    Box::new(TypedExpr::BinOp(
+                        BinOp::Mul,
+                        Box::new(v("x", Type::Int)),
+                        Box::new(int(3)),
+                        Type::Int,
+                    )),
                     Type::Int,
                 )),
                 Box::new(int(4)),
@@ -372,7 +386,11 @@ mod tests {
                     CompExpr::Atom(AExpr::Int(5)),
                     Box::new(AnfExpr::Let(
                         "$1".to_string(),
-                        CompExpr::BinOp(BinOp::Mul, AExpr::Var("x".to_string(), Type::Int), AExpr::Int(3)),
+                        CompExpr::BinOp(
+                            BinOp::Mul,
+                            AExpr::Var("x".to_string(), Type::Int),
+                            AExpr::Int(3)
+                        ),
                         Box::new(AnfExpr::Complex(CompExpr::BinOp(
                             BinOp::Add,
                             AExpr::Var("$1".to_string(), Type::Int),
@@ -390,7 +408,10 @@ mod tests {
         // --->
         // let $0 = 1 + 2
         // in f $0 3
-        let fn_ty = Type::Arrow(Box::new(Type::Int), Box::new(Type::Arrow(Box::new(Type::Int), Box::new(Type::Int))));
+        let fn_ty = Type::Arrow(
+            Box::new(Type::Int),
+            Box::new(Type::Arrow(Box::new(Type::Int), Box::new(Type::Int))),
+        );
         let e = TypedExpr::App(
             Box::new(v("f", fn_ty.clone().clone())),
             vec![
@@ -423,7 +444,12 @@ mod tests {
         let e = TypedExpr::Lambda(
             vec![("x".to_string(), Type::Int)],
             Type::Int,
-            Box::new(TypedExpr::BinOp(BinOp::Add, Box::new(v("x", Type::Int)), Box::new(int(1)), Type::Int)),
+            Box::new(TypedExpr::BinOp(
+                BinOp::Add,
+                Box::new(v("x", Type::Int)),
+                Box::new(int(1)),
+                Type::Int,
+            )),
             Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)),
         );
 
@@ -467,20 +493,28 @@ mod tests {
                 vec![("x".to_string(), Type::Int)],
                 Type::Int,
                 Box::new(AnfExpr::Complex(CompExpr::Atom(AExpr::Var("x".to_string(), Type::Int)))),
-                Box::new(AnfExpr::Complex(CompExpr::App(AExpr::Var("f".to_string(), fn_ty), vec![AExpr::Int(1)])))
+                Box::new(AnfExpr::Complex(CompExpr::App(
+                    AExpr::Var("f".to_string(), fn_ty),
+                    vec![AExpr::Int(1)]
+                )))
             )
         );
     }
 
     #[test]
     fn test_ann_wrapping_atom_no_extra_binding() {
-        let e = TypedExpr::BinOp(BinOp::Add, Box::new(int(1)), Box::new(v("x", Type::Int)), Type::Int);
+        let e =
+            TypedExpr::BinOp(BinOp::Add, Box::new(int(1)), Box::new(v("x", Type::Int)), Type::Int);
 
         let anf = anf_convert(e);
 
         assert_eq!(
             anf,
-            AnfExpr::Complex(CompExpr::BinOp(BinOp::Add, AExpr::Int(1), AExpr::Var("x".to_string(), Type::Int)))
+            AnfExpr::Complex(CompExpr::BinOp(
+                BinOp::Add,
+                AExpr::Int(1),
+                AExpr::Var("x".to_string(), Type::Int)
+            ))
         );
     }
 
@@ -562,8 +596,18 @@ mod tests {
                         )),
                         Type::Bool,
                     )),
-                    Box::new(TypedExpr::BinOp(BinOp::Add, Box::new(v("y", Type::Int)), Box::new(int(2)), Type::Int)),
-                    Box::new(TypedExpr::BinOp(BinOp::Add, Box::new(v("y", Type::Int)), Box::new(int(10)), Type::Int)),
+                    Box::new(TypedExpr::BinOp(
+                        BinOp::Add,
+                        Box::new(v("y", Type::Int)),
+                        Box::new(int(2)),
+                        Type::Int,
+                    )),
+                    Box::new(TypedExpr::BinOp(
+                        BinOp::Add,
+                        Box::new(v("y", Type::Int)),
+                        Box::new(int(10)),
+                        Type::Int,
+                    )),
                     Type::Int,
                 )),
                 Type::Int,
@@ -579,7 +623,11 @@ mod tests {
                 CompExpr::Atom(AExpr::Int(12)),
                 Box::new(AnfExpr::Let(
                     "$0".to_string(),
-                    CompExpr::BinOp(BinOp::Lt, AExpr::Var("x".to_string(), Type::Int), AExpr::Int(1)),
+                    CompExpr::BinOp(
+                        BinOp::Lt,
+                        AExpr::Var("x".to_string(), Type::Int),
+                        AExpr::Int(1),
+                    ),
                     Box::new(AnfExpr::Let(
                         "$1".to_string(),
                         CompExpr::If(

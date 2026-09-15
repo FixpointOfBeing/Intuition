@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-use crate::riscv::rv64imfd::Label;
 use crate::riscv::rv_var::{RvVarBasicBlock, RvVarInstr, RvVarLocation};
+use crate::riscv::rv64imfd::Label;
 
 pub struct RvVarInstrLiveness {
     pub instr: RvVarInstr,
@@ -40,7 +40,7 @@ fn write_instr(instr: &RvVarInstr, live_before: &mut HashSet<RvVarLocation>) {
 }
 
 pub fn liveness_analysis(basic_block: &RvVarBasicBlock) -> RvVarBasicBlockLiveness {
-    let mut live= HashSet::new();
+    let mut live = HashSet::new();
     let mut instrs = Vec::new();
     for instr in basic_block.instrs.iter().rev() {
         write_instr(instr, &mut live);
@@ -54,9 +54,9 @@ pub fn liveness_analysis(basic_block: &RvVarBasicBlock) -> RvVarBasicBlockLivene
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::riscv::rv_var::location::var;
     use crate::riscv::rv64imfd::rv64imfd_imm::Imm12;
     use crate::riscv::rv64imfd::rv64imfd_instr::Rm;
-    use crate::riscv::rv_var::location::var;
 
     fn loc(name: &str) -> RvVarLocation {
         var(name.to_string())
@@ -117,7 +117,8 @@ mod tests {
 
     #[test]
     fn load_kills_dest_and_reads_address() {
-        let bb = mk_bb(vec![RvVarInstr::Lw { rd: loc("a"), rs1: loc("p"), imm: Imm12::from_i16(0) }]);
+        let bb =
+            mk_bb(vec![RvVarInstr::Lw { rd: loc("a"), rs1: loc("p"), imm: Imm12::from_i16(0) }]);
         let result = analyze(&bb);
         assert_eq!(result.instrs[0].live_before, locs(&["p"]));
         assert_eq!(result.live_in, locs(&["p"]));
@@ -125,7 +126,8 @@ mod tests {
 
     #[test]
     fn store_reads_address_and_value() {
-        let bb = mk_bb(vec![RvVarInstr::Sd { rs2: loc("v"), rs1: loc("p"), imm: Imm12::from_i16(0) }]);
+        let bb =
+            mk_bb(vec![RvVarInstr::Sd { rs2: loc("v"), rs1: loc("p"), imm: Imm12::from_i16(0) }]);
         let result = analyze(&bb);
         assert_eq!(result.instrs[0].live_before, locs(&["p", "v"]));
         assert_eq!(result.live_in, locs(&["p", "v"]));
@@ -133,7 +135,8 @@ mod tests {
 
     #[test]
     fn float_store_reads_address_and_value() {
-        let bb = mk_bb(vec![RvVarInstr::Fsd { rs2: loc("v"), rs1: loc("p"), imm: Imm12::from_i16(0) }]);
+        let bb =
+            mk_bb(vec![RvVarInstr::Fsd { rs2: loc("v"), rs1: loc("p"), imm: Imm12::from_i16(0) }]);
         let result = analyze(&bb);
         assert_eq!(result.instrs[0].live_before, locs(&["p", "v"]));
         assert_eq!(result.live_in, locs(&["p", "v"]));
@@ -141,7 +144,11 @@ mod tests {
 
     #[test]
     fn branch_reads_sources_and_kills_nothing() {
-        let bb = mk_bb(vec![RvVarInstr::Beq { rs1: loc("x"), rs2: loc("y"), label: Label::new("next".into()) }]);
+        let bb = mk_bb(vec![RvVarInstr::Beq {
+            rs1: loc("x"),
+            rs2: loc("y"),
+            label: Label::new("next".into()),
+        }]);
         let result = analyze(&bb);
         assert_eq!(result.instrs[0].live_before, locs(&["x", "y"]));
         assert_eq!(result.live_in, locs(&["x", "y"]));
@@ -160,7 +167,12 @@ mod tests {
 
     #[test]
     fn fadd_reads_rs1_rs2() {
-        let bb = mk_bb(vec![RvVarInstr::FaddS { rd: loc("d"), rs1: loc("x"), rs2: loc("y"), rm: Rm::Rne }]);
+        let bb = mk_bb(vec![RvVarInstr::FaddS {
+            rd: loc("d"),
+            rs1: loc("x"),
+            rs2: loc("y"),
+            rm: Rm::Rne,
+        }]);
         let result = analyze(&bb);
         assert_eq!(result.instrs[0].live_before, locs(&["x", "y"]));
         assert_eq!(result.live_in, locs(&["x", "y"]));

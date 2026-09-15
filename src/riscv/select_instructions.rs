@@ -1,18 +1,18 @@
 use crate::{
     explicate_control::{CAtom, CExpr, CStmt, CTail},
     gensym::Gensym,
-    riscv::rv64imfd::rv64imfd_instr::Rm,
     riscv::rv_var::{
         basicblock::RvVarBasicBlock,
         instruction::{RvVarInstr, fmv_d, fneg_d, li, mv, seqz, snez},
         location::{RvVarLocation, a0, fa0, ft0, ft1, ra, t0, t1, x0, zero},
         program::RvVarProgram,
     },
+    riscv::rv64imfd::rv64imfd_instr::Rm,
     syntax::{BinOp, Type, UnaryOp},
 };
 
-use crate::riscv::rv64imfd::Label;
 use crate::riscv::rv64imfd::Imm12;
+use crate::riscv::rv64imfd::Label;
 
 fn bool_not(rd: RvVarLocation, rs1: RvVarLocation) -> RvVarInstr {
     RvVarInstr::Xori { rd, rs1: rs1, imm: Imm12::from_i16(1) }
@@ -76,7 +76,13 @@ fn is_cexpr_float_type(expr: &CExpr) -> bool {
     }
 }
 
-fn select_expr_binop_xreg(op: BinOp, left: CAtom, right: CAtom, instrs: &mut Vec<RvVarInstr>, dest: RvVarLocation) {
+fn select_expr_binop_xreg(
+    op: BinOp,
+    left: CAtom,
+    right: CAtom,
+    instrs: &mut Vec<RvVarInstr>,
+    dest: RvVarLocation,
+) {
     debug_assert!(matches!(dest, RvVarLocation::XVar(_) | RvVarLocation::XReg(_)));
 
     match op {
@@ -156,7 +162,13 @@ fn select_expr_binop_xreg(op: BinOp, left: CAtom, right: CAtom, instrs: &mut Vec
     }
 }
 
-fn select_expr_binop_freg(op: BinOp, left: CAtom, right: CAtom, instrs: &mut Vec<RvVarInstr>, dest: RvVarLocation) {
+fn select_expr_binop_freg(
+    op: BinOp,
+    left: CAtom,
+    right: CAtom,
+    instrs: &mut Vec<RvVarInstr>,
+    dest: RvVarLocation,
+) {
     match op {
         BinOp::Add => {
             debug_assert!(matches!(dest, RvVarLocation::FVar(_) | RvVarLocation::FReg(_)));
@@ -246,7 +258,12 @@ fn select_expr_binop_freg(op: BinOp, left: CAtom, right: CAtom, instrs: &mut Vec
     }
 }
 
-fn select_expr_unaryop_freg(op: UnaryOp, atom: CAtom, instrs: &mut Vec<RvVarInstr>, dest: RvVarLocation) {
+fn select_expr_unaryop_freg(
+    op: UnaryOp,
+    atom: CAtom,
+    instrs: &mut Vec<RvVarInstr>,
+    dest: RvVarLocation,
+) {
     match op {
         UnaryOp::Neg => {
             debug_assert!(matches!(dest, RvVarLocation::FVar(_) | RvVarLocation::FReg(_)));
@@ -259,7 +276,12 @@ fn select_expr_unaryop_freg(op: UnaryOp, atom: CAtom, instrs: &mut Vec<RvVarInst
     }
 }
 
-fn select_expr_unaryop_xreg(op: UnaryOp, atom: CAtom, instrs: &mut Vec<RvVarInstr>, dest: RvVarLocation) {
+fn select_expr_unaryop_xreg(
+    op: UnaryOp,
+    atom: CAtom,
+    instrs: &mut Vec<RvVarInstr>,
+    dest: RvVarLocation,
+) {
     match op {
         UnaryOp::Neg => {
             debug_assert!(matches!(dest, RvVarLocation::XVar(_) | RvVarLocation::XReg(_)));
@@ -321,13 +343,22 @@ fn select_expr(expr: CExpr, instrs: &mut Vec<RvVarInstr>, dest: RvVarLocation) {
 fn select_stmt(stmt: CStmt, instrs: &mut Vec<RvVarInstr>) {
     match stmt {
         CStmt::Assign(name, cexpr, ty) => {
-            let var = if matches!(ty, Type::Float) { RvVarLocation::FVar(name) } else { RvVarLocation::XVar(name) };
+            let var = if matches!(ty, Type::Float) {
+                RvVarLocation::FVar(name)
+            } else {
+                RvVarLocation::XVar(name)
+            };
             select_expr(cexpr, instrs, var);
         },
     }
 }
 
-pub fn select_tail(tail: CTail, gensym: &mut Gensym, mut current: RvVarBasicBlock, prog: &mut RvVarProgram) {
+pub fn select_tail(
+    tail: CTail,
+    gensym: &mut Gensym,
+    mut current: RvVarBasicBlock,
+    prog: &mut RvVarProgram,
+) {
     let instrs = &mut current.instrs;
     match tail {
         CTail::Return(cexpr) => {
@@ -522,7 +553,11 @@ mod tests {
     }
 
     fn read_result(env: &[(RvVarLocation, Val)]) -> Val {
-        if env.iter().rev().any(|(l, _)| l == &fa0()) { lookup(env, &fa0()) } else { lookup(env, &a0()) }
+        if env.iter().rev().any(|(l, _)| l == &fa0()) {
+            lookup(env, &fa0())
+        } else {
+            lookup(env, &a0())
+        }
     }
 
     fn interpret(prog: &RvVarProgram) -> Val {
@@ -788,7 +823,11 @@ mod tests {
         let tail = c_seq(
             CStmt::Assign("x".to_string(), c_atom(c_int(x)), Type::Int),
             c_seq(
-                CStmt::Assign("c".to_string(), c_binop(BinOp::Gt, c_var("x", Type::Int), c_int(0)), Type::Bool),
+                CStmt::Assign(
+                    "c".to_string(),
+                    c_binop(BinOp::Gt, c_var("x", Type::Int), c_int(0)),
+                    Type::Bool,
+                ),
                 c_if(
                     c_var("c", Type::Bool),
                     c_ret(c_atom(c_var("x", Type::Int))),
@@ -829,7 +868,11 @@ mod tests {
         let tail = c_seq(
             CStmt::Assign("a".to_string(), c_binop(BinOp::Add, c_int(1), c_int(2)), Type::Int),
             c_seq(
-                CStmt::Assign("b".to_string(), c_binop(BinOp::Mul, c_var("a", Type::Int), c_int(3)), Type::Int),
+                CStmt::Assign(
+                    "b".to_string(),
+                    c_binop(BinOp::Mul, c_var("a", Type::Int), c_int(3)),
+                    Type::Int,
+                ),
                 c_ret(c_atom(c_var("b", Type::Int))),
             ),
         );

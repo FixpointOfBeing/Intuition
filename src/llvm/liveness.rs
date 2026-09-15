@@ -3,9 +3,9 @@ use std::collections::HashSet;
 use crate::llvm::ir::BasicBlock;
 use crate::llvm::ir::Operand;
 
-use crate::llvm::ir::Terminator;
 use crate::llvm::ir::Instruction;
 use crate::llvm::ir::Name;
+use crate::llvm::ir::Terminator;
 
 pub struct IntuInstru {
     pub instr: Instruction,
@@ -345,8 +345,8 @@ fn write_instr(instr: &Instruction, live: &mut HashSet<Name>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::llvm::ir::Constant;
     use crate::llvm::ir::ConstantRef;
-    use crate::llvm::ir::Constant ;
     use crate::llvm::ir::Types;
 
     fn mk_local(name: &str) -> Operand {
@@ -424,7 +424,10 @@ mod tests {
         let b = mk_local("b");
         let c = mk_local("c");
         let a = mk_local("a");
-        let bb = mk_bb(vec![add(b.clone(), c.clone(), "a"), add(a.clone(), mk_const_int(3), "d")], ret(mk_local("d")));
+        let bb = mk_bb(
+            vec![add(b.clone(), c.clone(), "a"), add(a.clone(), mk_const_int(3), "d")],
+            ret(mk_local("d")),
+        );
         let result = analyze(&bb);
         assert_eq!(result.intu_term.live, names(&["d"]));
         assert_eq!(result.intu_instrs[1].live, names(&["a"]));
@@ -487,7 +490,10 @@ mod tests {
         let addr = mk_local("addr");
         let bb = mk_bb(
             vec![],
-            Terminator::IndirectBr { operand: addr.clone(), possible_dests: vec![Name::Name("l1".into())] },
+            Terminator::IndirectBr {
+                operand: addr.clone(),
+                possible_dests: vec![Name::Name("l1".into())],
+            },
         );
         let result = analyze(&bb);
         assert_eq!(result.intu_term.live, names(&["addr"]));

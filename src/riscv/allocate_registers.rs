@@ -1,10 +1,10 @@
 use crate::riscv::liveness::{RvVarBasicBlockLiveness, liveness_analysis};
-use crate::riscv::rv64imfd::{FReg, XReg};
 use crate::riscv::rv_var::RvVarBasicBlock;
 use crate::riscv::rv_var::RvVarInstr;
 use crate::riscv::rv_var::RvVarLocation;
 use crate::riscv::rv_var::RvVarProgram;
 use crate::riscv::rv_var::location::x;
+use crate::riscv::rv64imfd::{FReg, XReg};
 use petgraph::{graph::NodeIndex, graph::UnGraph};
 use priority_queue::PriorityQueue;
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -44,7 +44,9 @@ impl RvVarLocationGraph {
             return;
         }
 
-        if location1 == &RvVarLocation::XReg(XReg::ZERO) || location2 == &RvVarLocation::XReg(XReg::ZERO) {
+        if location1 == &RvVarLocation::XReg(XReg::ZERO)
+            || location2 == &RvVarLocation::XReg(XReg::ZERO)
+        {
             return;
         }
 
@@ -96,7 +98,9 @@ fn dest_and_lives(block: &RvVarBasicBlockLiveness) -> HashSet<RvVarLocation> {
 *死定义（dead def）会产生多余干涉边
  一个定义后从不再被用的变量，仍会与它的 live-in 操作数连边。这不会导致错误代码，但会过度约束 → 可能多 spill，降低着色质量。可先做死代码消除，或对「不在任何后续 live 集合里的 def」跳过
 */
-pub fn build_infer_graph(block: &RvVarBasicBlockLiveness) -> (RvVarLocationGraph, RvVarLocationGraph) {
+pub fn build_infer_graph(
+    block: &RvVarBasicBlockLiveness,
+) -> (RvVarLocationGraph, RvVarLocationGraph) {
     let mut x_graph = RvVarLocationGraph::new();
     let mut f_graph = RvVarLocationGraph::new();
 
@@ -183,7 +187,8 @@ fn add_write_live_edge(
 const ALLOCATABLE_XREGS_SIZE: u8 = 26;
 
 const ALLOCATABLE_XREG_NUMS: [u8; ALLOCATABLE_XREGS_SIZE as usize] = [
-    5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+    5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+    31,
 ];
 
 //  ZERO(x0): 恒为 0。 RA(x1): 返回地址。SP(x2): 栈指针。GP(x3): 全局指针。TP(x4):线程指针。FP(x8): 帧指针。
@@ -194,8 +199,8 @@ const NON_ALLOCATABLE_XREG_NUMS: [u8; NON_ALLOCATABLE_XREGS_SIZE as usize] = [0,
 const ALLOCATABLE_FREGS_SIZE: u8 = 32;
 
 const ALLOCATABLE_FREG_NUMS: [u8; ALLOCATABLE_FREGS_SIZE as usize] = [
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
-    31,
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+    26, 27, 28, 29, 30, 31,
 ];
 
 fn color_to_xreg(color: u8) -> XReg {
@@ -414,7 +419,11 @@ fn color_graph(
         let mut staturation = BTreeSet::<Color>::new();
         for neighbor in x_graph.neighbors(location) {
             let neighbor_color = if all_x_reg_locations.contains(&neighbor) {
-                if let RvVarLocation::XReg(xreg) = &neighbor { xreg_to_color(xreg) } else { unreachable!() }
+                if let RvVarLocation::XReg(xreg) = &neighbor {
+                    xreg_to_color(xreg)
+                } else {
+                    unreachable!()
+                }
             } else {
                 let neighbor_color = x_var_color.get(&neighbor).unwrap_or(&UNCOLORED);
                 *neighbor_color
@@ -432,7 +441,11 @@ fn color_graph(
         let mut staturation = BTreeSet::<Color>::new();
         for neighbor in f_graph.neighbors(location) {
             let neighbor_color = if all_f_reg_locations.contains(&neighbor) {
-                if let RvVarLocation::FReg(reg) = &neighbor { freg_to_color(reg) } else { unreachable!() }
+                if let RvVarLocation::FReg(reg) = &neighbor {
+                    freg_to_color(reg)
+                } else {
+                    unreachable!()
+                }
             } else {
                 let neighbor_color = f_var_color.get(&neighbor).unwrap_or(&UNCOLORED);
                 *neighbor_color
@@ -554,8 +567,10 @@ fn allocate_block(block: RvVarBasicBlock) -> RvVarBasicBlock {
 
     let mut instrs = Vec::<RvVarInstr>::new();
     for instr in block.instrs {
-        let mut map_dest = |location: RvVarLocation| location_to_reg(location, &x_var_color, &f_var_color);
-        let mut map_src = |location: RvVarLocation| location_to_reg(location, &x_var_color, &f_var_color);
+        let mut map_dest =
+            |location: RvVarLocation| location_to_reg(location, &x_var_color, &f_var_color);
+        let mut map_src =
+            |location: RvVarLocation| location_to_reg(location, &x_var_color, &f_var_color);
         instrs.push(instr.map_operands(&mut map_dest, &mut map_src));
     }
     RvVarBasicBlock { name: block.name.clone(), instrs }
@@ -573,10 +588,10 @@ pub fn allocate_registers(var_prog: RvVarProgram) -> RvVarProgram {
 mod tests {
     use super::*;
     use crate::riscv::liveness::RvVarInstrLiveness;
-    use crate::riscv::rv64imfd::rv64imfd_instr::Rm;
-    use crate::riscv::rv64imfd::{FReg, XReg};
     use crate::riscv::rv_var::RvVarInstr;
     use crate::riscv::rv_var::location::{fvar, var, x0};
+    use crate::riscv::rv64imfd::rv64imfd_instr::Rm;
+    use crate::riscv::rv64imfd::{FReg, XReg};
     use std::collections::{HashMap, HashSet};
     type Graph = UnGraph<RvVarLocation, RvVarLocation>;
 
@@ -635,7 +650,10 @@ mod tests {
         // 所以 a 只与 e 干涉，与自己的源 b、c 不干涉。
         let g = x_graph_of(vec![
             il(RvVarInstr::Add { rd: ivar("a"), rs1: ivar("b"), rs2: ivar("c") }, &[]),
-            il(RvVarInstr::Add { rd: ivar("d"), rs1: ivar("a"), rs2: ivar("e") }, &[ivar("a"), ivar("e")]),
+            il(
+                RvVarInstr::Add { rd: ivar("d"), rs1: ivar("a"), rs2: ivar("e") },
+                &[ivar("a"), ivar("e")],
+            ),
         ]);
         assert!(has_edge(&g, &ivar("a"), &ivar("e")));
         assert!(!has_edge(&g, &ivar("a"), &ivar("b")));
@@ -647,7 +665,10 @@ mod tests {
     fn float_def_links_live_out() {
         let g = f_graph_of(vec![
             il(RvVarInstr::FaddS { rd: fv("d"), rs1: fv("x"), rs2: fv("y"), rm: Rm::Rne }, &[]),
-            il(RvVarInstr::FaddS { rd: fv("z"), rs1: fv("d"), rs2: fv("w"), rm: Rm::Rne }, &[fv("d"), fv("w")]),
+            il(
+                RvVarInstr::FaddS { rd: fv("z"), rs1: fv("d"), rs2: fv("w"), rm: Rm::Rne },
+                &[fv("d"), fv("w")],
+            ),
         ]);
         assert!(has_edge(&g, &fv("d"), &fv("w")));
         assert!(!has_edge(&g, &fv("d"), &fv("x")));
@@ -660,7 +681,10 @@ mod tests {
         // int def（fmv.x.w），live-after 是 float：不产生 x 干涉边
         let g = x_graph_of(vec![
             il(RvVarInstr::FmvXW { rd: ivar("d"), rs1: fv("f") }, &[]),
-            il(RvVarInstr::FaddS { rd: fv("g"), rs1: fv("f"), rs2: fv("h"), rm: Rm::Rne }, &[fv("f"), fv("h")]),
+            il(
+                RvVarInstr::FaddS { rd: fv("g"), rs1: fv("f"), rs2: fv("h"), rm: Rm::Rne },
+                &[fv("f"), fv("h")],
+            ),
         ]);
         assert!(!has_edge(&g, &ivar("d"), &fv("f")));
         assert_eq!(g.edge_count(), 0);
@@ -668,7 +692,10 @@ mod tests {
         // float def（fmv.w.x），live-after 是 int：不产生 f 干涉边
         let g = f_graph_of(vec![
             il(RvVarInstr::FmvWX { rd: fv("d"), rs1: ivar("i") }, &[]),
-            il(RvVarInstr::Add { rd: ivar("j"), rs1: ivar("i"), rs2: ivar("k") }, &[ivar("i"), ivar("k")]),
+            il(
+                RvVarInstr::Add { rd: ivar("j"), rs1: ivar("i"), rs2: ivar("k") },
+                &[ivar("i"), ivar("k")],
+            ),
         ]);
         assert!(!has_edge(&g, &fv("d"), &ivar("i")));
         assert_eq!(g.edge_count(), 0);
@@ -694,7 +721,10 @@ mod tests {
          */
         let g = x_graph_of(vec![
             il(RvVarInstr::Add { rd: ivar("d"), rs1: ivar("x"), rs2: ivar("y") }, &[]),
-            il(RvVarInstr::Add { rd: ivar("z"), rs1: ivar("p"), rs2: ivar("q") }, &[x0(), ivar("b")]),
+            il(
+                RvVarInstr::Add { rd: ivar("z"), rs1: ivar("p"), rs2: ivar("q") },
+                &[x0(), ivar("b")],
+            ),
         ]);
         assert!(has_edge(&g, &ivar("d"), &ivar("b")));
         assert!(!has_edge(&g, &ivar("d"), &x0()));
@@ -707,7 +737,10 @@ mod tests {
         // a 在下一指令仍被使用（live-after含 a），自环 a-a 被跳过
         let g = x_graph_of(vec![
             il(RvVarInstr::Add { rd: ivar("a"), rs1: ivar("a"), rs2: ivar("b") }, &[]),
-            il(RvVarInstr::Add { rd: ivar("d"), rs1: ivar("a"), rs2: ivar("e") }, &[ivar("a"), ivar("e")]),
+            il(
+                RvVarInstr::Add { rd: ivar("d"), rs1: ivar("a"), rs2: ivar("e") },
+                &[ivar("a"), ivar("e")],
+            ),
         ]);
         assert!(has_edge(&g, &ivar("a"), &ivar("e")));
         assert!(!has_edge(&g, &ivar("a"), &ivar("a")));
@@ -736,8 +769,14 @@ mod tests {
         let (x_g, f_g) = graph_from(
             vec![
                 il(RvVarInstr::Add { rd: ivar("a"), rs1: ivar("p"), rs2: ivar("q") }, &[]),
-                il(RvVarInstr::FaddS { rd: fv("d"), rs1: fv("u"), rs2: fv("v"), rm: Rm::Rne }, &[ivar("b"), fv("x")]),
-                il(RvVarInstr::Add { rd: ivar("z"), rs1: ivar("r"), rs2: ivar("s") }, &[ivar("b"), fv("x")]),
+                il(
+                    RvVarInstr::FaddS { rd: fv("d"), rs1: fv("u"), rs2: fv("v"), rm: Rm::Rne },
+                    &[ivar("b"), fv("x")],
+                ),
+                il(
+                    RvVarInstr::Add { rd: ivar("z"), rs1: ivar("r"), rs2: ivar("s") },
+                    &[ivar("b"), fv("x")],
+                ),
             ],
             &[],
         );
@@ -785,16 +824,27 @@ mod tests {
         // 27 个同时活跃的整数变量构成 27 团，超过 26 个可分配 X 寄存器，必须溢出。
         let mut instrs = Vec::new();
         for i in 0..27 {
-            instrs.push(RvVarInstr::Addi { rd: ivar(&format!("v{i}")), rs1: x0(), imm: Imm12::from_i16(1) });
+            instrs.push(RvVarInstr::Addi {
+                rd: ivar(&format!("v{i}")),
+                rs1: x0(),
+                imm: Imm12::from_i16(1),
+            });
         }
         let acc = ivar("acc");
         instrs.push(RvVarInstr::Add { rd: acc.clone(), rs1: ivar("v0"), rs2: ivar("v1") });
         for i in 2..27 {
-            instrs.push(RvVarInstr::Add { rd: acc.clone(), rs1: acc.clone(), rs2: ivar(&format!("v{i}")) });
+            instrs.push(RvVarInstr::Add {
+                rd: acc.clone(),
+                rs1: acc.clone(),
+                rs2: ivar(&format!("v{i}")),
+            });
         }
 
         let mut prog = RvVarProgram::new();
-        prog.append_basic_block(RvVarBasicBlock { name: crate::riscv::rv64imfd::Label::new("bb".to_string()), instrs });
+        prog.append_basic_block(RvVarBasicBlock {
+            name: crate::riscv::rv64imfd::Label::new("bb".to_string()),
+            instrs,
+        });
 
         let allocated = allocate_registers(prog);
         let instrs = &allocated.blocks[0].instrs;
@@ -820,7 +870,11 @@ mod tests {
             }
         }
 
-        assert_eq!(used_regs.len(), ALLOCATABLE_XREGS_SIZE as usize, "26 个可分配寄存器应全部被使用");
+        assert_eq!(
+            used_regs.len(),
+            ALLOCATABLE_XREGS_SIZE as usize,
+            "26 个可分配寄存器应全部被使用"
+        );
         assert_eq!(spilled_offsets, vec![8], "27 团应恰好溢出 1 个变量到 offset 8");
     }
 
@@ -927,7 +981,10 @@ mod tests {
         let mut x_colors = HashMap::new();
         x_colors.insert(ivar("a"), (ALLOCATABLE_XREGS_SIZE + 1) as Color);
         let f_colors = HashMap::new();
-        assert_eq!(location_to_reg(ivar("a"), &x_colors, &f_colors), RvVarLocation::StackSlot { offset: 8, size: 8 });
+        assert_eq!(
+            location_to_reg(ivar("a"), &x_colors, &f_colors),
+            RvVarLocation::StackSlot { offset: 8, size: 8 }
+        );
     }
 
     #[test]
@@ -935,7 +992,10 @@ mod tests {
         let mut f_colors = HashMap::new();
         f_colors.insert(fv("a"), (ALLOCATABLE_FREGS_SIZE + 1) as Color);
         let x_colors = HashMap::new();
-        assert_eq!(location_to_reg(fv("a"), &x_colors, &f_colors), RvVarLocation::StackSlot { offset: 8, size: 8 });
+        assert_eq!(
+            location_to_reg(fv("a"), &x_colors, &f_colors),
+            RvVarLocation::StackSlot { offset: 8, size: 8 }
+        );
     }
 
     #[test]
@@ -1065,7 +1125,10 @@ mod tests {
             RvVarInstr::FaddS { rd: fv("d"), rs1: fv("x"), rs2: fv("y"), rm: Rm::Rne },
         ];
         let mut prog = RvVarProgram::new();
-        prog.append_basic_block(RvVarBasicBlock { name: crate::riscv::rv64imfd::Label::new("bb".to_string()), instrs });
+        prog.append_basic_block(RvVarBasicBlock {
+            name: crate::riscv::rv64imfd::Label::new("bb".to_string()),
+            instrs,
+        });
 
         let allocated = allocate_registers(prog);
         for instr in &allocated.blocks[0].instrs {
@@ -1074,7 +1137,10 @@ mod tests {
                 locs.push(dest);
             }
             for loc in locs {
-                assert!(!matches!(loc, RvVarLocation::XVar(_) | RvVarLocation::FVar(_)), "仍有未分配的虚拟位置 {loc}");
+                assert!(
+                    !matches!(loc, RvVarLocation::XVar(_) | RvVarLocation::FVar(_)),
+                    "仍有未分配的虚拟位置 {loc}"
+                );
             }
         }
     }

@@ -76,7 +76,14 @@ pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: TypedExpr) -> TypedE
             let body = rename(gensym, env, *body);
             unbind(env, fname, old_fname);
 
-            TypedExpr::LetRec(new_fname, new_fparams, fty, Box::new(fbody), Box::new(body), letrec_ty)
+            TypedExpr::LetRec(
+                new_fname,
+                new_fparams,
+                fty,
+                Box::new(fbody),
+                Box::new(body),
+                letrec_ty,
+            )
         },
         TypedExpr::App(func, args, ty) => {
             let func = rename(gensym, env, *func);
@@ -224,8 +231,14 @@ mod tests {
         };
 
         let final_name = expect_var(final_body);
-        assert_eq!(final_name, outer_name, "outer `x` must not be hijacked by the lambda's shadowing `x`");
-        assert_ne!(final_name, &lambda_param_name, "outer x and lambda's x must end up as different fresh names");
+        assert_eq!(
+            final_name, outer_name,
+            "outer `x` must not be hijacked by the lambda's shadowing `x`"
+        );
+        assert_ne!(
+            final_name, &lambda_param_name,
+            "outer x and lambda's x must end up as different fresh names"
+        );
     }
 
     #[test]
@@ -255,7 +268,10 @@ mod tests {
                 assert_eq!(param_name, body_var, "function body refers to its own param");
 
                 let cont_var = expect_var(cont);
-                assert_eq!(cont_var, outer_x, "continuation after LetRec must see the outer x, not f's argument");
+                assert_eq!(
+                    cont_var, outer_x,
+                    "continuation after LetRec must see the outer x, not f's argument"
+                );
             },
             other => panic!("expected LetRec, got {:?}", other),
         }
@@ -275,7 +291,10 @@ mod tests {
         match renamed {
             TypedExpr::LetRec(new_fname, _, _, _, cont, _) => {
                 let cont_name = expect_var(&cont);
-                assert_eq!(&new_fname, cont_name, "continuation must resolve fact to its fresh name");
+                assert_eq!(
+                    &new_fname, cont_name,
+                    "continuation must resolve fact to its fresh name"
+                );
             },
             other => panic!("expected LetRec, got {:?}", other),
         }
@@ -412,13 +431,22 @@ mod tests {
 
     #[test]
     fn ann_inner_expr_is_actually_renamed() {
-        let expr =
-            TypedExpr::Let("x".to_string(), Type::Int, int(1), Box::new(TypedExpr::Ann(v("x"), Type::Int)), Type::Int);
+        let expr = TypedExpr::Let(
+            "x".to_string(),
+            Type::Int,
+            int(1),
+            Box::new(TypedExpr::Ann(v("x"), Type::Int)),
+            Type::Int,
+        );
         let renamed = uniquify_convert(expr);
         let (x_name, _, body) = expect_let(&renamed);
         match body {
             TypedExpr::Ann(inner, ty) => {
-                assert_eq!(expect_var(inner), x_name, "Ann must rename its inner expr, not clone it verbatim");
+                assert_eq!(
+                    expect_var(inner),
+                    x_name,
+                    "Ann must rename its inner expr, not clone it verbatim"
+                );
                 assert_eq!(*ty, Type::Int);
             },
             other => panic!("expected Ann, got {:?}", other),
@@ -518,7 +546,11 @@ mod tests {
 
                 match *cont {
                     TypedExpr::App(func, args, _) => {
-                        assert_eq!(expect_var(&func), &new_fname, "top-level call site must use fact's fresh name");
+                        assert_eq!(
+                            expect_var(&func),
+                            &new_fname,
+                            "top-level call site must use fact's fresh name"
+                        );
                         assert_eq!(args, vec![TypedExpr::Int(5)]);
                     },
                     other => panic!("expected App, got {:?}", other),

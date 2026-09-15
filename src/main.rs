@@ -8,15 +8,15 @@ pub mod gensym;
 pub mod llvm;
 pub mod repl;
 pub mod riscv;
+pub mod shrink;
 pub mod syntax;
 pub mod typechecker;
 pub mod uniquify;
 pub mod wasm;
-pub mod shrink;
 
-use crate::riscv::compile::compile_file;
 use crate::eval::eval_file;
 use crate::repl::repl;
+use crate::riscv::compile::compile_file;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 

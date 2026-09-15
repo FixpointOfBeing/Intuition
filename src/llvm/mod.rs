@@ -1,2 +1,2 @@
-pub mod liveness;
 pub mod ir;
+pub mod liveness;

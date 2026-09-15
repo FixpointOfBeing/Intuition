@@ -1,5 +1,5 @@
-use crate::riscv::rv64imfd::Label;
 use crate::riscv::rv_var::RvVarInstr;
+use crate::riscv::rv64imfd::Label;
 use std::fmt;
 
 #[derive(Clone, PartialEq)]

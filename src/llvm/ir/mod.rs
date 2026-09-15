@@ -8,7 +8,7 @@ pub mod function;
 pub use function::{Function, FunctionDeclaration, Parameter};
 
 pub mod instruction;
-pub use instruction::{Instruction, FPPredicate, IntPredicate};
+pub use instruction::{FPPredicate, Instruction, IntPredicate};
 
 pub mod module;
 pub use module::{AddrSpace, GlobalVariable, Module};
@@ -26,4 +26,4 @@ pub mod terminator;
 pub use terminator::Terminator;
 
 pub mod types;
-pub use types::{FPType, InstType, TypeRef, Typed, Types, NamedStructDef};
+pub use types::{FPType, InstType, NamedStructDef, TypeRef, Typed, Types};

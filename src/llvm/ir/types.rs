@@ -222,9 +222,15 @@ impl Types {
             InstType::IntegerType { bits } => self.int(*bits),
             InstType::PointerType { addr_space } => self.pointer_in_addr_space(*addr_space),
             InstType::FPType(fpt) => self.fp(*fpt),
-            InstType::FuncType { result_type, param_types } => self.func_type(result_type.clone(), param_types.clone()),
-            InstType::VectorType { element_type, num_elements } => self.vector_of(element_type.clone(), *num_elements),
-            InstType::ArrayType { element_type, num_elements } => self.array_of(element_type.clone(), *num_elements),
+            InstType::FuncType { result_type, param_types } => {
+                self.func_type(result_type.clone(), param_types.clone())
+            },
+            InstType::VectorType { element_type, num_elements } => {
+                self.vector_of(element_type.clone(), *num_elements)
+            },
+            InstType::ArrayType { element_type, num_elements } => {
+                self.array_of(element_type.clone(), *num_elements)
+            },
             InstType::StructType { element_types } => self.struct_of(element_types.clone()),
             InstType::NamedStructType { name } => self.named_struct(name),
         }

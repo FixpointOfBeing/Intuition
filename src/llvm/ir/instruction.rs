@@ -1,9 +1,9 @@
+use crate::llvm::ir::InstType;
 use crate::llvm::ir::Name;
 use crate::llvm::ir::Operand;
-use crate::llvm::ir::InstType ;
 use crate::llvm::ir::TypeRef;
-use crate::llvm::ir:: Typed;
-use crate::llvm::ir:: Types;
+use crate::llvm::ir::Typed;
+use crate::llvm::ir::Types;
 use std::fmt::Debug;
 
 ///
@@ -401,7 +401,9 @@ impl Typed for Instruction {
                 let ty = types.type_of(operand0);
                 debug_assert_eq!(ty, types.type_of(operand1));
                 match ty.as_ref() {
-                    InstType::VectorType { num_elements, .. } => types.vector_of(types.bool(), *num_elements),
+                    InstType::VectorType { num_elements, .. } => {
+                        types.vector_of(types.bool(), *num_elements)
+                    },
                     _ => types.bool(),
                 }
             },
@@ -409,7 +411,9 @@ impl Typed for Instruction {
                 let ty = types.type_of(operand0);
                 debug_assert_eq!(ty, types.type_of(operand1));
                 match ty.as_ref() {
-                    InstType::VectorType { num_elements, .. } => types.vector_of(types.bool(), *num_elements),
+                    InstType::VectorType { num_elements, .. } => {
+                        types.vector_of(types.bool(), *num_elements)
+                    },
                     _ => types.bool(),
                 }
             },
@@ -438,7 +442,10 @@ fn ev_type(cur_type: TypeRef, mut indices: impl Iterator<Item = u32>) -> TypeRef
                     .clone(),
                 indices,
             ),
-            _ => panic!("ExtractValue from something that's not ArrayType or StructType; its type is {:?}", cur_type),
+            _ => panic!(
+                "ExtractValue from something that's not ArrayType or StructType; its type is {:?}",
+                cur_type
+            ),
         },
     }
 }

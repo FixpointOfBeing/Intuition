@@ -39,7 +39,7 @@ pub fn eval(env: &Env, expr: &Expr) -> EvalResult {
         },
 
         Expr::PrimIO(prim_io) => {
-          todo!() 
+            todo!()
         },
 
         Expr::UnaryOp(op, e) => {

@@ -1,6 +1,6 @@
-use std::fmt;
 use crate::riscv::rv64imfd::Label;
 use crate::riscv::rv64imfd::RvInstr;
+use std::fmt;
 
 #[derive(Clone, PartialEq)]
 pub struct RvBasicBlock {
