@@ -12,6 +12,7 @@ pub enum TypedExpr {
     Var(Ident, Type),
     BinOp(BinOp, Box<TypedExpr>, Box<TypedExpr>, Type),
     Tuple(Vec<TypedExpr>, Type),
+    TupleProjection(Box<TypedExpr>, usize, Type),
     PrimIO(PrimIO, Option<Box<TypedExpr>>, Type),
     UnaryOp(UnaryOp, Box<TypedExpr>, Type),
     Ann(Box<TypedExpr>, Type),
@@ -40,6 +41,7 @@ impl TypedExpr {
             TypedExpr::BinOp(_, _, _, ty) => ty.clone(),
             TypedExpr::UnaryOp(_, _, ty) => ty.clone(),
             TypedExpr::Tuple(_, ty) => ty.clone(),
+            TypedExpr::TupleProjection(_, _, ty) => ty.clone(),
             TypedExpr::PrimIO(_, _, ty) => ty.clone(),
             TypedExpr::Ann(_, ty) => ty.clone(),
             TypedExpr::If(_, _, _, ty) => ty.clone(),
@@ -73,6 +75,10 @@ pub fn t_var(name: impl Into<Ident>, ty: Type) -> TypedExpr {
 
 pub fn t_tuple(elems: Vec<TypedExpr>, ty: Type) -> TypedExpr {
     TypedExpr::Tuple(elems, ty)
+}
+
+pub fn t_tuple_projection(expr: TypedExpr, index: usize, ty: Type) -> TypedExpr {
+    TypedExpr::TupleProjection(Box::new(expr), index, ty)
 }
 
 pub fn t_bin_op(op: BinOp, left: TypedExpr, right: TypedExpr, ty: Type) -> TypedExpr {
@@ -135,6 +141,8 @@ pub enum TypeError {
     InvalidOperands { op: String, left: Type, right: Type },
     InvalidUnary { op: String, ty: Type },
     AnnotationMismatch { annotated: Type, inferred: Type },
+    NotATuple(Type),
+    TupleIndexOutOfBounds { len: usize, index: usize },
 }
 
 impl std::fmt::Display for TypeError {
@@ -170,6 +178,12 @@ impl std::fmt::Display for TypeError {
             },
             TypeError::AnnotationMismatch { annotated, inferred } => {
                 write!(f, "Annotation mismatch: declared {:?}, inferred {:?}", annotated, inferred)
+            },
+            TypeError::NotATuple(ty) => {
+                write!(f, "Tuple projection on a non-tuple: {:?}", ty)
+            },
+            TypeError::TupleIndexOutOfBounds { len, index } => {
+                write!(f, "Tuple index {} out of bounds (tuple length {})", index, len)
             },
         }
     }
@@ -236,6 +250,24 @@ fn infer(ctx: &Context, expr: Expr) -> Result<TypedExpr, TypeError> {
             }
             let tuple_ty = Type::Tuple(types);
             Ok(TypedExpr::Tuple(typed_exprs, tuple_ty))
+        },
+
+        Expr::TupleProjection(inner, index) => {
+            let typed_inner = infer(ctx, *inner)?;
+            let inner_ty = typed_inner.type_of();
+            match inner_ty {
+                Type::Tuple(types) => {
+                    if index >= types.len() {
+                        return Err(TypeError::TupleIndexOutOfBounds {
+                            len: types.len(),
+                            index,
+                        });
+                    }
+                    let elem_ty = types[index].clone();
+                    Ok(TypedExpr::TupleProjection(Box::new(typed_inner), index, elem_ty))
+                },
+                other => Err(TypeError::NotATuple(other)),
+            }
         },
 
         Expr::PrimIO(prim_io, Some(expr)) => match prim_io {
@@ -468,8 +500,8 @@ mod tests {
     use super::*;
     use crate::syntax::{
         a_let, ann, app, bin_op, bool, float, if_else, int, lambda, let_rec, print_bool,
-        print_float, print_int, read_float, read_int, tuple, ty_bool, ty_int, unary, unit, var,
-        BinOp, Type, UnaryOp,
+        print_float, print_int, read_float, read_int, tuple, tuple_projection, ty_bool, ty_int,
+        unary, unit, var, BinOp, Type, UnaryOp,
     };
 
     fn infer_type(expr: Expr) -> Result<Type, TypeError> {
@@ -742,6 +774,33 @@ mod tests {
                 Type::Tuple(vec![Type::Bool, Type::Float])
             ]))
         );
+    }
+
+    #[test]
+    fn test_tuple_projection() {
+        let expr = tuple_projection(tuple(vec![int(1), bool(true), float(3.14)]), 1);
+        assert_eq!(infer_type(expr), Ok(Type::Bool));
+    }
+
+    #[test]
+    fn test_tuple_projection_nested() {
+        let expr = tuple_projection(
+            tuple_projection(tuple(vec![int(1), tuple(vec![bool(true)])]), 1),
+            0,
+        );
+        assert_eq!(infer_type(expr), Ok(Type::Bool));
+    }
+
+    #[test]
+    fn test_tuple_projection_out_of_bounds_err() {
+        let expr = tuple_projection(tuple(vec![int(1), bool(true)]), 5);
+        assert!(infer_type(expr).is_err());
+    }
+
+    #[test]
+    fn test_tuple_projection_non_tuple_err() {
+        let expr = tuple_projection(int(1), 0);
+        assert!(infer_type(expr).is_err());
     }
 
     #[test]

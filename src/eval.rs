@@ -43,6 +43,17 @@ pub fn eval(env: &Env, expr: &Expr) -> EvalResult {
             Ok(Value::Tuple(vals))
         },
 
+        Expr::TupleProjection(expr, index) => {
+            let val = eval(env, expr)?;
+            match val {
+                Value::Tuple(vals) => vals
+                    .get(*index)
+                    .cloned()
+                    .ok_or_else(|| EvalError(format!("tuple index {} out of bounds", index))),
+                other => err!("tuple projection on non-tuple: {}", other),
+            }
+        },
+
         Expr::PrimIO(prim_io, None) => {
             match prim_io {
                 PrimIO::ReadInt => {
@@ -263,8 +274,8 @@ mod tests {
     use super::*;
     use crate::syntax::{
         a_let, ann, app, bin_op, bool, float, if_else, int, lambda, let_rec, print_bool,
-        print_float, print_int, tuple, ty_arrow, ty_bool, ty_int, unary, unit, var, BinOp,
-        UnaryOp,
+        print_float, print_int, tuple, tuple_projection, ty_arrow, ty_bool, ty_int, unary, unit,
+        var, BinOp, UnaryOp,
     };
 
     fn run(expr: Expr) -> Value {
@@ -487,6 +498,39 @@ mod tests {
                 Value::Tuple(vec![Value::Bool(true), Value::Float(2.0)])
             ])
         );
+    }
+
+    #[test]
+    fn test_tuple_projection() {
+        assert_eq!(
+            run(tuple_projection(tuple(vec![int(1), bool(true), float(3.14)]), 0)),
+            Value::Int(1)
+        );
+        assert_eq!(
+            run(tuple_projection(tuple(vec![int(1), bool(true), float(3.14)]), 2)),
+            Value::Float(3.14)
+        );
+    }
+
+    #[test]
+    fn test_tuple_projection_nested() {
+        assert_eq!(
+            run(tuple_projection(
+                tuple_projection(tuple(vec![int(1), tuple(vec![bool(true)])]), 1),
+                0
+            )),
+            Value::Bool(true)
+        );
+    }
+
+    #[test]
+    fn test_tuple_projection_out_of_bounds() {
+        assert!(eval_top(&tuple_projection(tuple(vec![int(1)]), 3)).is_err());
+    }
+
+    #[test]
+    fn test_tuple_projection_non_tuple() {
+        assert!(eval_top(&tuple_projection(int(1), 0)).is_err());
     }
 
     #[test]

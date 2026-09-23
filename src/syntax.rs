@@ -19,6 +19,7 @@ pub enum Expr {
     Float(f64),
     Var(Ident),
     Tuple(Vec<Expr>),
+    TupleProjection(Box<Expr>, usize),
     PrimIO(PrimIO, Option<Box<Expr>>),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
     UnaryOp(UnaryOp, Box<Expr>),
@@ -151,6 +152,10 @@ pub fn var(name: impl Into<Ident>) -> Expr {
 
 pub fn tuple(exprs: Vec<Expr>) -> Expr {
     Expr::Tuple(exprs)
+}
+
+pub fn tuple_projection(expr: Expr, index: usize) -> Expr {
+    Expr::TupleProjection(Box::new(expr), index)
 }
 
 pub fn bin_op(op: BinOp, left: Expr, right: Expr) -> Expr {
@@ -304,6 +309,9 @@ impl std::fmt::Display for Expr {
                     .collect::<Vec<String>>()
                     .join(", ");
                 write!(f, "({})", exprs_str)
+            },
+            Expr::TupleProjection(expr, idx) => {
+                write!(f, "{}.{}", expr, idx)
             },
 
             Expr::PrimIO(prim_io, Some(expr)) => match prim_io {
@@ -812,6 +820,34 @@ mod tests {
             },
             _ => panic!("Expected Expr::Tuple"),
         }
+    }
+
+    #[test]
+    fn test_parse_tuple_projection() {
+        let expr = parser::ExprParser::new().parse("let p = (1, 3.14, false) in p.0").unwrap();
+        assert_eq!(
+            *expr,
+            a_let(
+                "p",
+                None,
+                tuple(vec![int(1), float(3.14), bool(false)]),
+                tuple_projection(var("p"), 0)
+            )
+        );
+    }
+
+    #[test]
+    fn test_parse_tuple_projection_nested() {
+        let expr = parser::ExprParser::new().parse("let p = (1, (true, 2)) in (p.1).0").unwrap();
+        assert_eq!(
+            *expr,
+            a_let(
+                "p",
+                None,
+                tuple(vec![int(1), tuple(vec![bool(true), int(2)])]),
+                tuple_projection(tuple_projection(var("p"), 1), 0)
+            )
+        );
     }
 
     #[test]

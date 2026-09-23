@@ -152,7 +152,7 @@ UnaryOp: Box<Expr> = {
 };
 
 App: Box<Expr> = {
-    <f:Factor> <args:Factor+> => {
+    <f:Projection> <args:Projection+> => {
         let mut args_vec = Vec::new();
         for arg in args {
             args_vec.push(*arg);
@@ -205,6 +205,16 @@ App: Box<Expr> = {
         }
     },
 
+    Projection,
+};
+
+Projection: Box<Expr> = {
+    <e:Projection> "." <n:r"[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?"> => {
+        if n.contains('.') || n.contains('e') || n.contains('E') {
+            panic!("tuple projection index must be a non-negative integer, got: {}", n);
+        }
+        Box::new(Expr::TupleProjection(e, n.parse::<usize>().unwrap()))
+    },
     Factor,
 };
 

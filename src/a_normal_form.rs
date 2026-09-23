@@ -19,6 +19,7 @@ pub enum CompExpr {
     Atom(AExpr),
     BinOp(BinOp, AExpr, AExpr),
     Tuple(Vec<AExpr>),
+    TupleProjection(AExpr, usize),
     PrimIO(PrimIO, Option<AExpr>),
     UnaryOp(UnaryOp, AExpr),
     App(AExpr, Vec<AExpr>),
@@ -63,6 +64,10 @@ pub fn c_bin_op(op: BinOp, left: AExpr, right: AExpr) -> CompExpr {
 
 pub fn c_tuple(elems: Vec<AExpr>) -> CompExpr {
     CompExpr::Tuple(elems)
+}
+
+pub fn c_tuple_projection(expr: AExpr, index: usize) -> CompExpr {
+    CompExpr::TupleProjection(expr, index)
 }
 
 pub fn c_prim_io(prim: PrimIO, expr: Option<AExpr>) -> CompExpr {
@@ -145,6 +150,10 @@ fn collect_bindings(expr: TypedExpr, gs: &mut Gensym, bindings: &mut Bindings) -
                 elements_atom.push(element_atom);
             }
             CompExpr::Tuple(elements_atom)
+        },
+        TypedExpr::TupleProjection(expr, index, _) => {
+            let atom = to_atom(*expr, gs, bindings);
+            CompExpr::TupleProjection(atom, index)
         },
         TypedExpr::PrimIO(prim_io, typed_expr, _) => match typed_expr {
             Some(typed_expr) => {

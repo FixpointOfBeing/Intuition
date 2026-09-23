@@ -30,6 +30,10 @@ pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: TypedExpr) -> TypedE
             let typed_exprs = typed_exprs.into_iter().map(|e| rename(gensym, env, e)).collect();
             TypedExpr::Tuple(typed_exprs, ty)
         },
+        TypedExpr::TupleProjection(expr, index, ty) => {
+            let expr = rename(gensym, env, *expr);
+            TypedExpr::TupleProjection(Box::new(expr), index, ty)
+        },
         TypedExpr::PrimIO(prim_io, typed_expr, ty) => match typed_expr {
             Some(typed_expr) => {
                 let renamed = rename(gensym, env, *typed_expr);
