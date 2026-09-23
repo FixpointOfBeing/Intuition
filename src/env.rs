@@ -7,6 +7,7 @@ pub enum Value {
     Bool(bool),
     Int(i64),
     Float(f64),
+    Tuple(Vec<Value>),
     Closure(Env, Vec<Ident>, Expr),
     RecClosure { env: Env, fname: Ident, params: Vec<Ident>, body: Expr },
 }
@@ -18,6 +19,14 @@ impl std::fmt::Display for Value {
             Value::Bool(b) => write!(f, "{}", b),
             Value::Int(n) => write!(f, "{}", n),
             Value::Float(x) => write!(f, "{}", x),
+            Value::Tuple(vals) => {
+                let s = vals
+                    .iter()
+                    .map(|val| format!("{}", val))
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                write!(f, "({})", s)
+            },
             Value::Closure(..) => write!(f, "<closure>"),
             Value::RecClosure { .. } => write!(f, "<rec-closure>"),
         }

@@ -40,29 +40,31 @@ fn free_vars_comp(comp: &CompExpr, bound: &mut HashSet<Ident>, free: &mut HashSe
     match comp {
         CompExpr::Atom(aexpr) => free_vars_aexpr(aexpr, bound, free),
         CompExpr::BinOp(_, l, r) => {
-            free_vars_aexpr(l, bound, free);
-            free_vars_aexpr(r, bound, free);
-        },
+                free_vars_aexpr(l, bound, free);
+                free_vars_aexpr(r, bound, free);
+            },
         CompExpr::UnaryOp(_, a) => free_vars_aexpr(a, bound, free),
         CompExpr::App(fn_a, args) => {
-            free_vars_aexpr(fn_a, bound, free);
-            for a in args {
-                free_vars_aexpr(a, bound, free);
-            }
-        },
+                free_vars_aexpr(fn_a, bound, free);
+                for a in args {
+                    free_vars_aexpr(a, bound, free);
+                }
+            },
         CompExpr::If(cond, thn, els) => {
-            free_vars_aexpr(cond, bound, free);
-            free_vars_anf(thn, bound, free);
-            free_vars_anf(els, bound, free);
-        },
+                free_vars_aexpr(cond, bound, free);
+                free_vars_anf(thn, bound, free);
+                free_vars_anf(els, bound, free);
+            },
         CompExpr::Lambda(params, _, body) => {
-            let old_bound: HashSet<_> = bound.clone();
-            for (name, _) in params {
-                bound.insert(name.clone());
-            }
-            free_vars_anf(body, bound, free);
-            *bound = old_bound;
-        },
+                let old_bound: HashSet<_> = bound.clone();
+                for (name, _) in params {
+                    bound.insert(name.clone());
+                }
+                free_vars_anf(body, bound, free);
+                *bound = old_bound;
+            },
+        CompExpr::Tuple(aexprs) => todo!(),
+        CompExpr::PrimIO(prim_io, aexpr) => todo!(),
     }
 }
 
@@ -150,45 +152,47 @@ fn infer_type_from_anf(anf: &AnfExpr, target: &str) -> Type {
         }
         match comp {
             CompExpr::Atom(aexpr) => {
-                if let AExpr::Var(name, ty) = aexpr {
-                    if name == target {
-                        *result = Some(ty.clone());
-                    }
-                }
-            },
+                        if let AExpr::Var(name, ty) = aexpr {
+                            if name == target {
+                                *result = Some(ty.clone());
+                            }
+                        }
+                    },
             CompExpr::BinOp(_, l, r) => {
-                search_aexpr(l, target, result);
-                if result.is_none() {
-                    search_aexpr(r, target, result);
-                }
-            },
+                        search_aexpr(l, target, result);
+                        if result.is_none() {
+                            search_aexpr(r, target, result);
+                        }
+                    },
             CompExpr::UnaryOp(_, a) => {
-                search_aexpr(a, target, result);
-            },
+                        search_aexpr(a, target, result);
+                    },
             CompExpr::App(f, args) => {
-                search_aexpr(f, target, result);
-                for a in args {
-                    if result.is_some() {
-                        return;
-                    }
-                    search_aexpr(a, target, result);
-                }
-            },
+                        search_aexpr(f, target, result);
+                        for a in args {
+                            if result.is_some() {
+                                return;
+                            }
+                            search_aexpr(a, target, result);
+                        }
+                    },
             CompExpr::If(_, thn, els) => {
-                search_anf(thn, target, result);
-                if result.is_none() {
-                    search_anf(els, target, result);
-                }
-            },
+                        search_anf(thn, target, result);
+                        if result.is_none() {
+                            search_anf(els, target, result);
+                        }
+                    },
             CompExpr::Lambda(params, _, body) => {
-                for (pname, pty) in params {
-                    if pname == target {
-                        *result = Some(pty.clone());
-                        return;
-                    }
-                }
-                search_anf(body, target, result);
-            },
+                        for (pname, pty) in params {
+                            if pname == target {
+                                *result = Some(pty.clone());
+                                return;
+                            }
+                        }
+                        search_anf(body, target, result);
+                    },
+            CompExpr::Tuple(aexprs) => todo!(),
+            CompExpr::PrimIO(prim_io, aexpr) => todo!(),
         }
     }
 
@@ -215,46 +219,48 @@ fn compile_comp(
         CompExpr::UnaryOp(op, a) => ClosCompExpr::UnaryOp(op, a),
         CompExpr::App(fn_a, args) => ClosCompExpr::App(fn_a, args),
         CompExpr::If(cond, thn, els) => {
-            let then_clos = compile_anf(*thn, bound, fn_defs, gs);
-            let else_clos = compile_anf(*els, bound, fn_defs, gs);
-            ClosCompExpr::If(cond, Box::new(then_clos), Box::new(else_clos))
-        },
+                let then_clos = compile_anf(*thn, bound, fn_defs, gs);
+                let else_clos = compile_anf(*els, bound, fn_defs, gs);
+                ClosCompExpr::If(cond, Box::new(then_clos), Box::new(else_clos))
+            },
         CompExpr::Lambda(params, ret_ty, body) => {
-            let fn_name = gs.fresh_with_prefix("lambda$");
-            let env_param_name = gs.fresh_with_prefix("env$");
+                let fn_name = gs.fresh_with_prefix("lambda$");
+                let env_param_name = gs.fresh_with_prefix("env$");
 
-            let mut lambda_bound: HashSet<Ident> = HashSet::new();
-            for (pname, _) in params.clone() {
-                lambda_bound.insert(pname);
-            }
-            lambda_bound.insert(env_param_name.clone());
+                let mut lambda_bound: HashSet<Ident> = HashSet::new();
+                for (pname, _) in params.clone() {
+                    lambda_bound.insert(pname);
+                }
+                lambda_bound.insert(env_param_name.clone());
 
-            let (conv_body, free_vars) =
-                convert_closure_body(*body, bound, &lambda_bound, &env_param_name, fn_defs, gs);
+                let (conv_body, free_vars) =
+                    convert_closure_body(*body, bound, &lambda_bound, &env_param_name, fn_defs, gs);
 
-            let fn_def = ClosFnDef {
-                name: fn_name.clone(),
-                env_param: env_param_name,
-                params: params.clone(),
-                return_type: ret_ty.clone(),
-                body: conv_body,
-            };
-            fn_defs.push(fn_def);
+                let fn_def = ClosFnDef {
+                    name: fn_name.clone(),
+                    env_param: env_param_name,
+                    params: params.clone(),
+                    return_type: ret_ty.clone(),
+                    body: conv_body,
+                };
+                fn_defs.push(fn_def);
 
-            let fn_ptr_atom =
-                AExpr::Var(fn_name, Type::Arrow(Box::new(Type::Unit), Box::new(ret_ty.clone())));
+                let fn_ptr_atom =
+                    AExpr::Var(fn_name, Type::Arrow(Box::new(Type::Unit), Box::new(ret_ty.clone())));
 
-            let mut captured_atoms: Vec<AExpr> = Vec::new();
-            for (fv_name, fv_ty) in &free_vars {
-                captured_atoms.push(AExpr::Var(fv_name.clone(), fv_ty.clone()));
-            }
+                let mut captured_atoms: Vec<AExpr> = Vec::new();
+                for (fv_name, fv_ty) in &free_vars {
+                    captured_atoms.push(AExpr::Var(fv_name.clone(), fv_ty.clone()));
+                }
 
-            let original_fn_ty = params.iter().rfold(ret_ty.clone(), |acc, (_, pty)| {
-                Type::Arrow(Box::new(pty.clone()), Box::new(acc))
-            });
+                let original_fn_ty = params.iter().rfold(ret_ty.clone(), |acc, (_, pty)| {
+                    Type::Arrow(Box::new(pty.clone()), Box::new(acc))
+                });
 
-            ClosCompExpr::MakeClosure(fn_ptr_atom, captured_atoms, original_fn_ty)
-        },
+                ClosCompExpr::MakeClosure(fn_ptr_atom, captured_atoms, original_fn_ty)
+            },
+        CompExpr::Tuple(aexprs) => todo!(),
+        CompExpr::PrimIO(prim_io, aexpr) => todo!(),
     }
 }
 
@@ -410,114 +416,116 @@ fn convert_closure_body(
     ) -> ClosCompExpr {
         match comp {
             CompExpr::Atom(a) => {
-                let clos_a =
-                    compile_atom_with_env(a, bound, lambda_bound, env_param, env_field_index);
-                ClosCompExpr::Atom(clos_a)
-            },
+                        let clos_a =
+                            compile_atom_with_env(a, bound, lambda_bound, env_param, env_field_index);
+                        ClosCompExpr::Atom(clos_a)
+                    },
             CompExpr::BinOp(op, l, r) => {
-                let l_clos =
-                    compile_atom_with_env(l, bound, lambda_bound, env_param, env_field_index);
-                let r_clos =
-                    compile_atom_with_env(r, bound, lambda_bound, env_param, env_field_index);
-                ClosCompExpr::BinOp(op.clone(), l_clos, r_clos)
-            },
+                        let l_clos =
+                            compile_atom_with_env(l, bound, lambda_bound, env_param, env_field_index);
+                        let r_clos =
+                            compile_atom_with_env(r, bound, lambda_bound, env_param, env_field_index);
+                        ClosCompExpr::BinOp(op.clone(), l_clos, r_clos)
+                    },
             CompExpr::UnaryOp(op, a) => {
-                let a_clos =
-                    compile_atom_with_env(a, bound, lambda_bound, env_param, env_field_index);
-                ClosCompExpr::UnaryOp(op.clone(), a_clos)
-            },
+                        let a_clos =
+                            compile_atom_with_env(a, bound, lambda_bound, env_param, env_field_index);
+                        ClosCompExpr::UnaryOp(op.clone(), a_clos)
+                    },
             CompExpr::App(fn_a, args) => {
-                let fn_clos =
-                    compile_atom_with_env(fn_a, bound, lambda_bound, env_param, env_field_index);
-                let args_clos: Vec<AExpr> = args
-                    .iter()
-                    .map(|a| {
-                        compile_atom_with_env(
-                            (*a).clone(),
+                        let fn_clos =
+                            compile_atom_with_env(fn_a, bound, lambda_bound, env_param, env_field_index);
+                        let args_clos: Vec<AExpr> = args
+                            .iter()
+                            .map(|a| {
+                                compile_atom_with_env(
+                                    (*a).clone(),
+                                    bound,
+                                    lambda_bound,
+                                    env_param,
+                                    env_field_index,
+                                )
+                            })
+                            .collect();
+                        ClosCompExpr::App(fn_clos, args_clos)
+                    },
+            CompExpr::If(cond, thn, els) => {
+                        let cond_clos =
+                            compile_atom_with_env(cond, bound, lambda_bound, env_param, env_field_index);
+                        let thn_clos = compile_anf_with_env(
+                            *thn,
                             bound,
                             lambda_bound,
                             env_param,
                             env_field_index,
-                        )
-                    })
-                    .collect();
-                ClosCompExpr::App(fn_clos, args_clos)
-            },
-            CompExpr::If(cond, thn, els) => {
-                let cond_clos =
-                    compile_atom_with_env(cond, bound, lambda_bound, env_param, env_field_index);
-                let thn_clos = compile_anf_with_env(
-                    *thn,
-                    bound,
-                    lambda_bound,
-                    env_param,
-                    env_field_index,
-                    fn_defs,
-                    gs,
-                );
-                let els_clos = compile_anf_with_env(
-                    *els,
-                    bound,
-                    lambda_bound,
-                    env_param,
-                    env_field_index,
-                    fn_defs,
-                    gs,
-                );
-                ClosCompExpr::If(cond_clos, Box::new(thn_clos), Box::new(els_clos))
-            },
+                            fn_defs,
+                            gs,
+                        );
+                        let els_clos = compile_anf_with_env(
+                            *els,
+                            bound,
+                            lambda_bound,
+                            env_param,
+                            env_field_index,
+                            fn_defs,
+                            gs,
+                        );
+                        ClosCompExpr::If(cond_clos, Box::new(thn_clos), Box::new(els_clos))
+                    },
             CompExpr::Lambda(params, ret_ty, body) => {
-                let fn_name = gs.fresh_with_prefix("lambda$");
-                let nested_env_param = gs.fresh_with_prefix("env$");
+                        let fn_name = gs.fresh_with_prefix("lambda$");
+                        let nested_env_param = gs.fresh_with_prefix("env$");
 
-                let mut nested_lambda_bound: HashSet<Ident> = HashSet::new();
-                for (pname, _) in params.clone() {
-                    nested_lambda_bound.insert(pname);
-                }
-                nested_lambda_bound.insert(nested_env_param.clone());
+                        let mut nested_lambda_bound: HashSet<Ident> = HashSet::new();
+                        for (pname, _) in params.clone() {
+                            nested_lambda_bound.insert(pname);
+                        }
+                        nested_lambda_bound.insert(nested_env_param.clone());
 
-                let (conv_body, fv_nested) = convert_closure_body(
-                    *body,
-                    bound,
-                    &nested_lambda_bound,
-                    &nested_env_param,
-                    fn_defs,
-                    gs,
-                );
+                        let (conv_body, fv_nested) = convert_closure_body(
+                            *body,
+                            bound,
+                            &nested_lambda_bound,
+                            &nested_env_param,
+                            fn_defs,
+                            gs,
+                        );
 
-                let fn_def = ClosFnDef {
-                    name: fn_name.clone(),
-                    env_param: nested_env_param,
-                    params: params.clone(),
-                    return_type: ret_ty.clone(),
-                    body: conv_body,
-                };
-                fn_defs.push(fn_def);
+                        let fn_def = ClosFnDef {
+                            name: fn_name.clone(),
+                            env_param: nested_env_param,
+                            params: params.clone(),
+                            return_type: ret_ty.clone(),
+                            body: conv_body,
+                        };
+                        fn_defs.push(fn_def);
 
-                let fn_ptr_atom = AExpr::Var(
-                    fn_name.clone(),
-                    Type::Arrow(Box::new(Type::Unit), Box::new(ret_ty.clone())),
-                );
+                        let fn_ptr_atom = AExpr::Var(
+                            fn_name.clone(),
+                            Type::Arrow(Box::new(Type::Unit), Box::new(ret_ty.clone())),
+                        );
 
-                let mut captured_atoms: Vec<AExpr> = Vec::new();
-                for (fv_name, fv_ty) in &fv_nested {
-                    let atom = compile_var_with_env(
-                        fv_name,
-                        fv_ty,
-                        bound,
-                        lambda_bound,
-                        env_param,
-                        env_field_index,
-                    );
-                    captured_atoms.push(atom);
-                }
+                        let mut captured_atoms: Vec<AExpr> = Vec::new();
+                        for (fv_name, fv_ty) in &fv_nested {
+                            let atom = compile_var_with_env(
+                                fv_name,
+                                fv_ty,
+                                bound,
+                                lambda_bound,
+                                env_param,
+                                env_field_index,
+                            );
+                            captured_atoms.push(atom);
+                        }
 
-                let original_fn_ty = params.iter().rfold(ret_ty.clone(), |acc, (_, pty)| {
-                    Type::Arrow(Box::new(pty.clone()), Box::new(acc))
-                });
+                        let original_fn_ty = params.iter().rfold(ret_ty.clone(), |acc, (_, pty)| {
+                            Type::Arrow(Box::new(pty.clone()), Box::new(acc))
+                        });
 
-                ClosCompExpr::MakeClosure(fn_ptr_atom, captured_atoms, original_fn_ty)
-            },
+                        ClosCompExpr::MakeClosure(fn_ptr_atom, captured_atoms, original_fn_ty)
+                    },
+            CompExpr::Tuple(aexprs) => todo!(),
+            CompExpr::PrimIO(prim_io, aexpr) => todo!(),
         }
     }
 

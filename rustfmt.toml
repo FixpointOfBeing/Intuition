@@ -28,3 +28,5 @@ array_width = 70
 
 # 删除多余的嵌套括号
 remove_nested_parens = true
+
+# imports_granularity = "Item"

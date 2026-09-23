@@ -41,7 +41,7 @@ fn write_instr(instr: &RvVarInstr, live_before: &mut HashSet<RvVarLocation>) {
 
 pub fn liveness_analysis(basic_block: &RvVarBasicBlock) -> RvVarBasicBlockLiveness {
     let mut live = HashSet::new();
-    let mut instrs = Vec::new();
+    let mut instrs = Vec::with_capacity(basic_block.instrs.len());
     for instr in basic_block.instrs.iter().rev() {
         write_instr(instr, &mut live);
         read_instr(instr, &mut live);

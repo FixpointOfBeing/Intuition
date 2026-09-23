@@ -164,21 +164,21 @@ App: Box<Expr> = {
                     if args_vec.len() != 1 {
                         panic!("print_int expects exactly one argument")
                     } else {
-                      Box::new(Expr::PrimIO(PrimIO::PrintInt(Box::new(args_vec.remove(0)))))
+                      Box::new(Expr::PrimIO(PrimIO::PrintInt, Some(Box::new(args_vec.remove(0)))))
                     }
                 },
                 "print_float" => {
                     if args_vec.len() != 1 {
                         panic!("print_float expects exactly one argument")
                     } else {
-                      Box::new(Expr::PrimIO(PrimIO::PrintFloat(Box::new(args_vec.remove(0)))))
+                      Box::new(Expr::PrimIO(PrimIO::PrintFloat, Some(Box::new(args_vec.remove(0)))))
                     }
                 },
                 "print_bool" => {
                     if args_vec.len() != 1 {
                         panic!("print_bool expects exactly one argument")
                     } else {
-                      Box::new(Expr::PrimIO(PrimIO::PrintBool(Box::new(args_vec.remove(0)))))
+                      Box::new(Expr::PrimIO(PrimIO::PrintBool, Some(Box::new(args_vec.remove(0)))))
                     }
                 },
                 "read_int" => {
@@ -186,7 +186,7 @@ App: Box<Expr> = {
                     if args_vec.len() != 1 && !matches!(args_vec[0], Expr::Unit) {
                         panic!("read_int expects exactly one argument (unit)")
                     } else {
-                      Box::new(Expr::PrimIO(PrimIO::ReadInt))
+                      Box::new(Expr::PrimIO(PrimIO::ReadInt, None))
                     }
                 },
                 "read_float" => {
@@ -194,7 +194,7 @@ App: Box<Expr> = {
                     if args_vec.len() != 1 && !matches!(args_vec[0], Expr::Unit) {
                         panic!("read_float expects exactly one argument (unit)")
                     } else {
-                      Box::new(Expr::PrimIO(PrimIO::ReadFloat))
+                      Box::new(Expr::PrimIO(PrimIO::ReadFloat, None))
                     }
                 },
                 _ => Box::new(Expr::App(f, args_vec)),

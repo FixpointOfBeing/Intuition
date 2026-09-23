@@ -19,7 +19,7 @@ pub enum Expr {
     Float(f64),
     Var(Ident),
     Tuple(Vec<Expr>),
-    PrimIO(PrimIO),
+    PrimIO(PrimIO, Option<Box<Expr>>),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
     UnaryOp(UnaryOp, Box<Expr>),
     Ann(Box<Expr>, Type),
@@ -38,9 +38,9 @@ pub enum Expr {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PrimIO {
-    PrintInt(Box<Expr>),
-    PrintFloat(Box<Expr>),
-    PrintBool(Box<Expr>),
+    PrintInt,
+    PrintFloat,
+    PrintBool,
     ReadInt,
     ReadFloat,
 }
@@ -169,7 +169,7 @@ pub fn if_else(cond: Expr, then_branch: Expr, else_branch: Expr) -> Expr {
     Expr::If(Box::new(cond), Box::new(then_branch), Box::new(else_branch))
 }
 
-pub fn let_(name: impl Into<Ident>, ann: Option<Type>, val: Expr, body: Expr) -> Expr {
+pub fn a_let(name: impl Into<Ident>, ann: Option<Type>, val: Expr, body: Expr) -> Expr {
     Expr::Let(name.into(), ann, Box::new(val), Box::new(body))
 }
 
@@ -192,23 +192,23 @@ pub fn lambda(params: Vec<(Ident, Type)>, ret_ty: Option<Type>, body: Expr) -> E
 }
 
 pub fn print_int(expr: Expr) -> Expr {
-    Expr::PrimIO(PrimIO::PrintInt(Box::new(expr)))
+    Expr::PrimIO(PrimIO::PrintInt, Some(Box::new(expr)))
 }
 
 pub fn print_float(expr: Expr) -> Expr {
-    Expr::PrimIO(PrimIO::PrintFloat(Box::new(expr)))
+    Expr::PrimIO(PrimIO::PrintFloat, Some(Box::new(expr)))
 }
 
 pub fn print_bool(expr: Expr) -> Expr {
-    Expr::PrimIO(PrimIO::PrintBool(Box::new(expr)))
+    Expr::PrimIO(PrimIO::PrintBool, Some(Box::new(expr)))
 }
 
 pub fn read_int() -> Expr {
-    Expr::PrimIO(PrimIO::ReadInt)
+    Expr::PrimIO(PrimIO::ReadInt, None)
 }
 
 pub fn read_float() -> Expr {
-    Expr::PrimIO(PrimIO::ReadFloat)
+    Expr::PrimIO(PrimIO::ReadFloat, None)
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -305,8 +305,17 @@ impl std::fmt::Display for Expr {
                     .join(", ");
                 write!(f, "({})", exprs_str)
             },
-            Expr::PrimIO(prim_io) => {
-                todo!()
+
+            Expr::PrimIO(prim_io, Some(expr)) => match prim_io {
+                PrimIO::PrintInt => write!(f, "print_int {}", *expr),
+                PrimIO::PrintFloat => write!(f, "print_float {}", *expr),
+                PrimIO::PrintBool => write!(f, "print_bool {}", *expr),
+                _ => unreachable!(),
+            },
+            Expr::PrimIO(prim_io, None) => match prim_io {
+                PrimIO::ReadInt => write!(f, "read_int ()"),
+                PrimIO::ReadFloat => write!(f, "read_float ()"),
+                _ => unreachable!(),
             },
             Expr::BinOp(op, left, right) => {
                 write!(f, "({} {} {})", left, op, right)
@@ -627,13 +636,13 @@ mod tests {
     #[test]
     fn test_parse_let_no_annotation() {
         let expr = parser::ExprParser::new().parse("let x = 1 in x").unwrap();
-        assert_eq!(*expr, let_("x", None, int(1), var("x")));
+        assert_eq!(*expr, a_let("x", None, int(1), var("x")));
     }
 
     #[test]
     fn test_parse_let_with_annotation() {
         let expr = parser::ExprParser::new().parse("let x: Int = 1 in x").unwrap();
-        assert_eq!(*expr, let_("x", Some(ty_int()), int(1), var("x")));
+        assert_eq!(*expr, a_let("x", Some(ty_int()), int(1), var("x")));
     }
 
     #[test]
@@ -643,7 +652,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             *expr,
-            let_(
+            a_let(
                 "f",
                 Some(ty_arrow(ty_bool(), ty_arrow(ty_int(), ty_arrow(ty_int(), ty_int())))),
                 lambda(
@@ -671,11 +680,11 @@ mod tests {
             .unwrap();
         assert_eq!(
             *expr,
-            let_(
+            a_let(
                 "x",
                 None,
                 int(1),
-                let_("y", None, int(2), bin_op(BinOp::Add, var("x"), var("y")))
+                a_let("y", None, int(2), bin_op(BinOp::Add, var("x"), var("y")))
             )
         );
     }
@@ -800,6 +809,30 @@ mod tests {
                     Expr::Float(f) => (f - 3.14).abs() < 1e-10,
                     _ => false,
                 });
+            },
+            _ => panic!("Expected Expr::Tuple"),
+        }
+    }
+
+    #[test]
+    fn test_parse_tuple_nested() {
+        let expr = parser::ExprParser::new().parse("(true, 1, (3.14, false))").unwrap();
+        match *expr {
+            Expr::Tuple(elements) => {
+                assert_eq!(elements.len(), 3);
+                assert_eq!(elements[0], bool(true));
+                assert_eq!(elements[1], int(1));
+                match &elements[2] {
+                    Expr::Tuple(inner) => {
+                        assert_eq!(inner.len(), 2);
+                        assert!(match inner[0] {
+                            Expr::Float(f) => (f - 3.14).abs() < 1e-10,
+                            _ => false,
+                        });
+                        assert_eq!(inner[1], bool(false));
+                    },
+                    _ => panic!("Expected nested Expr::Tuple"),
+                }
             },
             _ => panic!("Expected Expr::Tuple"),
         }

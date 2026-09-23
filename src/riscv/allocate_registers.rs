@@ -67,7 +67,6 @@ impl RvVarLocationGraph {
             for adj_idx in self.ungraph.neighbors(*idx) {
                 neighbors.push(self.ungraph[adj_idx].clone());
             }
-
             neighbors
         } else {
             Vec::new()

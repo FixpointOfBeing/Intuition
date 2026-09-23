@@ -26,6 +26,17 @@ pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: TypedExpr) -> TypedE
         TypedExpr::Bool(_) => expr,
         TypedExpr::Int(_) => expr,
         TypedExpr::Float(_) => expr,
+        TypedExpr::Tuple(typed_exprs, ty) => {
+            let typed_exprs = typed_exprs.into_iter().map(|e| rename(gensym, env, e)).collect();
+            TypedExpr::Tuple(typed_exprs, ty)
+        },
+        TypedExpr::PrimIO(prim_io, typed_expr, ty) => match typed_expr {
+            Some(typed_expr) => {
+                let renamed = rename(gensym, env, *typed_expr);
+                TypedExpr::PrimIO(prim_io, Some(Box::new(renamed)), ty)
+            },
+            None => TypedExpr::PrimIO(prim_io, None, ty),
+        },
         TypedExpr::BinOp(op, left, right, ty) => {
             let left = rename(gensym, env, *left);
             let right = rename(gensym, env, *right);
@@ -119,15 +130,11 @@ pub fn uniquify_convert(expr: TypedExpr) -> TypedExpr {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::syntax::{BinOp, Type, UnaryOp};
-
-    fn v(name: &str) -> Box<TypedExpr> {
-        Box::new(TypedExpr::Var(name.to_string(), Type::Int))
-    }
-
-    fn int(n: i64) -> Box<TypedExpr> {
-        Box::new(TypedExpr::Int(n))
-    }
+    use crate::syntax::{BinOp, PrimIO, Type, UnaryOp};
+    use crate::typechecker::{
+        t_ann, t_app, t_bin_op, t_bool, t_float, t_if, t_int, t_lambda, t_let, t_let_rec,
+        t_prim_io, t_tuple, t_unary, t_unit, t_var,
+    };
 
     fn expect_let(expr: &TypedExpr) -> (&Ident, &TypedExpr, &TypedExpr) {
         match expr {
@@ -149,28 +156,28 @@ mod tests {
 
     #[test]
     fn unit_is_unchanged() {
-        assert_eq!(uniquify_convert(TypedExpr::Unit), TypedExpr::Unit);
+        assert_eq!(uniquify_convert(t_unit()), t_unit());
     }
 
     #[test]
     fn bool_is_unchanged() {
-        assert_eq!(uniquify_convert(TypedExpr::Bool(true)), TypedExpr::Bool(true));
-        assert_eq!(uniquify_convert(TypedExpr::Bool(false)), TypedExpr::Bool(false));
+        assert_eq!(uniquify_convert(t_bool(true)), t_bool(true));
+        assert_eq!(uniquify_convert(t_bool(false)), t_bool(false));
     }
 
     #[test]
     fn int_is_unchanged() {
-        assert_eq!(uniquify_convert(TypedExpr::Int(42)), TypedExpr::Int(42));
+        assert_eq!(uniquify_convert(t_int(42)), t_int(42));
     }
 
     #[test]
     fn float_is_unchanged() {
-        assert_eq!(uniquify_convert(TypedExpr::Float(3.14)), TypedExpr::Float(3.14));
+        assert_eq!(uniquify_convert(t_float(3.14)), t_float(3.14));
     }
 
     #[test]
     fn let_renames_var_in_body() {
-        let expr = TypedExpr::Let("x".to_string(), Type::Int, int(1), v("x"), Type::Int);
+        let expr = t_let("x", Type::Int, t_int(1), t_var("x", Type::Int), Type::Int);
         let renamed = uniquify_convert(expr);
         let (bound_name, _, body) = expect_let(&renamed);
         let used_name = expect_var(body);
@@ -180,11 +187,11 @@ mod tests {
 
     #[test]
     fn fresh_names_are_distinct_across_lets() {
-        let expr = TypedExpr::Let(
-            "x".to_string(),
+        let expr = t_let(
+            "x",
             Type::Int,
-            int(1),
-            Box::new(TypedExpr::Let("x".to_string(), Type::Int, int(2), v("x"), Type::Int)),
+            t_int(1),
+            t_let("x", Type::Int, t_int(2), t_var("x", Type::Int), Type::Int),
             Type::Int,
         );
         let renamed = uniquify_convert(expr);
@@ -197,22 +204,22 @@ mod tests {
 
     #[test]
     fn outer_let_survives_lambda_param_shadowing() {
-        let expr = TypedExpr::Let(
-            "x".to_string(),
+        let expr = t_let(
+            "x",
             Type::Int,
-            int(1),
-            Box::new(TypedExpr::Let(
-                "f".to_string(),
+            t_int(1),
+            t_let(
+                "f",
                 Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)),
-                Box::new(TypedExpr::Lambda(
+                t_lambda(
                     vec![("x".to_string(), Type::Int)],
                     Type::Int,
-                    v("x"),
+                    t_var("x", Type::Int),
                     Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)),
-                )),
-                v("x"),
+                ),
+                t_var("x", Type::Int),
                 Type::Int,
-            )),
+            ),
             Type::Int,
         );
 
@@ -243,18 +250,18 @@ mod tests {
 
     #[test]
     fn letrec_params_dont_leak_into_continuation() {
-        let expr = TypedExpr::Let(
-            "x".to_string(),
+        let expr = t_let(
+            "x",
             Type::Int,
-            int(0),
-            Box::new(TypedExpr::LetRec(
-                "f".to_string(),
+            t_int(0),
+            t_let_rec(
+                "f",
                 vec![("x".to_string(), Type::Int)],
                 Type::Int,
-                v("x"),
-                v("x"),
+                t_var("x", Type::Int),
+                t_var("x", Type::Int),
                 Type::Int,
-            )),
+            ),
             Type::Int,
         );
 
@@ -279,12 +286,12 @@ mod tests {
 
     #[test]
     fn letrec_continuation_can_still_call_fname() {
-        let expr = TypedExpr::LetRec(
-            "fact".to_string(),
+        let expr = t_let_rec(
+            "fact",
             vec![("n".to_string(), Type::Int)],
             Type::Int,
-            v("n"),
-            v("fact"),
+            t_var("n", Type::Int),
+            t_var("fact", Type::Int),
             Type::Int,
         );
         let renamed = uniquify_convert(expr);
@@ -302,10 +309,10 @@ mod tests {
 
     #[test]
     fn lambda_multi_param_each_gets_fresh_name() {
-        let expr = TypedExpr::Lambda(
+        let expr = t_lambda(
             vec![("x".to_string(), Type::Int), ("y".to_string(), Type::Int)],
             Type::Int,
-            Box::new(TypedExpr::BinOp(BinOp::Add, v("x"), v("y"), Type::Int)),
+            t_bin_op(BinOp::Add, t_var("x", Type::Int), t_var("y", Type::Int), Type::Int),
             Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)),
         );
         let renamed = uniquify_convert(expr);
@@ -328,17 +335,17 @@ mod tests {
 
     #[test]
     fn binop_renames_both_sides() {
-        let expr = TypedExpr::Let(
-            "x".to_string(),
+        let expr = t_let(
+            "x",
             Type::Int,
-            int(1),
-            Box::new(TypedExpr::Let(
-                "y".to_string(),
+            t_int(1),
+            t_let(
+                "y",
                 Type::Int,
-                int(2),
-                Box::new(TypedExpr::BinOp(BinOp::Add, v("x"), v("y"), Type::Int)),
+                t_int(2),
+                t_bin_op(BinOp::Add, t_var("x", Type::Int), t_var("y", Type::Int), Type::Int),
                 Type::Int,
-            )),
+            ),
             Type::Int,
         );
         let renamed = uniquify_convert(expr);
@@ -355,11 +362,11 @@ mod tests {
 
     #[test]
     fn unaryop_renames_inner() {
-        let expr = TypedExpr::Let(
-            "x".to_string(),
+        let expr = t_let(
+            "x",
             Type::Int,
-            int(1),
-            Box::new(TypedExpr::UnaryOp(UnaryOp::Neg, v("x"), Type::Int)),
+            t_int(1),
+            t_unary(UnaryOp::Neg, t_var("x", Type::Int), Type::Int),
             Type::Int,
         );
         let renamed = uniquify_convert(expr);
@@ -374,11 +381,11 @@ mod tests {
 
     #[test]
     fn if_renames_all_three_branches() {
-        let expr = TypedExpr::Let(
-            "x".to_string(),
+        let expr = t_let(
+            "x",
             Type::Int,
-            int(1),
-            Box::new(TypedExpr::If(v("x"), v("x"), v("x"), Type::Int)),
+            t_int(1),
+            t_if(t_var("x", Type::Int), t_var("x", Type::Int), t_var("x", Type::Int), Type::Int),
             Type::Int,
         );
         let renamed = uniquify_convert(expr);
@@ -395,24 +402,21 @@ mod tests {
 
     #[test]
     fn app_renames_func_and_all_args() {
-        let expr = TypedExpr::Let(
-            "f".to_string(),
+        let expr = t_let(
+            "f",
             Type::Int,
-            int(1),
-            Box::new(TypedExpr::Let(
-                "x".to_string(),
+            t_int(1),
+            t_let(
+                "x",
                 Type::Int,
-                int(2),
-                Box::new(TypedExpr::App(
-                    v("f"),
-                    vec![
-                        TypedExpr::Var("x".to_string(), Type::Int),
-                        TypedExpr::Var("x".to_string(), Type::Int),
-                    ],
+                t_int(2),
+                t_app(
+                    t_var("f", Type::Int),
+                    vec![t_var("x", Type::Int), t_var("x", Type::Int)],
                     Type::Int,
-                )),
+                ),
                 Type::Int,
-            )),
+            ),
             Type::Int,
         );
         let renamed = uniquify_convert(expr);
@@ -431,11 +435,11 @@ mod tests {
 
     #[test]
     fn ann_inner_expr_is_actually_renamed() {
-        let expr = TypedExpr::Let(
-            "x".to_string(),
+        let expr = t_let(
+            "x",
             Type::Int,
-            int(1),
-            Box::new(TypedExpr::Ann(v("x"), Type::Int)),
+            t_int(1),
+            t_ann(t_var("x", Type::Int), Type::Int),
             Type::Int,
         );
         let renamed = uniquify_convert(expr);
@@ -455,10 +459,10 @@ mod tests {
 
     #[test]
     fn ann_nested_inside_lambda_still_renamed() {
-        let expr = TypedExpr::Lambda(
+        let expr = t_lambda(
             vec![("x".to_string(), Type::Int)],
             Type::Int,
-            Box::new(TypedExpr::Ann(v("x"), Type::Int)),
+            t_ann(t_var("x", Type::Int), Type::Int),
             Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)),
         );
         let renamed = uniquify_convert(expr);
@@ -475,31 +479,26 @@ mod tests {
 
     #[test]
     fn letrec_factorial_shape_renames_consistently() {
-        let expr = TypedExpr::LetRec(
-            "fact".to_string(),
+        let expr = t_let_rec(
+            "fact",
             vec![("n".to_string(), Type::Int)],
             Type::Int,
-            Box::new(TypedExpr::If(
-                Box::new(TypedExpr::BinOp(BinOp::Eq, v("n"), int(0), Type::Int)),
-                int(1),
-                Box::new(TypedExpr::BinOp(
+            t_if(
+                t_bin_op(BinOp::Eq, t_var("n", Type::Int), t_int(0), Type::Int),
+                t_int(1),
+                t_bin_op(
                     BinOp::Mul,
-                    v("n"),
-                    Box::new(TypedExpr::App(
-                        v("fact"),
-                        vec![TypedExpr::BinOp(
-                            BinOp::Sub,
-                            Box::new(TypedExpr::Var("n".to_string(), Type::Int)),
-                            int(1),
-                            Type::Int,
-                        )],
+                    t_var("n", Type::Int),
+                    t_app(
+                        t_var("fact", Type::Int),
+                        vec![t_bin_op(BinOp::Sub, t_var("n", Type::Int), t_int(1), Type::Int)],
                         Type::Int,
-                    )),
+                    ),
                     Type::Int,
-                )),
+                ),
                 Type::Int,
-            )),
-            Box::new(TypedExpr::App(v("fact"), vec![TypedExpr::Int(5)], Type::Int)),
+            ),
+            t_app(t_var("fact", Type::Int), vec![t_int(5)], Type::Int),
             Type::Int,
         );
 
@@ -551,12 +550,61 @@ mod tests {
                             &new_fname,
                             "top-level call site must use fact's fresh name"
                         );
-                        assert_eq!(args, vec![TypedExpr::Int(5)]);
+                        assert_eq!(args, vec![t_int(5)]);
                     },
                     other => panic!("expected App, got {:?}", other),
                 }
             },
             other => panic!("expected LetRec, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn tuple_renames_elements() {
+        let expr = t_let(
+            "x",
+            Type::Int,
+            t_int(1),
+            t_tuple(
+                vec![t_var("x", Type::Int), t_int(2)],
+                Type::Tuple(vec![Type::Int, Type::Int]),
+            ),
+            Type::Tuple(vec![Type::Int, Type::Int]),
+        );
+        let renamed = uniquify_convert(expr);
+        let (x_name, _, body) = expect_let(&renamed);
+        match body {
+            TypedExpr::Tuple(elements, _) => {
+                assert_eq!(elements.len(), 2);
+                assert_eq!(expect_var(&elements[0]), x_name);
+                assert_eq!(elements[1], t_int(2));
+            },
+            other => panic!("expected Tuple, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn prim_io_renames_inner() {
+        let expr = t_let(
+            "x",
+            Type::Int,
+            t_int(1),
+            t_prim_io(PrimIO::PrintInt, Some(t_var("x", Type::Int)), Type::Unit),
+            Type::Unit,
+        );
+        let renamed = uniquify_convert(expr);
+        let (x_name, _, body) = expect_let(&renamed);
+        match body {
+            TypedExpr::PrimIO(PrimIO::PrintInt, Some(inner), _) => {
+                assert_eq!(expect_var(inner), x_name);
+            },
+            other => panic!("expected PrimIO, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn prim_io_read_none_unchanged() {
+        let expr = t_prim_io(PrimIO::ReadInt, None, Type::Unit);
+        assert_eq!(uniquify_convert(expr.clone()), expr);
     }
 }

@@ -1,7 +1,7 @@
 use crate::env::{Env, Value};
 use crate::syntax::*;
-
 use lalrpop_util::lalrpop_mod;
+use std::io;
 use std::{fs::read_to_string, path::PathBuf};
 lalrpop_mod!(pub parser);
 
@@ -35,11 +35,55 @@ pub fn eval(env: &Env, expr: &Expr) -> EvalResult {
         Expr::Ann(e, _) => eval(env, e),
 
         Expr::Tuple(exprs) => {
-            todo!()
+            let vals = exprs
+                .into_iter()
+                .map(|expr| eval(env, expr))
+                .collect::<Result<Vec<Value>, _>>()?;
+
+            Ok(Value::Tuple(vals))
         },
 
-        Expr::PrimIO(prim_io) => {
-            todo!()
+        Expr::PrimIO(prim_io, None) => {
+            match prim_io {
+                PrimIO::ReadInt => {
+                    // 怎么确定语义和编译器的runtime相符？
+                    let mut input = String::new();
+                    io::stdin().read_line(&mut input).expect("failed to read line");
+                    let n: i64 = input.trim().parse().expect("input was not an integer");
+                    Ok(Value::Int(n))
+                },
+                PrimIO::ReadFloat => {
+                    // 怎么确定语义和编译器的runtime相符？
+                    let mut input = String::new();
+                    io::stdin().read_line(&mut input).expect("failed to read line");
+                    let f: f64 = input.trim().parse().expect("input was not an integer");
+                    Ok(Value::Float(f))
+                },
+                _ => unreachable!(),
+            }
+        },
+        Expr::PrimIO(prim_io, Some(expr)) => {
+            match prim_io {
+                PrimIO::PrintInt => {
+                    let val = eval(env, expr)?;
+                    // 怎么确定语义和编译器的runtime相符？
+                    println!("{}", val);
+                    Ok(Value::Unit)
+                },
+                PrimIO::PrintFloat => {
+                    let val = eval(env, expr)?;
+                    // 怎么确定语义和编译器的runtime相符？
+                    println!("{}", val);
+                    Ok(Value::Unit)
+                },
+                PrimIO::PrintBool => {
+                    let val = eval(env, expr)?;
+                    // 怎么确定语义和编译器的runtime相符？
+                    println!("{}", val);
+                    Ok(Value::Unit)
+                },
+                _ => unreachable!(),
+            }
         },
 
         Expr::UnaryOp(op, e) => {
@@ -217,153 +261,251 @@ pub fn eval_file(file: &PathBuf) -> EvalResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lalrpop_util::lalrpop_mod;
-    lalrpop_mod!(pub parser);
+    use crate::syntax::{
+        a_let, ann, app, bin_op, bool, float, if_else, int, lambda, let_rec, print_bool,
+        print_float, print_int, tuple, ty_arrow, ty_bool, ty_int, unary, unit, var, BinOp,
+        UnaryOp,
+    };
 
-    fn run(src: &str) -> Value {
-        let expr = parser::ExprParser::new().parse(src).unwrap();
+    fn run(expr: Expr) -> Value {
         eval_top(&expr).unwrap()
     }
 
-    fn run_err(src: &str) -> String {
-        let expr = parser::ExprParser::new().parse(src).unwrap();
+    fn run_err(expr: Expr) -> String {
         eval_top(&expr).unwrap_err().0
     }
 
     #[test]
     fn test_literals() {
-        assert_eq!(run("()"), Value::Unit);
-        assert_eq!(run("true"), Value::Bool(true));
-        assert_eq!(run("false"), Value::Bool(false));
-        assert_eq!(run("42"), Value::Int(42));
-        assert_eq!(run("3.14"), Value::Float(3.14));
+        assert_eq!(run(unit()), Value::Unit);
+        assert_eq!(run(bool(true)), Value::Bool(true));
+        assert_eq!(run(bool(false)), Value::Bool(false));
+        assert_eq!(run(int(42)), Value::Int(42));
+        assert_eq!(run(float(3.14)), Value::Float(3.14));
     }
 
     #[test]
     fn test_int_arith() {
-        assert_eq!(run("1 + 2"), Value::Int(3));
-        assert_eq!(run("10 - 3"), Value::Int(7));
-        assert_eq!(run("6 * 7"), Value::Int(42));
-        assert_eq!(run("10 / 3"), Value::Int(3));
-        assert_eq!(run("(1 + 2) * 3"), Value::Int(9));
-        assert_eq!(run("10 - 3 - 2"), Value::Int(5));
+        assert_eq!(run(bin_op(BinOp::Add, int(1), int(2))), Value::Int(3));
+        assert_eq!(run(bin_op(BinOp::Sub, int(10), int(3))), Value::Int(7));
+        assert_eq!(run(bin_op(BinOp::Mul, int(6), int(7))), Value::Int(42));
+        assert_eq!(run(bin_op(BinOp::Div, int(10), int(3))), Value::Int(3));
+        assert_eq!(run(bin_op(BinOp::Mul, bin_op(BinOp::Add, int(1), int(2)), int(3))), Value::Int(9));
+        assert_eq!(run(bin_op(BinOp::Sub, bin_op(BinOp::Sub, int(10), int(3)), int(2))), Value::Int(5));
     }
 
     #[test]
     fn test_float_arith() {
-        assert_eq!(run("1.0 + 2.0"), Value::Float(3.0));
-        assert_eq!(run("6.0 / 2.0"), Value::Float(3.0));
+        assert_eq!(run(bin_op(BinOp::Add, float(1.0), float(2.0))), Value::Float(3.0));
+        assert_eq!(run(bin_op(BinOp::Div, float(6.0), float(2.0))), Value::Float(3.0));
     }
 
     #[test]
     fn test_div_by_zero() {
-        assert!(run_err("1 / 0").contains("division by zero"));
+        assert!(run_err(bin_op(BinOp::Div, int(1), int(0))).contains("division by zero"));
     }
 
     #[test]
     fn test_unary() {
-        assert_eq!(run("-5"), Value::Int(-5));
-        assert_eq!(run("-3.0"), Value::Float(-3.0));
-        assert_eq!(run("!true"), Value::Bool(false));
-        assert_eq!(run("!(!false)"), Value::Bool(false));
+        assert_eq!(run(unary(UnaryOp::Neg, int(5))), Value::Int(-5));
+        assert_eq!(run(unary(UnaryOp::Neg, float(3.0))), Value::Float(-3.0));
+        assert_eq!(run(unary(UnaryOp::Not, bool(true))), Value::Bool(false));
+        assert_eq!(run(unary(UnaryOp::Not, unary(UnaryOp::Not, bool(false)))), Value::Bool(false));
     }
 
     #[test]
     fn test_cmp() {
-        assert_eq!(run("1 < 2"), Value::Bool(true));
-        assert_eq!(run("2 > 3"), Value::Bool(false));
-        assert_eq!(run("3 == 3"), Value::Bool(true));
-        assert_eq!(run("3 != 4"), Value::Bool(true));
-        assert_eq!(run("2 <= 2"), Value::Bool(true));
-        assert_eq!(run("2 >= 3"), Value::Bool(false));
+        assert_eq!(run(bin_op(BinOp::Lt, int(1), int(2))), Value::Bool(true));
+        assert_eq!(run(bin_op(BinOp::Gt, int(2), int(3))), Value::Bool(false));
+        assert_eq!(run(bin_op(BinOp::Eq, int(3), int(3))), Value::Bool(true));
+        assert_eq!(run(bin_op(BinOp::Neq, int(3), int(4))), Value::Bool(true));
+        assert_eq!(run(bin_op(BinOp::Leq, int(2), int(2))), Value::Bool(true));
+        assert_eq!(run(bin_op(BinOp::Geq, int(2), int(3))), Value::Bool(false));
     }
 
     #[test]
     fn test_logic() {
-        assert_eq!(run("true && false"), Value::Bool(false));
-        assert_eq!(run("true || false"), Value::Bool(true));
+        assert_eq!(run(bin_op(BinOp::And, bool(true), bool(false))), Value::Bool(false));
+        assert_eq!(run(bin_op(BinOp::Or, bool(true), bool(false))), Value::Bool(true));
     }
 
     #[test]
     fn test_if() {
-        assert_eq!(run("if true then 1 else 2"), Value::Int(1));
-        assert_eq!(run("if false then 1 else 2"), Value::Int(2));
-        assert_eq!(run("if 1 < 2 then 10 else 20"), Value::Int(10));
-        assert_eq!(run("if true then if false then 1 else 2 else 3"), Value::Int(2));
+        assert_eq!(run(if_else(bool(true), int(1), int(2))), Value::Int(1));
+        assert_eq!(run(if_else(bool(false), int(1), int(2))), Value::Int(2));
+        assert_eq!(run(if_else(bin_op(BinOp::Lt, int(1), int(2)), int(10), int(20))), Value::Int(10));
+        assert_eq!(run(if_else(bool(true), if_else(bool(false), int(1), int(2)), int(3))), Value::Int(2));
     }
 
     #[test]
     fn test_let() {
-        assert_eq!(run("let x = 1 in x"), Value::Int(1));
-        assert_eq!(run("let x : Int = 5 in x + 1"), Value::Int(6));
-        assert_eq!(run("let x = 1 in let y = 2 in x + y"), Value::Int(3));
+        assert_eq!(run(a_let("x", None, int(1), var("x"))), Value::Int(1));
+        assert_eq!(run(a_let("x", Some(ty_int()), int(5), bin_op(BinOp::Add, var("x"), int(1)))), Value::Int(6));
+        assert_eq!(
+            run(a_let(
+                "x",
+                None,
+                int(1),
+                a_let("y", None, int(2), bin_op(BinOp::Add, var("x"), var("y")))
+            )),
+            Value::Int(3)
+        );
     }
 
     #[test]
     fn test_lambda_apply() {
-        assert_eq!(run("(fun (x: Int) => x) 42"), Value::Int(42));
-        assert_eq!(run("(fun (x: Int) (y: Int) => x + y) 3 4"), Value::Int(7));
+        assert_eq!(
+            run(app(lambda(vec![("x".to_string(), ty_int())], None, var("x")), vec![int(42)])),
+            Value::Int(42)
+        );
+        assert_eq!(
+            run(app(
+                lambda(
+                    vec![("x".to_string(), ty_int()), ("y".to_string(), ty_int())],
+                    None,
+                    bin_op(BinOp::Add, var("x"), var("y"))
+                ),
+                vec![int(3), int(4)]
+            )),
+            Value::Int(7)
+        );
     }
 
     #[test]
     fn test_higher_order() {
-        let src = "
-            let apply = fun (f: Int -> Int) (x: Int) => f x in
-            let double = fun (x: Int) => x * 2 in
-            apply double 21
-        ";
-        assert_eq!(run(src), Value::Int(42));
+        let expr = a_let(
+            "apply",
+            None,
+            lambda(
+                vec![("f".to_string(), ty_arrow(ty_int(), ty_int())), ("x".to_string(), ty_int())],
+                None,
+                app(var("f"), vec![var("x")])
+            ),
+            a_let(
+                "double",
+                None,
+                lambda(vec![("x".to_string(), ty_int())], None, bin_op(BinOp::Mul, var("x"), int(2))),
+                app(var("apply"), vec![var("double"), int(21)])
+            )
+        );
+        assert_eq!(run(expr), Value::Int(42));
     }
 
     #[test]
     fn test_higher_order_closure() {
-        let src = "
-            let apply = fun (f: Int -> Int) (x: Int) => f x in
-            let double = fun (x: Int) => x * 2 in
-            apply double 
-        ";
-        let apply_closure = run(src);
+        let expr = a_let(
+            "apply",
+            None,
+            lambda(
+                vec![("f".to_string(), ty_arrow(ty_int(), ty_int())), ("x".to_string(), ty_int())],
+                None,
+                app(var("f"), vec![var("x")])
+            ),
+            a_let(
+                "double",
+                None,
+                lambda(vec![("x".to_string(), ty_int())], None, bin_op(BinOp::Mul, var("x"), int(2))),
+                app(var("apply"), vec![var("double")])
+            )
+        );
+        let apply_closure = run(expr);
         assert!(matches!(apply_closure, Value::Closure(_, _, _)));
     }
 
     #[test]
     fn test_factorial() {
-        let src = "
-            let rec fact (n: Int) : Int =
-              if n == 0 then 1 else n * fact (n - 1)
-            in fact 10
-        ";
-        assert_eq!(run(src), Value::Int(3628800));
+        let expr = let_rec(
+            "fact",
+            vec![("n".to_string(), ty_int())],
+            ty_int(),
+            if_else(
+                bin_op(BinOp::Eq, var("n"), int(0)),
+                int(1),
+                bin_op(
+                    BinOp::Mul,
+                    var("n"),
+                    app(var("fact"), vec![bin_op(BinOp::Sub, var("n"), int(1))])
+                )
+            ),
+            app(var("fact"), vec![int(10)])
+        );
+        assert_eq!(run(expr), Value::Int(3628800));
     }
 
     #[test]
     fn test_fib() {
-        let src = "
-            let rec fib (n: Int) : Int =
-              if n <= 1 then n else fib (n - 1) + fib (n - 2)
-            in fib 10
-        ";
-        assert_eq!(run(src), Value::Int(55));
+        let expr = let_rec(
+            "fib",
+            vec![("n".to_string(), ty_int())],
+            ty_int(),
+            if_else(
+                bin_op(BinOp::Leq, var("n"), int(1)),
+                var("n"),
+                bin_op(
+                    BinOp::Add,
+                    app(var("fib"), vec![bin_op(BinOp::Sub, var("n"), int(1))]),
+                    app(var("fib"), vec![bin_op(BinOp::Sub, var("n"), int(2))])
+                )
+            ),
+            app(var("fib"), vec![int(10)])
+        );
+        assert_eq!(run(expr), Value::Int(55));
     }
 
     #[test]
     fn test_letrec_multi_arg() {
-        let src = "
-            let rec add (x: Int) (y: Int) : Int = x + y
-            in add 19 23
-        ";
-        assert_eq!(run(src), Value::Int(42));
+        let expr = let_rec(
+            "add",
+            vec![("x".to_string(), ty_int()), ("y".to_string(), ty_int())],
+            ty_int(),
+            bin_op(BinOp::Add, var("x"), var("y")),
+            app(var("add"), vec![int(19), int(23)])
+        );
+        assert_eq!(run(expr), Value::Int(42));
     }
 
     #[test]
     fn test_ann() {
-        assert_eq!(run("(42 : Int)"), Value::Int(42));
-        assert_eq!(run("(true : Bool)"), Value::Bool(true));
+        assert_eq!(run(ann(int(42), ty_int())), Value::Int(42));
+        assert_eq!(run(ann(bool(true), ty_bool())), Value::Bool(true));
+    }
+
+    #[test]
+    fn test_tuple() {
+        assert_eq!(
+            run(tuple(vec![int(1), bool(true), float(3.14)])),
+            Value::Tuple(vec![Value::Int(1), Value::Bool(true), Value::Float(3.14)])
+        );
+    }
+
+    #[test]
+    fn test_nested_tuple() {
+        assert_eq!(
+            run(tuple(vec![int(1), tuple(vec![bool(true), float(2.0)])])),
+            Value::Tuple(vec![
+                Value::Int(1),
+                Value::Tuple(vec![Value::Bool(true), Value::Float(2.0)])
+            ])
+        );
+    }
+
+    #[test]
+    fn test_print_int() {
+        assert_eq!(run(print_int(int(42))), Value::Unit);
+    }
+
+    #[test]
+    fn test_print_bool() {
+        assert_eq!(run(print_bool(bool(true))), Value::Unit);
+    }
+
+    #[test]
+    fn test_print_float() {
+        assert_eq!(run(print_float(float(3.14))), Value::Unit);
     }
 
     #[test]
     fn test_unbound_var() {
-        let expr = parser::ExprParser::new().parse("x").unwrap();
-        assert!(eval_top(&expr).is_err());
+        assert!(eval_top(&var("foo")).is_err());
     }
 }
