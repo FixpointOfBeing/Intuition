@@ -213,7 +213,7 @@ Projection: Box<Expr> = {
         if n.contains('.') || n.contains('e') || n.contains('E') {
             panic!("tuple projection index must be a non-negative integer, got: {}", n);
         }
-        Box::new(Expr::TupleProjection(e, n.parse::<usize>().unwrap()))
+        Box::new(Expr::TupleProj(e, n.parse::<usize>().unwrap()))
     },
     Factor,
 };

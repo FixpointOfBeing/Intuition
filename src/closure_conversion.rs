@@ -64,7 +64,7 @@ fn free_vars_comp(comp: &CompExpr, bound: &mut HashSet<Ident>, free: &mut HashSe
                 *bound = old_bound;
             },
         CompExpr::Tuple(aexprs) => todo!(),
-        CompExpr::TupleProjection(_, _) => todo!(),
+        CompExpr::TupleProj(_, _) => todo!(),
         CompExpr::PrimIO(prim_io, aexpr) => todo!(),
     }
 }
@@ -193,7 +193,7 @@ fn infer_type_from_anf(anf: &AnfExpr, target: &str) -> Type {
                         search_anf(body, target, result);
                     },
             CompExpr::Tuple(aexprs) => todo!(),
-        CompExpr::TupleProjection(_, _) => todo!(),
+        CompExpr::TupleProj(_, _) => todo!(),
             CompExpr::PrimIO(prim_io, aexpr) => todo!(),
         }
     }
@@ -262,7 +262,7 @@ fn compile_comp(
                 ClosCompExpr::MakeClosure(fn_ptr_atom, captured_atoms, original_fn_ty)
             },
         CompExpr::Tuple(aexprs) => todo!(),
-        CompExpr::TupleProjection(_, _) => todo!(),
+        CompExpr::TupleProj(_, _) => todo!(),
         CompExpr::PrimIO(prim_io, aexpr) => todo!(),
     }
 }
@@ -528,7 +528,7 @@ fn convert_closure_body(
                         ClosCompExpr::MakeClosure(fn_ptr_atom, captured_atoms, original_fn_ty)
                     },
             CompExpr::Tuple(aexprs) => todo!(),
-        CompExpr::TupleProjection(_, _) => todo!(),
+        CompExpr::TupleProj(_, _) => todo!(),
             CompExpr::PrimIO(prim_io, aexpr) => todo!(),
         }
     }

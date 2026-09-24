@@ -43,7 +43,7 @@ pub fn eval(env: &Env, expr: &Expr) -> EvalResult {
             Ok(Value::Tuple(vals))
         },
 
-        Expr::TupleProjection(expr, index) => {
+        Expr::TupleProj(expr, index) => {
             let val = eval(env, expr)?;
             match val {
                 Value::Tuple(vals) => vals

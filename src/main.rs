@@ -4,6 +4,7 @@ pub mod closure_conversion;
 pub mod env;
 pub mod eval;
 pub mod explicate_control;
+pub mod expose_allocation;
 pub mod gensym;
 pub mod llvm;
 pub mod repl;

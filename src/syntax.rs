@@ -19,7 +19,7 @@ pub enum Expr {
     Float(f64),
     Var(Ident),
     Tuple(Vec<Expr>),
-    TupleProjection(Box<Expr>, usize),
+    TupleProj(Box<Expr>, usize),
     PrimIO(PrimIO, Option<Box<Expr>>),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
     UnaryOp(UnaryOp, Box<Expr>),
@@ -89,6 +89,19 @@ pub struct Program {
     pub main: Expr,
 }
 
+impl Type {
+    pub fn bytes_of(&self) -> usize {
+        match self {
+            Type::Unit => 8,
+            Type::Bool => 8,
+            Type::Int => 8,
+            Type::Float => 8,
+            Type::Tuple(types) => 8 * (types.len() + 1),
+            Type::Arrow(_, _) => 8,
+            Type::Var(_) => unreachable!(),
+        }
+    }
+}
 pub fn ty_unit() -> Type {
     Type::Unit
 }
@@ -155,7 +168,7 @@ pub fn tuple(exprs: Vec<Expr>) -> Expr {
 }
 
 pub fn tuple_projection(expr: Expr, index: usize) -> Expr {
-    Expr::TupleProjection(Box::new(expr), index)
+    Expr::TupleProj(Box::new(expr), index)
 }
 
 pub fn bin_op(op: BinOp, left: Expr, right: Expr) -> Expr {
@@ -310,7 +323,7 @@ impl std::fmt::Display for Expr {
                     .join(", ");
                 write!(f, "({})", exprs_str)
             },
-            Expr::TupleProjection(expr, idx) => {
+            Expr::TupleProj(expr, idx) => {
                 write!(f, "{}.{}", expr, idx)
             },
 
@@ -824,7 +837,9 @@ mod tests {
 
     #[test]
     fn test_parse_tuple_projection() {
-        let expr = parser::ExprParser::new().parse("let p = (1, 3.14, false) in p.0").unwrap();
+        let expr = parser::ExprParser::new()
+            .parse("let p = (1, 3.14, false) in p.0")
+            .unwrap();
         assert_eq!(
             *expr,
             a_let(
@@ -838,7 +853,9 @@ mod tests {
 
     #[test]
     fn test_parse_tuple_projection_nested() {
-        let expr = parser::ExprParser::new().parse("let p = (1, (true, 2)) in (p.1).0").unwrap();
+        let expr = parser::ExprParser::new()
+            .parse("let p = (1, (true, 2)) in (p.1).0")
+            .unwrap();
         assert_eq!(
             *expr,
             a_let(

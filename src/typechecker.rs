@@ -12,7 +12,7 @@ pub enum TypedExpr {
     Var(Ident, Type),
     BinOp(BinOp, Box<TypedExpr>, Box<TypedExpr>, Type),
     Tuple(Vec<TypedExpr>, Type),
-    TupleProjection(Box<TypedExpr>, usize, Type),
+    TupleProj(Box<TypedExpr>, usize, Type),
     PrimIO(PrimIO, Option<Box<TypedExpr>>, Type),
     UnaryOp(UnaryOp, Box<TypedExpr>, Type),
     Ann(Box<TypedExpr>, Type),
@@ -41,7 +41,7 @@ impl TypedExpr {
             TypedExpr::BinOp(_, _, _, ty) => ty.clone(),
             TypedExpr::UnaryOp(_, _, ty) => ty.clone(),
             TypedExpr::Tuple(_, ty) => ty.clone(),
-            TypedExpr::TupleProjection(_, _, ty) => ty.clone(),
+            TypedExpr::TupleProj(_, _, ty) => ty.clone(),
             TypedExpr::PrimIO(_, _, ty) => ty.clone(),
             TypedExpr::Ann(_, ty) => ty.clone(),
             TypedExpr::If(_, _, _, ty) => ty.clone(),
@@ -78,7 +78,7 @@ pub fn t_tuple(elems: Vec<TypedExpr>, ty: Type) -> TypedExpr {
 }
 
 pub fn t_tuple_projection(expr: TypedExpr, index: usize, ty: Type) -> TypedExpr {
-    TypedExpr::TupleProjection(Box::new(expr), index, ty)
+    TypedExpr::TupleProj(Box::new(expr), index, ty)
 }
 
 pub fn t_bin_op(op: BinOp, left: TypedExpr, right: TypedExpr, ty: Type) -> TypedExpr {
@@ -252,7 +252,7 @@ fn infer(ctx: &Context, expr: Expr) -> Result<TypedExpr, TypeError> {
             Ok(TypedExpr::Tuple(typed_exprs, tuple_ty))
         },
 
-        Expr::TupleProjection(inner, index) => {
+        Expr::TupleProj(inner, index) => {
             let typed_inner = infer(ctx, *inner)?;
             let inner_ty = typed_inner.type_of();
             match inner_ty {
@@ -264,7 +264,7 @@ fn infer(ctx: &Context, expr: Expr) -> Result<TypedExpr, TypeError> {
                         });
                     }
                     let elem_ty = types[index].clone();
-                    Ok(TypedExpr::TupleProjection(Box::new(typed_inner), index, elem_ty))
+                    Ok(TypedExpr::TupleProj(Box::new(typed_inner), index, elem_ty))
                 },
                 other => Err(TypeError::NotATuple(other)),
             }
