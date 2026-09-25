@@ -33,7 +33,8 @@ pub Def: Box<Def> = {
         }
     },
 
-    "let" <name:Ident> <params:("(" Ident ":" Type ")")+> <opty:(":" Type)?> "=" <e:Expr> ";" => {
+    // "let" <name:Ident> <params:("(" Ident ":" Type ")")+> <opty:(":" Type)?> "=" <e:Expr> ";" => {
+    "let" <name:Ident> <params:("(" Ident ":" Type ")")+> <rt_ty:(":" Type)> "=" <e:Expr> ";" => {
         let mut params1: Vec<(Ident, Type)> = vec![];
         let mut lambda_ty: Vec<Type> = vec![];
         for (_lp, id, _colon, ty, _rp) in params {
@@ -41,12 +42,12 @@ pub Def: Box<Def> = {
             lambda_ty.push(*ty);
         }
 
-        let rt_ty = match opty {
-            None => None,
-            Some((_, rt_ty)) => Some(*rt_ty),
-        };
+        // let rt_ty = match opty {
+        //  None => None,
+        //  Some((_, rt_ty)) => Some(*rt_ty),
+        // };
 
-        Box::new(Def::FunDef(name, params1, rt_ty, *e))
+        Box::new(Def::FunDef(name, params1, *rt_ty.1, *e))
     }
 }
 

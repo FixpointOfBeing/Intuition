@@ -4,13 +4,13 @@ use crate::{
     a_normal_form::anf_convert,
     closure_conversion::{ClosFnDef, closure_convert},
     explicate_control::explicate_control_convert,
-    uniquify::uniquify_convert,
+    uniquify::uniquify_expr,
 };
 
 pub fn compile_file(file_path: &Path, output: &Option<PathBuf>) -> Result<(), String> {
     use lalrpop_util::lalrpop_mod;
     lalrpop_mod!(pub parser);
-    use crate::typechecker::typecheck;
+    use crate::typechecker::typecheck_expr;
     use std::fs::read_to_string;
 
     let source = read_to_string(file_path).map_err(|e| e.to_string())?;
@@ -29,10 +29,10 @@ pub fn compile_file(file_path: &Path, output: &Option<PathBuf>) -> Result<(), St
     let expr = parser::ExprParser::new().parse(&source).map_err(|e| e.to_string())?;
 
     // Type Checking
-    let (return_ty, typed_expr) = typecheck(*expr).map_err(|e| e.to_string())?;
+    let (return_ty, typed_expr) = typecheck_expr(*expr).map_err(|e| e.to_string())?;
 
     // Uniquify
-    let typed_expr = uniquify_convert(typed_expr);
+    let typed_expr = uniquify_expr(typed_expr);
 
     // ANF Conversion
     let anf_expr = anf_convert(typed_expr);

@@ -1,6 +1,6 @@
 // use llvm_ir::types::Typed;
 
-use crate::syntax::{BinOp, Expr, Ident, PrimIO, Type, UnaryOp};
+use crate::syntax::{BinOp, Def, Expr, Ident, PrimIO, Program, Type, UnaryOp};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -28,6 +28,36 @@ pub enum TypedExpr {
     ),
     App(Box<TypedExpr>, Vec<TypedExpr>, Type),
     Lambda(Vec<(Ident, Type)>, Type, Box<TypedExpr>, Type),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TypedDef {
+    ValDef(
+        Ident,        // name
+        Option<Type>, // optional type annotation
+        TypedExpr,    // expresion
+    ),
+    FunDef(
+        Ident,              // function name
+        Vec<(Ident, Type)>, // function arguments with their types
+        Type,               // function return type
+        TypedExpr,          // function body
+    ),
+}
+
+impl TypedDef {
+    pub fn name(&self) -> Ident {
+        match self {
+            TypedDef::ValDef(name, _, _) => name.to_string(),
+            TypedDef::FunDef(name, _, _, _) => name.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypedProgram {
+    pub defs: Vec<TypedDef>,
+    pub main: TypedExpr,
 }
 
 impl TypedExpr {
@@ -126,7 +156,12 @@ pub fn t_app(func: TypedExpr, args: Vec<TypedExpr>, ty: Type) -> TypedExpr {
     TypedExpr::App(Box::new(func), args, ty)
 }
 
-pub fn t_lambda(params: Vec<(Ident, Type)>, ret_ty: Type, body: TypedExpr, lambda_ty: Type) -> TypedExpr {
+pub fn t_lambda(
+    params: Vec<(Ident, Type)>,
+    ret_ty: Type,
+    body: TypedExpr,
+    lambda_ty: Type,
+) -> TypedExpr {
     TypedExpr::Lambda(params, ret_ty, Box::new(body), lambda_ty)
 }
 
@@ -206,20 +241,14 @@ impl Context {
         inner.insert(name, ty);
         Self(inner)
     }
+
+    pub fn insert(&mut self, name: Ident, ty: Type) {
+        let inner = &mut self.0;
+        inner.insert(name, ty);
+    }
 }
 
-pub fn typecheck(expr: Expr) -> Result<(Type, TypedExpr), TypeError> {
-    let typed_expr = infer(&Context::new(), expr)?;
-    Ok((typed_expr.type_of(), typed_expr))
-}
-
-pub fn typecheck_with_ctx(ctx: &Context, expr: Expr) -> Result<(Type, TypedExpr), TypeError> {
-    let typed_expr = infer(ctx, expr)?;
-    Ok((typed_expr.type_of(), typed_expr))
-}
-
-// todo: 只需要返回TypedExpr
-fn infer(ctx: &Context, expr: Expr) -> Result<TypedExpr, TypeError> {
+fn infer(ctx: &mut Context, expr: Expr) -> Result<TypedExpr, TypeError> {
     match expr {
         Expr::Unit => Ok(TypedExpr::Unit),
         Expr::Bool(b) => Ok(TypedExpr::Bool(b)),
@@ -258,10 +287,7 @@ fn infer(ctx: &Context, expr: Expr) -> Result<TypedExpr, TypeError> {
             match inner_ty {
                 Type::Tuple(types) => {
                     if index >= types.len() {
-                        return Err(TypeError::TupleIndexOutOfBounds {
-                            len: types.len(),
-                            index,
-                        });
+                        return Err(TypeError::TupleIndexOutOfBounds { len: types.len(), index });
                     }
                     let elem_ty = types[index].clone();
                     Ok(TypedExpr::TupleProj(Box::new(typed_inner), index, elem_ty))
@@ -359,8 +385,8 @@ fn infer(ctx: &Context, expr: Expr) -> Result<TypedExpr, TypeError> {
                 }
             }
 
-            let ctx2 = ctx.extend(name.clone(), rhs_ty.clone());
-            let typed_body = infer(&ctx2, *body)?;
+            let mut body_ctx = ctx.extend(name.clone(), rhs_ty.clone());
+            let typed_body = infer(&mut body_ctx, *body)?;
             let body_ty = typed_body.type_of();
             Ok(TypedExpr::Let(name, rhs_ty, Box::new(typed_rhs), Box::new(typed_body), body_ty))
         },
@@ -374,7 +400,7 @@ fn infer(ctx: &Context, expr: Expr) -> Result<TypedExpr, TypeError> {
                 body_ctx = body_ctx.extend(param_name, param_ty);
             }
 
-            let typed_fbody = infer(&body_ctx, *body)?;
+            let typed_fbody = infer(&mut body_ctx, *body)?;
             let fbody_ty = typed_fbody.type_of();
             if fbody_ty != fret_ty {
                 return Err(TypeError::AnnotationMismatch {
@@ -383,8 +409,8 @@ fn infer(ctx: &Context, expr: Expr) -> Result<TypedExpr, TypeError> {
                 });
             }
 
-            let rest_ctx = ctx.extend(fname.clone(), fn_ty);
-            let typed_body = infer(&rest_ctx, *rest)?;
+            let mut rest_ctx = ctx.extend(fname.clone(), fn_ty);
+            let typed_body = infer(&mut rest_ctx, *rest)?;
             let body_ty = typed_body.type_of();
             let typed_letrec = TypedExpr::LetRec(
                 fname,
@@ -401,10 +427,10 @@ fn infer(ctx: &Context, expr: Expr) -> Result<TypedExpr, TypeError> {
             let mut lam_ctx = ctx.clone();
             let mut param_tys = Vec::with_capacity(params.len());
             for (pname, pty) in &params {
-                lam_ctx = lam_ctx.extend(pname.clone(), pty.clone());
+                lam_ctx.insert(pname.clone(), pty.clone());
                 param_tys.push(pty.clone());
             }
-            let typed_body = infer(&lam_ctx, *body)?;
+            let typed_body = infer(&mut lam_ctx, *body)?;
             let body_ty = typed_body.type_of();
             if let Some(rt_ty) = opty {
                 if body_ty != rt_ty {
@@ -495,17 +521,81 @@ fn infer_binop(
     }
 }
 
+pub fn typecheck_expr(expr: Expr) -> Result<(Type, TypedExpr), TypeError> {
+    let typed_expr = infer(&mut Context::new(), expr)?;
+    Ok((typed_expr.type_of(), typed_expr))
+}
+
+pub fn typecheck_expr_with_ctx(
+    ctx: &mut Context,
+    expr: Expr,
+) -> Result<(Type, TypedExpr), TypeError> {
+    let typed_expr = infer(ctx, expr)?;
+    Ok((typed_expr.type_of(), typed_expr))
+}
+
+pub fn typecheck_def(def: Def, ctx: &mut Context) -> Result<(Type, TypedDef), TypeError> {
+    match def {
+        Def::ValDef(name, ty, expr) => {
+            let typed_expr = infer(ctx, expr)?;
+            let found = typed_expr.type_of();
+            match ty {
+                Some(val_ty) => {
+                    if found != val_ty {
+                        Err(TypeError::Mismatch { expected: val_ty, found })
+                    } else {
+                        Ok((found.clone(), TypedDef::ValDef(name, Some(found), typed_expr)))
+                    }
+                },
+                None => Ok((found.clone(), TypedDef::ValDef(name, Some(found), typed_expr))),
+            }
+        },
+
+        Def::FunDef(name, param_tys, rt_ty, expr) => {
+            let fn_ty =
+                build_arrow(param_tys.iter().map(|(_, t)| t.clone()).collect(), rt_ty.clone());
+
+            let mut body_ctx = ctx.clone();
+            body_ctx.insert(name.clone(), fn_ty.clone());
+            for (param, ty) in param_tys.iter() {
+                body_ctx.insert(param.clone(), ty.clone());
+            }
+
+            let typed_expr = infer(&mut body_ctx, expr)?;
+            let found = typed_expr.type_of();
+            if rt_ty != found {
+                return Err(TypeError::Mismatch { expected: rt_ty, found });
+            }
+            Ok((fn_ty, TypedDef::FunDef(name, param_tys, rt_ty, typed_expr)))
+        },
+    }
+}
+
+pub fn typecheck_program(prog: Program) -> Result<(Type, TypedProgram), TypeError> {
+    let mut ctx = Context::new();
+    let mut typed_defs = Vec::with_capacity(prog.defs.len());
+    for def in prog.defs {
+        let name = def.name();
+        let (ty, typed_def) = typecheck_def(def, &mut ctx)?;
+        typed_defs.push(typed_def);
+        ctx.insert(name, ty);
+    }
+    let (main_ty, typed_main) = typecheck_expr_with_ctx(&mut ctx, prog.main)?;
+    let typed_prog = TypedProgram { defs: typed_defs, main: typed_main };
+    Ok((main_ty, typed_prog))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::syntax::{
-        a_let, ann, app, bin_op, bool, float, if_else, int, lambda, let_rec, print_bool,
-        print_float, print_int, read_float, read_int, tuple, tuple_projection, ty_bool, ty_int,
-        unary, unit, var, BinOp, Type, UnaryOp,
+        BinOp, Type, UnaryOp, a_let, ann, app, bin_op, bool, float, fun_def, if_else, int, lambda,
+        let_rec, print_bool, print_float, print_int, read_float, read_int, tuple, tuple_projection,
+        ty_bool, ty_int, unary, unit, val_def, var,
     };
 
     fn infer_type(expr: Expr) -> Result<Type, TypeError> {
-        typecheck(expr).map(|(ty, _)| ty)
+        typecheck_expr(expr).map(|(ty, _)| ty)
     }
 
     #[test]
@@ -560,10 +650,7 @@ mod tests {
 
     #[test]
     fn test_add_float() {
-        assert_eq!(
-            infer_type(bin_op(BinOp::Add, float(1.0), float(2.0))),
-            Ok(Type::Float)
-        );
+        assert_eq!(infer_type(bin_op(BinOp::Add, float(1.0), float(2.0))), Ok(Type::Float));
     }
 
     #[test]
@@ -578,10 +665,7 @@ mod tests {
 
     #[test]
     fn test_eq_any_type() {
-        assert_eq!(
-            infer_type(bin_op(BinOp::Eq, bool(true), bool(false))),
-            Ok(Type::Bool)
-        );
+        assert_eq!(infer_type(bin_op(BinOp::Eq, bool(true), bool(false))), Ok(Type::Bool));
     }
 
     #[test]
@@ -591,10 +675,7 @@ mod tests {
 
     #[test]
     fn test_and_bool() {
-        assert_eq!(
-            infer_type(bin_op(BinOp::And, bool(true), bool(false))),
-            Ok(Type::Bool)
-        );
+        assert_eq!(infer_type(bin_op(BinOp::And, bool(true), bool(false))), Ok(Type::Bool));
     }
 
     #[test]
@@ -619,10 +700,7 @@ mod tests {
 
     #[test]
     fn test_let_with_correct_ann() {
-        assert_eq!(
-            infer_type(a_let("x", Some(ty_int()), int(1), var("x"))),
-            Ok(Type::Int)
-        );
+        assert_eq!(infer_type(a_let("x", Some(ty_int()), int(1), var("x"))), Ok(Type::Int));
     }
 
     #[test]
@@ -686,11 +764,13 @@ mod tests {
 
     #[test]
     fn test_app_wrong_arg_type_err() {
-        assert!(infer_type(app(
-            lambda(vec![("x".to_string(), ty_int())], None, var("x")),
-            vec![bool(true)]
-        ))
-        .is_err());
+        assert!(
+            infer_type(app(
+                lambda(vec![("x".to_string(), ty_int())], None, var("x")),
+                vec![bool(true)]
+            ))
+            .is_err()
+        );
     }
 
     #[test]
@@ -700,12 +780,14 @@ mod tests {
 
     #[test]
     fn test_function_ret_mismatch() {
-        assert!(infer_type(lambda(
-            vec![("x".to_string(), ty_int())],
-            Some(ty_int()),
-            bin_op(BinOp::Leq, var("x"), int(37))
-        ))
-        .is_err());
+        assert!(
+            infer_type(lambda(
+                vec![("x".to_string(), ty_int())],
+                Some(ty_int()),
+                bin_op(BinOp::Leq, var("x"), int(37))
+            ))
+            .is_err()
+        );
     }
 
     #[test]
@@ -732,14 +814,16 @@ mod tests {
 
     #[test]
     fn test_letrec_wrong_body_type_err() {
-        assert!(infer_type(let_rec(
-            "f",
-            vec![("n".to_string(), ty_int())],
-            ty_int(),
-            bool(true),
-            app(var("f"), vec![int(0)])
-        ))
-        .is_err());
+        assert!(
+            infer_type(let_rec(
+                "f",
+                vec![("n".to_string(), ty_int())],
+                ty_int(),
+                bool(true),
+                app(var("f"), vec![int(0)])
+            ))
+            .is_err()
+        );
     }
 
     #[test]
@@ -769,10 +853,7 @@ mod tests {
     fn test_nested_tuple_type() {
         assert_eq!(
             infer_type(tuple(vec![int(1), tuple(vec![bool(true), float(2.0)])])),
-            Ok(Type::Tuple(vec![
-                Type::Int,
-                Type::Tuple(vec![Type::Bool, Type::Float])
-            ]))
+            Ok(Type::Tuple(vec![Type::Int, Type::Tuple(vec![Type::Bool, Type::Float])]))
         );
     }
 
@@ -784,10 +865,8 @@ mod tests {
 
     #[test]
     fn test_tuple_projection_nested() {
-        let expr = tuple_projection(
-            tuple_projection(tuple(vec![int(1), tuple(vec![bool(true)])]), 1),
-            0,
-        );
+        let expr =
+            tuple_projection(tuple_projection(tuple(vec![int(1), tuple(vec![bool(true)])]), 1), 0);
         assert_eq!(infer_type(expr), Ok(Type::Bool));
     }
 
@@ -826,5 +905,214 @@ mod tests {
     #[test]
     fn test_read_float() {
         assert_eq!(infer_type(read_float()), Ok(Type::Unit));
+    }
+
+    // ---- typecheck_def ----
+
+    fn check_def(def: Def) -> Result<(Type, TypedDef), TypeError> {
+        typecheck_def(def, &mut Context::new())
+    }
+
+    #[test]
+    fn test_def_val_no_ann() {
+        let (ty, typed_def) = check_def(val_def("x", None, int(42))).unwrap();
+        assert_eq!(ty, Type::Int);
+        assert_eq!(
+            typed_def,
+            TypedDef::ValDef("x".to_string(), Some(Type::Int), TypedExpr::Int(42))
+        );
+    }
+
+    #[test]
+    fn test_def_val_matching_ann() {
+        let (ty, typed_def) = check_def(val_def("x", Some(ty_int()), int(42))).unwrap();
+        assert_eq!(ty, Type::Int);
+        assert_eq!(
+            typed_def,
+            TypedDef::ValDef("x".to_string(), Some(Type::Int), TypedExpr::Int(42))
+        );
+    }
+
+    #[test]
+    fn test_def_val_mismatched_ann() {
+        assert_eq!(
+            check_def(val_def("x", Some(ty_bool()), int(42))),
+            Err(TypeError::Mismatch { expected: Type::Bool, found: Type::Int })
+        );
+    }
+
+    #[test]
+    fn test_def_val_unbound() {
+        assert_eq!(
+            check_def(val_def("x", None, var("u"))),
+            Err(TypeError::UnboundVariable("u".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_def_fun_no_params() {
+        let (ty, typed_def) = check_def(fun_def("f", vec![], ty_int(), int(1))).unwrap();
+        assert_eq!(ty, Type::Int);
+        assert_eq!(
+            typed_def,
+            TypedDef::FunDef("f".to_string(), vec![], Type::Int, TypedExpr::Int(1))
+        );
+    }
+
+    #[test]
+    fn test_def_fun_body_type_mismatch() {
+        assert_eq!(
+            check_def(fun_def("f", vec![], ty_int(), bool(true))),
+            Err(TypeError::Mismatch { expected: Type::Int, found: Type::Bool })
+        );
+    }
+
+    #[test]
+    fn test_def_fun_params_in_scope() {
+        let (ty, typed_def) = check_def(fun_def(
+            "add",
+            vec![("a".to_string(), ty_int()), ("b".to_string(), ty_int())],
+            ty_int(),
+            bin_op(BinOp::Add, var("a"), var("b")),
+        ))
+        .unwrap();
+        assert_eq!(
+            ty,
+            Type::Arrow(
+                Box::new(Type::Int),
+                Box::new(Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)))
+            )
+        );
+        match typed_def {
+            TypedDef::FunDef(name, params, ret_ty, body) => {
+                assert_eq!(name, "add");
+                assert_eq!(params, vec![("a".to_string(), ty_int()), ("b".to_string(), ty_int())]);
+                assert_eq!(ret_ty, ty_int());
+                assert_eq!(
+                    body,
+                    TypedExpr::BinOp(
+                        BinOp::Add,
+                        Box::new(TypedExpr::Var("a".to_string(), Type::Int)),
+                        Box::new(TypedExpr::Var("b".to_string(), Type::Int)),
+                        Type::Int,
+                    )
+                );
+            },
+            _ => panic!("expected TypedDef::FunDef"),
+        }
+    }
+
+    #[test]
+    fn test_def_fun_self_recursion() {
+        let fact = fun_def(
+            "fact",
+            vec![("n".to_string(), ty_int())],
+            ty_int(),
+            if_else(
+                bin_op(BinOp::Eq, var("n"), int(0)),
+                int(1),
+                bin_op(
+                    BinOp::Mul,
+                    var("n"),
+                    app(var("fact"), vec![bin_op(BinOp::Sub, var("n"), int(1))]),
+                ),
+            ),
+        );
+        let (ty, _) = check_def(fact).unwrap();
+        assert_eq!(ty, Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)));
+    }
+
+    #[test]
+    fn test_def_val_uses_prior_binding() {
+        let mut ctx = Context::new();
+        ctx.insert("x".to_string(), Type::Int);
+        let (ty, _) = typecheck_def(val_def("y", None, var("x")), &mut ctx).unwrap();
+        assert_eq!(ty, Type::Int);
+    }
+
+    // ---- typecheck_program ----
+
+    #[test]
+    fn test_program_empty() {
+        let (ty, typed_prog) = typecheck_program(Program { defs: vec![], main: int(42) }).unwrap();
+        assert_eq!(ty, Type::Int);
+        assert_eq!(typed_prog, TypedProgram { defs: vec![], main: TypedExpr::Int(42) });
+    }
+
+    #[test]
+    fn test_program_main_uses_def() {
+        let (ty, _) =
+            typecheck_program(Program { defs: vec![val_def("x", None, int(42))], main: var("x") })
+                .unwrap();
+        assert_eq!(ty, Type::Int);
+    }
+
+    #[test]
+    fn test_program_chained_defs() {
+        let (ty, typed_prog) = typecheck_program(Program {
+            defs: vec![val_def("x", None, int(1)), val_def("y", None, var("x"))],
+            main: int(0),
+        })
+        .unwrap();
+        assert_eq!(ty, Type::Int);
+        assert_eq!(typed_prog.defs.len(), 2);
+    }
+
+    #[test]
+    fn test_program_def_error_propagates() {
+        let result = typecheck_program(Program {
+            defs: vec![val_def("x", Some(ty_bool()), int(1))],
+            main: int(0),
+        });
+        assert_eq!(result, Err(TypeError::Mismatch { expected: Type::Bool, found: Type::Int }));
+    }
+
+    #[test]
+    fn test_program_factorial() {
+        let prog = Program {
+            defs: vec![fun_def(
+                "fact",
+                vec![("n".to_string(), ty_int())],
+                ty_int(),
+                if_else(
+                    bin_op(BinOp::Eq, var("n"), int(0)),
+                    int(1),
+                    bin_op(
+                        BinOp::Mul,
+                        var("n"),
+                        app(var("fact"), vec![bin_op(BinOp::Sub, var("n"), int(1))]),
+                    ),
+                ),
+            )],
+            main: app(var("fact"), vec![int(5)]),
+        };
+        let (ty, typed_prog) = typecheck_program(prog).unwrap();
+        assert_eq!(ty, Type::Int);
+        assert_eq!(typed_prog.defs.len(), 1);
+    }
+
+    #[test]
+    fn test_program_answer_add_max() {
+        let prog = Program {
+            defs: vec![
+                val_def("answer", Some(ty_int()), int(42)),
+                fun_def(
+                    "add",
+                    vec![("a".to_string(), ty_int()), ("b".to_string(), ty_int())],
+                    ty_int(),
+                    bin_op(BinOp::Add, var("a"), var("b")),
+                ),
+                fun_def(
+                    "max",
+                    vec![("a".to_string(), ty_int()), ("b".to_string(), ty_int())],
+                    ty_int(),
+                    if_else(bin_op(BinOp::Geq, var("a"), var("b")), var("a"), var("b")),
+                ),
+            ],
+            main: app(var("add"), vec![var("answer"), app(var("max"), vec![int(1), int(2)])]),
+        };
+        let (ty, typed_prog) = typecheck_program(prog).unwrap();
+        assert_eq!(ty, Type::Int);
+        assert_eq!(typed_prog.defs.len(), 3);
     }
 }

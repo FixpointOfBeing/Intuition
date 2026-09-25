@@ -20,7 +20,7 @@ macro_rules! err {
 
 pub type EvalResult = Result<Value, EvalError>;
 
-pub fn eval(env: &Env, expr: &Expr) -> EvalResult {
+pub fn eval(env: &mut Env, expr: &Expr) -> EvalResult {
     match expr {
         Expr::Unit => Ok(Value::Unit),
         Expr::Bool(b) => Ok(Value::Bool(*b)),
@@ -37,9 +37,8 @@ pub fn eval(env: &Env, expr: &Expr) -> EvalResult {
         Expr::Tuple(exprs) => {
             let vals = exprs
                 .into_iter()
-                .map(|expr| eval(env, expr))
+                .map(|expr| eval(&mut env.clone(), expr))
                 .collect::<Result<Vec<Value>, _>>()?;
-
             Ok(Value::Tuple(vals))
         },
 
@@ -103,21 +102,22 @@ pub fn eval(env: &Env, expr: &Expr) -> EvalResult {
         },
 
         Expr::BinOp(op, e1, e2) => {
-            let v1 = eval(env, e1)?;
+            let v1 = eval(&mut env.clone(), e1)?;
+
             let v2 = eval(env, e2)?;
             eval_binop(op, v1, v2)
         },
 
-        Expr::If(cond, thn, els) => match eval(env, cond)? {
+        Expr::If(cond, thn, els) => match eval(&mut env.clone(), cond)? {
             Value::Bool(true) => eval(env, thn),
             Value::Bool(false) => eval(env, els),
             other => err!("condition must be Bool, got {}", other),
         },
 
-        Expr::Let(name, _ty, e1, e2) => {
-            let v = eval(env, e1)?;
-            let env2 = env.extend(name, v);
-            eval(&env2, e2)
+        Expr::Let(name, _, rhs, body) => {
+            let v = eval(&mut env.clone(), rhs)?;
+            env.insert(name.to_string(), v);
+            eval(env, body)
         },
 
         Expr::LetRec(fname, fparams, _, fbody, body) => {
@@ -128,8 +128,8 @@ pub fn eval(env: &Env, expr: &Expr) -> EvalResult {
                 params: params.clone(),
                 body: (**fbody).clone(),
             };
-            let env2 = env.extend(&fname, rec_val);
-            eval(&env2, body)
+            env.insert(fname.to_string(), rec_val);
+            eval(env, body)
         },
 
         Expr::Lambda(params, _, body) => {
@@ -138,10 +138,10 @@ pub fn eval(env: &Env, expr: &Expr) -> EvalResult {
         },
 
         Expr::App(func, args) => {
-            let fval = eval(env, func)?;
+            let fval = eval(&mut env.clone(), func)?;
             let mut argvs = vec![];
             for arg in args {
-                let argv = eval(env, arg)?;
+                let argv = eval(&mut env.clone(), arg)?;
                 argvs.push(argv);
             }
             apply(fval, argvs)
@@ -163,7 +163,7 @@ fn apply(func: Value, argvs: Vec<Value>) -> EvalResult {
             if argvs.len() < params.len() {
                 Ok(Value::Closure(env, params[argvs.len()..].to_vec(), body))
             } else {
-                eval(&env, &body)
+                eval(&mut env, &body)
             }
         },
 
@@ -188,7 +188,7 @@ fn apply(func: Value, argvs: Vec<Value>) -> EvalResult {
             if argvs.len() < params.len() {
                 Ok(Value::RecClosure { env, fname, params: params[argvs.len()..].to_vec(), body })
             } else {
-                eval(&env, &body)
+                eval(&mut env, &body)
             }
         },
         other => err!("tried to apply a non-function: {}", other),
@@ -256,14 +256,39 @@ fn eval_binop(op: &BinOp, v1: Value, v2: Value) -> EvalResult {
     }
 }
 
-pub fn eval_top(expr: &Expr) -> EvalResult {
-    eval(&Env::new(), expr)
+pub fn eval_expr(expr: &Expr) -> EvalResult {
+    eval(&mut Env::new(), expr)
+}
+
+pub fn eval_def(env: &mut Env, def: &Def) -> EvalResult {
+    match def {
+        Def::ValDef(_, _, expr) => eval(env, expr),
+        Def::FunDef(name, param_tys, _, body) => {
+            let params: Vec<Ident> = param_tys.iter().map(|(id, _)| id.clone()).collect();
+            Ok(Value::RecClosure {
+                env: env.clone(),
+                fname: name.clone(),
+                params,
+                body: body.clone(),
+            })
+        },
+    }
+}
+
+pub fn eval_prog(prog: &Program) -> EvalResult {
+    let mut env = Env::new();
+    for def in &prog.defs {
+        let name = def.name();
+        let val = eval_def(&mut env, def)?;
+        env.insert(name, val);
+    }
+    eval(&mut env, &prog.main)
 }
 
 pub fn eval_file(file: &PathBuf) -> EvalResult {
     if let Ok(content) = read_to_string(file.clone()) {
-        let expr = parser::ExprParser::new().parse(&content).unwrap();
-        eval_top(&*expr)
+        let prog = parser::ProgramParser::new().parse(&content).unwrap();
+        eval_prog(&*prog)
     } else {
         err!("read file error: {}", file.to_str().unwrap())
     }
@@ -273,17 +298,17 @@ pub fn eval_file(file: &PathBuf) -> EvalResult {
 mod tests {
     use super::*;
     use crate::syntax::{
-        a_let, ann, app, bin_op, bool, float, if_else, int, lambda, let_rec, print_bool,
-        print_float, print_int, tuple, tuple_projection, ty_arrow, ty_bool, ty_int, unary, unit,
-        var, BinOp, UnaryOp,
+        BinOp, UnaryOp, a_let, ann, app, bin_op, bool, float, fun_def, if_else, int, lambda,
+        let_rec, print_bool, print_float, print_int, tuple, tuple_projection, ty_arrow, ty_bool,
+        ty_int, unary, unit, val_def, var,
     };
 
     fn run(expr: Expr) -> Value {
-        eval_top(&expr).unwrap()
+        eval_expr(&expr).unwrap()
     }
 
     fn run_err(expr: Expr) -> String {
-        eval_top(&expr).unwrap_err().0
+        eval_expr(&expr).unwrap_err().0
     }
 
     #[test]
@@ -301,8 +326,14 @@ mod tests {
         assert_eq!(run(bin_op(BinOp::Sub, int(10), int(3))), Value::Int(7));
         assert_eq!(run(bin_op(BinOp::Mul, int(6), int(7))), Value::Int(42));
         assert_eq!(run(bin_op(BinOp::Div, int(10), int(3))), Value::Int(3));
-        assert_eq!(run(bin_op(BinOp::Mul, bin_op(BinOp::Add, int(1), int(2)), int(3))), Value::Int(9));
-        assert_eq!(run(bin_op(BinOp::Sub, bin_op(BinOp::Sub, int(10), int(3)), int(2))), Value::Int(5));
+        assert_eq!(
+            run(bin_op(BinOp::Mul, bin_op(BinOp::Add, int(1), int(2)), int(3))),
+            Value::Int(9)
+        );
+        assert_eq!(
+            run(bin_op(BinOp::Sub, bin_op(BinOp::Sub, int(10), int(3)), int(2))),
+            Value::Int(5)
+        );
     }
 
     #[test]
@@ -344,14 +375,23 @@ mod tests {
     fn test_if() {
         assert_eq!(run(if_else(bool(true), int(1), int(2))), Value::Int(1));
         assert_eq!(run(if_else(bool(false), int(1), int(2))), Value::Int(2));
-        assert_eq!(run(if_else(bin_op(BinOp::Lt, int(1), int(2)), int(10), int(20))), Value::Int(10));
-        assert_eq!(run(if_else(bool(true), if_else(bool(false), int(1), int(2)), int(3))), Value::Int(2));
+        assert_eq!(
+            run(if_else(bin_op(BinOp::Lt, int(1), int(2)), int(10), int(20))),
+            Value::Int(10)
+        );
+        assert_eq!(
+            run(if_else(bool(true), if_else(bool(false), int(1), int(2)), int(3))),
+            Value::Int(2)
+        );
     }
 
     #[test]
     fn test_let() {
         assert_eq!(run(a_let("x", None, int(1), var("x"))), Value::Int(1));
-        assert_eq!(run(a_let("x", Some(ty_int()), int(5), bin_op(BinOp::Add, var("x"), int(1)))), Value::Int(6));
+        assert_eq!(
+            run(a_let("x", Some(ty_int()), int(5), bin_op(BinOp::Add, var("x"), int(1)))),
+            Value::Int(6)
+        );
         assert_eq!(
             run(a_let(
                 "x",
@@ -388,16 +428,23 @@ mod tests {
             "apply",
             None,
             lambda(
-                vec![("f".to_string(), ty_arrow(ty_int(), ty_int())), ("x".to_string(), ty_int())],
+                vec![
+                    ("f".to_string(), ty_arrow(ty_int(), ty_int())),
+                    ("x".to_string(), ty_int()),
+                ],
                 None,
-                app(var("f"), vec![var("x")])
+                app(var("f"), vec![var("x")]),
             ),
             a_let(
                 "double",
                 None,
-                lambda(vec![("x".to_string(), ty_int())], None, bin_op(BinOp::Mul, var("x"), int(2))),
-                app(var("apply"), vec![var("double"), int(21)])
-            )
+                lambda(
+                    vec![("x".to_string(), ty_int())],
+                    None,
+                    bin_op(BinOp::Mul, var("x"), int(2)),
+                ),
+                app(var("apply"), vec![var("double"), int(21)]),
+            ),
         );
         assert_eq!(run(expr), Value::Int(42));
     }
@@ -408,16 +455,23 @@ mod tests {
             "apply",
             None,
             lambda(
-                vec![("f".to_string(), ty_arrow(ty_int(), ty_int())), ("x".to_string(), ty_int())],
+                vec![
+                    ("f".to_string(), ty_arrow(ty_int(), ty_int())),
+                    ("x".to_string(), ty_int()),
+                ],
                 None,
-                app(var("f"), vec![var("x")])
+                app(var("f"), vec![var("x")]),
             ),
             a_let(
                 "double",
                 None,
-                lambda(vec![("x".to_string(), ty_int())], None, bin_op(BinOp::Mul, var("x"), int(2))),
-                app(var("apply"), vec![var("double")])
-            )
+                lambda(
+                    vec![("x".to_string(), ty_int())],
+                    None,
+                    bin_op(BinOp::Mul, var("x"), int(2)),
+                ),
+                app(var("apply"), vec![var("double")]),
+            ),
         );
         let apply_closure = run(expr);
         assert!(matches!(apply_closure, Value::Closure(_, _, _)));
@@ -435,10 +489,10 @@ mod tests {
                 bin_op(
                     BinOp::Mul,
                     var("n"),
-                    app(var("fact"), vec![bin_op(BinOp::Sub, var("n"), int(1))])
-                )
+                    app(var("fact"), vec![bin_op(BinOp::Sub, var("n"), int(1))]),
+                ),
             ),
-            app(var("fact"), vec![int(10)])
+            app(var("fact"), vec![int(10)]),
         );
         assert_eq!(run(expr), Value::Int(3628800));
     }
@@ -455,10 +509,10 @@ mod tests {
                 bin_op(
                     BinOp::Add,
                     app(var("fib"), vec![bin_op(BinOp::Sub, var("n"), int(1))]),
-                    app(var("fib"), vec![bin_op(BinOp::Sub, var("n"), int(2))])
-                )
+                    app(var("fib"), vec![bin_op(BinOp::Sub, var("n"), int(2))]),
+                ),
             ),
-            app(var("fib"), vec![int(10)])
+            app(var("fib"), vec![int(10)]),
         );
         assert_eq!(run(expr), Value::Int(55));
     }
@@ -470,7 +524,7 @@ mod tests {
             vec![("x".to_string(), ty_int()), ("y".to_string(), ty_int())],
             ty_int(),
             bin_op(BinOp::Add, var("x"), var("y")),
-            app(var("add"), vec![int(19), int(23)])
+            app(var("add"), vec![int(19), int(23)]),
         );
         assert_eq!(run(expr), Value::Int(42));
     }
@@ -525,12 +579,12 @@ mod tests {
 
     #[test]
     fn test_tuple_projection_out_of_bounds() {
-        assert!(eval_top(&tuple_projection(tuple(vec![int(1)]), 3)).is_err());
+        assert!(eval_expr(&tuple_projection(tuple(vec![int(1)]), 3)).is_err());
     }
 
     #[test]
     fn test_tuple_projection_non_tuple() {
-        assert!(eval_top(&tuple_projection(int(1), 0)).is_err());
+        assert!(eval_expr(&tuple_projection(int(1), 0)).is_err());
     }
 
     #[test]
@@ -550,6 +604,154 @@ mod tests {
 
     #[test]
     fn test_unbound_var() {
-        assert!(eval_top(&var("foo")).is_err());
+        assert!(eval_expr(&var("foo")).is_err());
+    }
+
+    // ---- eval_def ----
+
+    fn run_def(def: Def) -> Value {
+        eval_def(&mut Env::new(), &def).unwrap()
+    }
+
+    #[test]
+    fn test_def_val() {
+        assert_eq!(run_def(val_def("x", None, int(42))), Value::Int(42));
+    }
+
+    #[test]
+    fn test_def_val_uses_prior_binding() {
+        let mut env = Env::new().extend("y", Value::Int(1));
+        let def = val_def("x", None, bin_op(BinOp::Add, var("y"), int(1)));
+        assert_eq!(eval_def(&mut env, &def).unwrap(), Value::Int(2));
+    }
+
+    #[test]
+    fn test_def_val_unbound() {
+        assert!(
+            eval_def(&mut Env::new(), &val_def("x", None, var("u")))
+                .unwrap_err()
+                .0
+                .contains("unbound variable")
+        );
+    }
+
+    #[test]
+    fn test_def_fun_is_rec_closure() {
+        let def = fun_def(
+            "add",
+            vec![("a".to_string(), ty_int()), ("b".to_string(), ty_int())],
+            ty_int(),
+            bin_op(BinOp::Add, var("a"), var("b")),
+        );
+        match run_def(def) {
+            Value::RecClosure { fname, params, .. } => {
+                assert_eq!(fname, "add");
+                assert_eq!(params, vec!["a".to_string(), "b".to_string()]);
+            },
+            other => panic!("expected RecClosure, got {}", other),
+        }
+    }
+
+    // ---- eval_prog ----
+
+    fn run_prog(prog: Program) -> Value {
+        eval_prog(&prog).unwrap()
+    }
+
+    fn run_prog_err(prog: Program) -> String {
+        eval_prog(&prog).unwrap_err().0
+    }
+
+    #[test]
+    fn test_prog_empty() {
+        assert_eq!(run_prog(Program { defs: vec![], main: int(42) }), Value::Int(42));
+    }
+
+    #[test]
+    fn test_prog_val_def() {
+        let prog = Program { defs: vec![val_def("x", None, int(42))], main: var("x") };
+        assert_eq!(run_prog(prog), Value::Int(42));
+    }
+
+    #[test]
+    fn test_prog_chained_defs() {
+        let prog = Program {
+            defs: vec![
+                val_def("x", None, int(42)),
+                val_def("y", None, bin_op(BinOp::Add, var("x"), int(1))),
+            ],
+            main: var("y"),
+        };
+        assert_eq!(run_prog(prog), Value::Int(43));
+    }
+
+    #[test]
+    fn test_prog_fun_def() {
+        let prog = Program {
+            defs: vec![fun_def(
+                "add",
+                vec![("a".to_string(), ty_int()), ("b".to_string(), ty_int())],
+                ty_int(),
+                bin_op(BinOp::Add, var("a"), var("b")),
+            )],
+            main: app(var("add"), vec![int(19), int(23)]),
+        };
+        assert_eq!(run_prog(prog), Value::Int(42));
+    }
+
+    #[test]
+    fn test_prog_recursive_fun() {
+        let prog = Program {
+            defs: vec![fun_def(
+                "fact",
+                vec![("n".to_string(), ty_int())],
+                ty_int(),
+                if_else(
+                    bin_op(BinOp::Eq, var("n"), int(0)),
+                    int(1),
+                    bin_op(
+                        BinOp::Mul,
+                        var("n"),
+                        app(var("fact"), vec![bin_op(BinOp::Sub, var("n"), int(1))]),
+                    ),
+                ),
+            )],
+            main: app(var("fact"), vec![int(10)]),
+        };
+        assert_eq!(run_prog(prog), Value::Int(3628800));
+    }
+
+    #[test]
+    fn test_prog_fun_calls_earlier_fun() {
+        let prog = Program {
+            defs: vec![
+                fun_def(
+                    "add",
+                    vec![("a".to_string(), ty_int()), ("b".to_string(), ty_int())],
+                    ty_int(),
+                    bin_op(BinOp::Add, var("a"), var("b")),
+                ),
+                fun_def(
+                    "inc",
+                    vec![("x".to_string(), ty_int())],
+                    ty_int(),
+                    app(var("add"), vec![var("x"), int(1)]),
+                ),
+            ],
+            main: app(var("inc"), vec![int(41)]),
+        };
+        assert_eq!(run_prog(prog), Value::Int(42));
+    }
+
+    #[test]
+    fn test_prog_def_error() {
+        let prog = Program { defs: vec![val_def("x", None, var("u"))], main: int(0) };
+        assert!(run_prog_err(prog).contains("unbound variable"));
+    }
+
+    #[test]
+    fn test_prog_main_error() {
+        let prog = Program { defs: vec![], main: var("u") };
+        assert!(run_prog_err(prog).contains("unbound variable"));
     }
 }

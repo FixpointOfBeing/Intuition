@@ -14,6 +14,7 @@ pub mod syntax;
 pub mod typechecker;
 pub mod uniquify;
 pub mod wasm;
+pub mod reveal_functions;
 
 use crate::eval::eval_file;
 use crate::repl::repl;

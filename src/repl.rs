@@ -2,8 +2,8 @@ use lalrpop_util::lalrpop_mod;
 use rustyline::DefaultEditor;
 use rustyline::error::ReadlineError;
 
-use crate::eval::eval_top;
-use crate::typechecker::typecheck;
+use crate::eval::eval_expr;
+use crate::typechecker::typecheck_expr;
 lalrpop_mod!(pub parser);
 
 pub fn repl() {
@@ -20,8 +20,8 @@ pub fn repl() {
             Ok(line) => {
                 rl.add_history_entry(line.as_str()).unwrap();
                 match parser::ExprParser::new().parse(line.trim()) {
-                    Ok(expr) => match typecheck((*expr).clone()) {
-                        Ok(_) => match eval_top(&expr) {
+                    Ok(expr) => match typecheck_expr((*expr).clone()) {
+                        Ok(_) => match eval_expr(&expr) {
                             Ok(val) => println!("{}", val),
                             Err(e) => {
                                 println!("Evaluation error{}", e)

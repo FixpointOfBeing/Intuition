@@ -1,25 +1,29 @@
-use crate::{gensym::Gensym, syntax::Ident, typechecker::TypedExpr};
+use crate::{
+    gensym::Gensym,
+    syntax::Ident,
+    typechecker::{TypedDef, TypedExpr, TypedProgram},
+};
 use std::collections::HashMap;
 
 type NameEnv = HashMap<Ident, Ident>;
 
-fn bind(gensym: &mut Gensym, env: &mut NameEnv, name: Ident) -> (Ident, Option<Ident>) {
-    let new_name = gensym.inc_fresh(&name);
-    let old = env.insert(name, new_name.clone());
-    (new_name, old)
-}
-
-fn unbind(env: &mut NameEnv, name: Ident, old: Option<Ident>) {
-    match old {
-        Some(prev) => {
-            env.insert(name, prev);
-        },
-        None => {
-            env.remove(&name);
-        },
-    }
-}
-
+// fn bind(gensym: &mut Gensym, env: &mut NameEnv, name: Ident) -> (Ident, Option<Ident>) {
+//     let new_name = gensym.inc_fresh(&name);
+//     let old = env.insert(name, new_name.clone());
+//     (new_name, old)
+// }
+//
+// fn unbind(env: &mut NameEnv, name: Ident, old: Option<Ident>) {
+//     match old {
+//         Some(prev) => {
+//             env.insert(name, prev);
+//         },
+//         None => {
+//             env.remove(&name);
+//         },
+//     }
+// }
+//
 pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: TypedExpr) -> TypedExpr {
     match expr {
         TypedExpr::Unit => expr,
@@ -27,7 +31,10 @@ pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: TypedExpr) -> TypedE
         TypedExpr::Int(_) => expr,
         TypedExpr::Float(_) => expr,
         TypedExpr::Tuple(typed_exprs, ty) => {
-            let typed_exprs = typed_exprs.into_iter().map(|e| rename(gensym, env, e)).collect();
+            let typed_exprs = typed_exprs
+                .into_iter()
+                .map(|e| rename(gensym, &mut env.clone(), e))
+                .collect();
             TypedExpr::Tuple(typed_exprs, ty)
         },
         TypedExpr::TupleProj(expr, index, ty) => {
@@ -42,7 +49,7 @@ pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: TypedExpr) -> TypedE
             None => TypedExpr::PrimIO(prim_io, None, ty),
         },
         TypedExpr::BinOp(op, left, right, ty) => {
-            let left = rename(gensym, env, *left);
+            let left = rename(gensym, &mut env.clone(), *left);
             let right = rename(gensym, env, *right);
             TypedExpr::BinOp(op, Box::new(left), Box::new(right), ty)
         },
@@ -55,41 +62,38 @@ pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: TypedExpr) -> TypedE
             TypedExpr::Ann(Box::new(expr), ty)
         },
         TypedExpr::If(cond, thn, els, ty) => {
-            let cond = rename(gensym, env, *cond);
-            let thn = rename(gensym, env, *thn);
-            let els = rename(gensym, env, *els);
+            let cond = rename(gensym, &mut env.clone(), *cond);
+            let thn = rename(gensym, &mut env.clone(), *thn);
+            let els = rename(gensym, &mut env.clone(), *els);
             TypedExpr::If(Box::new(cond), Box::new(thn), Box::new(els), ty)
         },
         TypedExpr::Let(name, ty, rhs, body, let_ty) => {
-            let rhs = rename(gensym, env, *rhs);
-            let (new_name, old) = bind(gensym, env, name.clone());
+            let rhs = rename(gensym, &mut env.clone(), *rhs);
+
+            let new_name = gensym.inc_fresh(&name);
+            env.insert(name, new_name.clone());
             let body = rename(gensym, env, *body);
-            unbind(env, name, old);
             TypedExpr::Let(new_name, ty, Box::new(rhs), Box::new(body), let_ty)
         },
         TypedExpr::Var(name, ty) => {
-            let new_name = env.get(&name).expect("unbound variable");
+            let new_name = env.get(&name).expect(&format!("unbound variable: {}", name));
             TypedExpr::Var(new_name.to_string(), ty)
         },
         TypedExpr::LetRec(fname, fparams, fty, fbody, body, letrec_ty) => {
-            let (new_fname, old_fname) = bind(gensym, env, fname.clone());
-
-            let mut new_fparams = vec![];
-            let mut old_fparams = vec![];
+            let mut new_fparams = Vec::with_capacity(fparams.len());
+            let new_fname = gensym.inc_fresh(&fname);
+            let mut fbody_env = env.clone();
+            fbody_env.insert(fname.clone(), new_fname.clone());
             for (name, param_ty) in fparams {
-                let (new_name, old) = bind(gensym, env, name.clone());
-                old_fparams.push((name, old));
+                let new_name = gensym.inc_fresh(&name);
+                fbody_env.insert(name, new_name.clone());
                 new_fparams.push((new_name, param_ty));
             }
 
-            let fbody = rename(gensym, env, *fbody);
+            let fbody = rename(gensym, &mut fbody_env, *fbody);
 
-            for (name, old) in old_fparams.into_iter().rev() {
-                unbind(env, name, old);
-            }
-
+            env.insert(fname, new_fname.clone());
             let body = rename(gensym, env, *body);
-            unbind(env, fname, old_fname);
 
             TypedExpr::LetRec(
                 new_fname,
@@ -106,29 +110,69 @@ pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: TypedExpr) -> TypedE
             TypedExpr::App(Box::new(func), args, ty)
         },
         TypedExpr::Lambda(param, ty, body, lambda_ty) => {
-            let mut new_params = vec![];
-            let mut old_params = vec![];
+            let mut new_params = Vec::with_capacity(param.len());
+
             for (name, param_ty) in param {
-                let (new_name, old) = bind(gensym, env, name.clone());
-                old_params.push((name, old));
+                let new_name = gensym.inc_fresh(&name);
+                env.insert(name, new_name.clone());
                 new_params.push((new_name, param_ty));
             }
 
             let body = rename(gensym, env, *body);
-
-            for (name, old) in old_params.into_iter().rev() {
-                unbind(env, name, old);
-            }
 
             TypedExpr::Lambda(new_params, ty, Box::new(body), lambda_ty)
         },
     }
 }
 
-pub fn uniquify_convert(expr: TypedExpr) -> TypedExpr {
+pub fn uniquify_expr(expr: TypedExpr) -> TypedExpr {
     let mut gensym = Gensym::new();
     let mut env = NameEnv::new();
     rename(&mut gensym, &mut env, expr)
+}
+
+pub fn uniquify_def(gensym: &mut Gensym, env: &NameEnv, def: TypedDef) -> TypedDef {
+    match def {
+        TypedDef::ValDef(name, ty, typed_expr) => {
+            let mut val_env = env.clone();
+
+            let new_name = gensym.inc_fresh(&name);
+            let renamed = rename(gensym, &mut val_env, typed_expr);
+
+            TypedDef::ValDef(new_name, ty, renamed)
+        },
+        TypedDef::FunDef(name, param_tys, rt_ty, typed_expr) => {
+            let mut fun_env = env.clone();
+
+            let new_name = gensym.inc_fresh(&name);
+            fun_env.insert(name, new_name.clone());
+
+            let mut new_param_tys = Vec::with_capacity(param_tys.len());
+            for (param, ty) in param_tys {
+                let new_param = gensym.inc_fresh(&param);
+                fun_env.insert(param, new_param.clone());
+                new_param_tys.push((new_param, ty));
+            }
+            let renamed = rename(gensym, &mut fun_env, typed_expr);
+
+            TypedDef::FunDef(new_name, new_param_tys, rt_ty, renamed)
+        },
+    }
+}
+
+pub fn uniquify_program(prog: TypedProgram) -> TypedProgram {
+    let mut gensym = Gensym::new();
+    let mut env = NameEnv::new();
+    let mut renamed_defs = Vec::with_capacity(prog.defs.len());
+    for def in prog.defs {
+        let name = def.name();
+        let renamed_def = uniquify_def(&mut gensym, &env, def);
+        let new_name = renamed_def.name();
+        env.insert(name, new_name);
+        renamed_defs.push(renamed_def);
+    }
+    let renamed_main = rename(&mut gensym, &mut env, prog.main);
+    TypedProgram { defs: renamed_defs, main: renamed_main }
 }
 
 #[cfg(test)]
@@ -158,31 +202,51 @@ mod tests {
         }
     }
 
+    fn expect_val_def(def: &TypedDef) -> (&Ident, &Option<Type>, &TypedExpr) {
+        match def {
+            TypedDef::ValDef(name, ty, expr) => (name, ty, expr),
+            other => panic!("expected TypedDef::ValDef, got {:?}", other),
+        }
+    }
+
+    fn expect_fun_def(def: &TypedDef) -> (&Ident, &Vec<(Ident, Type)>, &Type, &TypedExpr) {
+        match def {
+            TypedDef::FunDef(name, params, rt_ty, body) => (name, params, rt_ty, body),
+            other => panic!("expected TypedDef::FunDef, got {:?}", other),
+        }
+    }
+
+    fn run_def(def: TypedDef) -> TypedDef {
+        let mut gensym = Gensym::new();
+        let mut env = NameEnv::new();
+        uniquify_def(&mut gensym, &mut env, def)
+    }
+
     #[test]
     fn unit_is_unchanged() {
-        assert_eq!(uniquify_convert(t_unit()), t_unit());
+        assert_eq!(uniquify_expr(t_unit()), t_unit());
     }
 
     #[test]
     fn bool_is_unchanged() {
-        assert_eq!(uniquify_convert(t_bool(true)), t_bool(true));
-        assert_eq!(uniquify_convert(t_bool(false)), t_bool(false));
+        assert_eq!(uniquify_expr(t_bool(true)), t_bool(true));
+        assert_eq!(uniquify_expr(t_bool(false)), t_bool(false));
     }
 
     #[test]
     fn int_is_unchanged() {
-        assert_eq!(uniquify_convert(t_int(42)), t_int(42));
+        assert_eq!(uniquify_expr(t_int(42)), t_int(42));
     }
 
     #[test]
     fn float_is_unchanged() {
-        assert_eq!(uniquify_convert(t_float(3.14)), t_float(3.14));
+        assert_eq!(uniquify_expr(t_float(3.14)), t_float(3.14));
     }
 
     #[test]
     fn let_renames_var_in_body() {
         let expr = t_let("x", Type::Int, t_int(1), t_var("x", Type::Int), Type::Int);
-        let renamed = uniquify_convert(expr);
+        let renamed = uniquify_expr(expr);
         let (bound_name, _, body) = expect_let(&renamed);
         let used_name = expect_var(body);
         assert_eq!(bound_name, used_name);
@@ -198,7 +262,7 @@ mod tests {
             t_let("x", Type::Int, t_int(2), t_var("x", Type::Int), Type::Int),
             Type::Int,
         );
-        let renamed = uniquify_convert(expr);
+        let renamed = uniquify_expr(expr);
         let (outer_name, _, outer_body) = expect_let(&renamed);
         let (inner_name, _, inner_body) = expect_let(outer_body);
         let used_name = expect_var(inner_body);
@@ -227,7 +291,7 @@ mod tests {
             Type::Int,
         );
 
-        let renamed = uniquify_convert(expr);
+        let renamed = uniquify_expr(expr);
         let (outer_name, _, outer_body) = expect_let(&renamed);
         let (_, lambda_rhs, final_body) = expect_let(outer_body);
 
@@ -269,7 +333,7 @@ mod tests {
             Type::Int,
         );
 
-        let renamed = uniquify_convert(expr);
+        let renamed = uniquify_expr(expr);
         let (outer_x, _, letrec) = expect_let(&renamed);
 
         match letrec {
@@ -298,7 +362,7 @@ mod tests {
             t_var("fact", Type::Int),
             Type::Int,
         );
-        let renamed = uniquify_convert(expr);
+        let renamed = uniquify_expr(expr);
         match renamed {
             TypedExpr::LetRec(new_fname, _, _, _, cont, _) => {
                 let cont_name = expect_var(&cont);
@@ -319,7 +383,7 @@ mod tests {
             t_bin_op(BinOp::Add, t_var("x", Type::Int), t_var("y", Type::Int), Type::Int),
             Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)),
         );
-        let renamed = uniquify_convert(expr);
+        let renamed = uniquify_expr(expr);
         match renamed {
             TypedExpr::Lambda(params, _, body, _) => {
                 assert_ne!(params[0].0, params[1].0);
@@ -352,7 +416,7 @@ mod tests {
             ),
             Type::Int,
         );
-        let renamed = uniquify_convert(expr);
+        let renamed = uniquify_expr(expr);
         let (x_name, _, body1) = expect_let(&renamed);
         let (y_name, _, body2) = expect_let(body1);
         match body2 {
@@ -373,7 +437,7 @@ mod tests {
             t_unary(UnaryOp::Neg, t_var("x", Type::Int), Type::Int),
             Type::Int,
         );
-        let renamed = uniquify_convert(expr);
+        let renamed = uniquify_expr(expr);
         let (x_name, _, body) = expect_let(&renamed);
         match body {
             TypedExpr::UnaryOp(UnaryOp::Neg, inner, _) => {
@@ -392,7 +456,7 @@ mod tests {
             t_if(t_var("x", Type::Int), t_var("x", Type::Int), t_var("x", Type::Int), Type::Int),
             Type::Int,
         );
-        let renamed = uniquify_convert(expr);
+        let renamed = uniquify_expr(expr);
         let (x_name, _, body) = expect_let(&renamed);
         match body {
             TypedExpr::If(c, t, e, _) => {
@@ -423,7 +487,7 @@ mod tests {
             ),
             Type::Int,
         );
-        let renamed = uniquify_convert(expr);
+        let renamed = uniquify_expr(expr);
         let (f_name, _, body1) = expect_let(&renamed);
         let (x_name, _, body2) = expect_let(body1);
         match body2 {
@@ -439,14 +503,9 @@ mod tests {
 
     #[test]
     fn ann_inner_expr_is_actually_renamed() {
-        let expr = t_let(
-            "x",
-            Type::Int,
-            t_int(1),
-            t_ann(t_var("x", Type::Int), Type::Int),
-            Type::Int,
-        );
-        let renamed = uniquify_convert(expr);
+        let expr =
+            t_let("x", Type::Int, t_int(1), t_ann(t_var("x", Type::Int), Type::Int), Type::Int);
+        let renamed = uniquify_expr(expr);
         let (x_name, _, body) = expect_let(&renamed);
         match body {
             TypedExpr::Ann(inner, ty) => {
@@ -469,7 +528,7 @@ mod tests {
             t_ann(t_var("x", Type::Int), Type::Int),
             Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)),
         );
-        let renamed = uniquify_convert(expr);
+        let renamed = uniquify_expr(expr);
         match renamed {
             TypedExpr::Lambda(params, _, body, _) => match *body {
                 TypedExpr::Ann(inner, _) => {
@@ -506,7 +565,8 @@ mod tests {
             Type::Int,
         );
 
-        let renamed = uniquify_convert(expr);
+        let renamed = uniquify_expr(expr);
+
         match renamed {
             TypedExpr::LetRec(new_fname, fparams, _, fbody, cont, _) => {
                 let n_name = &fparams[0].0;
@@ -569,13 +629,10 @@ mod tests {
             "x",
             Type::Int,
             t_int(1),
-            t_tuple(
-                vec![t_var("x", Type::Int), t_int(2)],
-                Type::Tuple(vec![Type::Int, Type::Int]),
-            ),
+            t_tuple(vec![t_var("x", Type::Int), t_int(2)], Type::Tuple(vec![Type::Int, Type::Int])),
             Type::Tuple(vec![Type::Int, Type::Int]),
         );
-        let renamed = uniquify_convert(expr);
+        let renamed = uniquify_expr(expr);
         let (x_name, _, body) = expect_let(&renamed);
         match body {
             TypedExpr::Tuple(elements, _) => {
@@ -596,7 +653,7 @@ mod tests {
             t_prim_io(PrimIO::PrintInt, Some(t_var("x", Type::Int)), Type::Unit),
             Type::Unit,
         );
-        let renamed = uniquify_convert(expr);
+        let renamed = uniquify_expr(expr);
         let (x_name, _, body) = expect_let(&renamed);
         match body {
             TypedExpr::PrimIO(PrimIO::PrintInt, Some(inner), _) => {
@@ -609,6 +666,284 @@ mod tests {
     #[test]
     fn prim_io_read_none_unchanged() {
         let expr = t_prim_io(PrimIO::ReadInt, None, Type::Unit);
-        assert_eq!(uniquify_convert(expr.clone()), expr);
+        assert_eq!(uniquify_expr(expr.clone()), expr);
+    }
+
+    // ---- uniquify_def ----
+
+    #[test]
+    fn def_val_renames_name_and_literal_body() {
+        let def = TypedDef::ValDef("x".to_string(), Some(Type::Int), t_int(42));
+        let renamed = run_def(def);
+        let (name, ty, body) = expect_val_def(&renamed);
+        assert!(name.starts_with("x."));
+        assert_eq!(*ty, Some(Type::Int));
+        assert_eq!(body, &t_int(42));
+    }
+
+    #[test]
+    fn def_val_renames_outer_reference() {
+        let mut gensym = Gensym::new();
+        let mut env = NameEnv::new();
+        env.insert("y".to_string(), "y.0".to_string());
+        let def = TypedDef::ValDef("x".to_string(), Some(Type::Int), t_var("y", Type::Int));
+        let renamed = uniquify_def(&mut gensym, &mut env, def);
+        let (name, _, body) = expect_val_def(&renamed);
+        assert!(name.starts_with("x."));
+        assert_eq!(expect_var(body), "y.0");
+    }
+
+    #[test]
+    fn def_fun_renames_name_params_and_body() {
+        let def = TypedDef::FunDef(
+            "add".to_string(),
+            vec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)],
+            Type::Int,
+            t_bin_op(BinOp::Add, t_var("a", Type::Int), t_var("b", Type::Int), Type::Int),
+        );
+        let renamed = run_def(def);
+        let (name, params, _, body) = expect_fun_def(&renamed);
+        assert!(name.starts_with("add."));
+        assert!(params[0].0.starts_with("a."));
+        assert!(params[1].0.starts_with("b."));
+        assert_ne!(params[0].0, params[1].0);
+        match body {
+            TypedExpr::BinOp(BinOp::Add, l, r, _) => {
+                assert_eq!(expect_var(l), &params[0].0);
+                assert_eq!(expect_var(r), &params[1].0);
+            },
+            other => panic!("expected BinOp, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn def_fun_self_recursion() {
+        let def = TypedDef::FunDef(
+            "fact".to_string(),
+            vec![("n".to_string(), Type::Int)],
+            Type::Int,
+            t_if(
+                t_bin_op(BinOp::Eq, t_var("n", Type::Int), t_int(0), Type::Bool),
+                t_int(1),
+                t_app(
+                    t_var("fact", Type::Int),
+                    vec![t_bin_op(BinOp::Sub, t_var("n", Type::Int), t_int(1), Type::Int)],
+                    Type::Int,
+                ),
+                Type::Int,
+            ),
+        );
+        let renamed = run_def(def);
+        let (name, params, _, body) = expect_fun_def(&renamed);
+        assert!(name.starts_with("fact."));
+        assert!(params[0].0.starts_with("n."));
+        match body {
+            TypedExpr::If(cond, _, els, _) => {
+                match &**cond {
+                    TypedExpr::BinOp(BinOp::Eq, l, _, _) => {
+                        assert_eq!(expect_var(l), &params[0].0)
+                    },
+                    other => panic!("expected Eq, got {:?}", other),
+                }
+                match &**els {
+                    TypedExpr::App(func, args, _) => {
+                        assert_eq!(expect_var(func), name);
+                        match &args[0] {
+                            TypedExpr::BinOp(BinOp::Sub, l, _, _) => {
+                                assert_eq!(expect_var(l), &params[0].0)
+                            },
+                            other => panic!("expected Sub, got {:?}", other),
+                        }
+                    },
+                    other => panic!("expected App, got {:?}", other),
+                }
+            },
+            other => panic!("expected If, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn def_fun_param_shadows_fname() {
+        let def = TypedDef::FunDef(
+            "f".to_string(),
+            vec![("f".to_string(), Type::Int)],
+            Type::Int,
+            t_var("f", Type::Int),
+        );
+        let renamed = run_def(def);
+        let (name, params, _, body) = expect_fun_def(&renamed);
+        assert!(name.starts_with("f."));
+        assert!(params[0].0.starts_with("f."));
+        assert_ne!(name, &params[0].0, "param shadowing fname must get a distinct fresh name");
+        assert_eq!(expect_var(body), &params[0].0);
+    }
+
+    // ---- uniquify_program ----
+
+    #[test]
+    fn prog_empty() {
+        let prog = TypedProgram { defs: vec![], main: t_int(42) };
+        let renamed = uniquify_program(prog);
+        assert_eq!(renamed.defs.len(), 0);
+        assert_eq!(renamed.main, t_int(42));
+    }
+
+    #[test]
+    fn prog_val_def_main_uses_it() {
+        let prog = TypedProgram {
+            defs: vec![TypedDef::ValDef("x".to_string(), Some(Type::Int), t_int(42))],
+            main: t_var("x", Type::Int),
+        };
+        let renamed = uniquify_program(prog);
+        assert_eq!(renamed.defs.len(), 1);
+        let (name, _, _) = expect_val_def(&renamed.defs[0]);
+        assert!(name.starts_with("x."));
+        assert_eq!(expect_var(&renamed.main), name);
+    }
+
+    #[test]
+    fn prog_fun_def_main_calls_it() {
+        let prog = TypedProgram {
+            defs: vec![TypedDef::FunDef(
+                "add".to_string(),
+                vec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)],
+                Type::Int,
+                t_bin_op(BinOp::Add, t_var("a", Type::Int), t_var("b", Type::Int), Type::Int),
+            )],
+            main: t_app(t_var("add", Type::Int), vec![t_int(1), t_int(2)], Type::Int),
+        };
+        let renamed = uniquify_program(prog);
+        let (name, _, _, _) = expect_fun_def(&renamed.defs[0]);
+        match &renamed.main {
+            TypedExpr::App(func, args, _) => {
+                assert_eq!(expect_var(func), name);
+                assert_eq!(args, &vec![t_int(1), t_int(2)]);
+            },
+            other => panic!("expected App, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn prog_recursive_fun() {
+        let prog = TypedProgram {
+            defs: vec![TypedDef::FunDef(
+                "fact".to_string(),
+                vec![("n".to_string(), Type::Int)],
+                Type::Int,
+                t_if(
+                    t_bin_op(BinOp::Eq, t_var("n", Type::Int), t_int(0), Type::Bool),
+                    t_int(1),
+                    t_bin_op(
+                        BinOp::Mul,
+                        t_var("n", Type::Int),
+                        t_app(
+                            t_var("fact", Type::Int),
+                            vec![t_bin_op(BinOp::Sub, t_var("n", Type::Int), t_int(1), Type::Int)],
+                            Type::Int,
+                        ),
+                        Type::Int,
+                    ),
+                    Type::Int,
+                ),
+            )],
+            main: t_app(t_var("fact", Type::Int), vec![t_int(5)], Type::Int),
+        };
+        let renamed = uniquify_program(prog);
+        let (name, _, _, _) = expect_fun_def(&renamed.defs[0]);
+        match &renamed.main {
+            TypedExpr::App(func, args, _) => {
+                assert_eq!(expect_var(func), name);
+                assert_eq!(args, &vec![t_int(5)]);
+            },
+            other => panic!("expected App, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn prog_chained_defs() {
+        let prog = TypedProgram {
+            defs: vec![
+                TypedDef::ValDef("x".to_string(), Some(Type::Int), t_int(42)),
+                TypedDef::ValDef(
+                    "y".to_string(),
+                    Some(Type::Int),
+                    t_bin_op(BinOp::Add, t_var("x", Type::Int), t_int(1), Type::Int),
+                ),
+            ],
+            main: t_var("y", Type::Int),
+        };
+        let renamed = uniquify_program(prog);
+        assert_eq!(renamed.defs.len(), 2);
+        let (x_name, _, _) = expect_val_def(&renamed.defs[0]);
+        let (y_name, _, body) = expect_val_def(&renamed.defs[1]);
+        match body {
+            TypedExpr::BinOp(BinOp::Add, l, _, _) => assert_eq!(expect_var(l), x_name),
+            other => panic!("expected BinOp, got {:?}", other),
+        }
+        assert_eq!(expect_var(&renamed.main), y_name);
+    }
+
+    #[test]
+    fn prog_shadowing_val_defs() {
+        let prog = TypedProgram {
+            defs: vec![
+                TypedDef::ValDef("x".to_string(), Some(Type::Int), t_int(1)),
+                TypedDef::ValDef(
+                    "x".to_string(),
+                    Some(Type::Int),
+                    t_bin_op(BinOp::Add, t_var("x", Type::Int), t_int(1), Type::Int),
+                ),
+            ],
+            main: t_var("x", Type::Int),
+        };
+        let renamed = uniquify_program(prog);
+        let (outer_name, _, _) = expect_val_def(&renamed.defs[0]);
+        let (inner_name, _, body) = expect_val_def(&renamed.defs[1]);
+        match body {
+            TypedExpr::BinOp(BinOp::Add, l, _, _) => {
+                assert_eq!(expect_var(l), outer_name, "inner x must refer to outer x")
+            },
+            other => panic!("expected BinOp, got {:?}", other),
+        }
+        assert_eq!(expect_var(&renamed.main), inner_name);
+    }
+
+    #[test]
+    fn prog_fun_calls_earlier_fun() {
+        let prog = TypedProgram {
+            defs: vec![
+                TypedDef::FunDef(
+                    "add".to_string(),
+                    vec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)],
+                    Type::Int,
+                    t_bin_op(BinOp::Add, t_var("a", Type::Int), t_var("b", Type::Int), Type::Int),
+                ),
+                TypedDef::FunDef(
+                    "inc".to_string(),
+                    vec![("x".to_string(), Type::Int)],
+                    Type::Int,
+                    t_app(
+                        t_var("add", Type::Int),
+                        vec![t_var("x", Type::Int), t_int(1)],
+                        Type::Int,
+                    ),
+                ),
+            ],
+            main: t_app(t_var("inc", Type::Int), vec![t_int(41)], Type::Int),
+        };
+        let renamed = uniquify_program(prog);
+        assert_eq!(renamed.defs.len(), 2);
+        let (add_name, _, _, _) = expect_fun_def(&renamed.defs[0]);
+        let (inc_name, _, _, body) = expect_fun_def(&renamed.defs[1]);
+        match body {
+            TypedExpr::App(func, _, _) => {
+                assert_eq!(expect_var(func), add_name, "inc body must call the fresh add name")
+            },
+            other => panic!("expected App, got {:?}", other),
+        }
+        match &renamed.main {
+            TypedExpr::App(func, _, _) => assert_eq!(expect_var(func), inc_name),
+            other => panic!("expected App, got {:?}", other),
+        }
     }
 }

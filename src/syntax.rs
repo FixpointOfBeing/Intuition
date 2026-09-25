@@ -78,9 +78,18 @@ pub enum Def {
     FunDef(
         Ident,              // function name
         Vec<(Ident, Type)>, // function arguments with their types
-        Option<Type>,       // optional function return type
+        Type,               // function return type
         Expr,               // function body
     ),
+}
+
+impl Def {
+    pub fn name(&self) -> Ident {
+        match self {
+            Def::ValDef(name, _, _) => name.clone(),
+            Def::FunDef(name, _, _, _) => name.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -137,7 +146,7 @@ pub fn val_def(name: impl Into<Ident>, ann: Option<Type>, expr: Expr) -> Def {
 pub fn fun_def(
     name: impl Into<Ident>,
     params: Vec<(Ident, Type)>,
-    ret_ty: Option<Type>,
+    ret_ty: Type,
     body: Expr,
 ) -> Def {
     Def::FunDef(name.into(), params, ret_ty, body)
@@ -388,6 +397,39 @@ impl std::fmt::Display for Expr {
         }
     }
 }
+
+impl std::fmt::Display for Def {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Def::ValDef(name, ann, expr) => {
+                if let Some(ty) = ann {
+                    write!(f, "let {}: {} = {};", name, ty, expr)
+                } else {
+                    write!(f, "let {} = {};", name, expr)
+                }
+            },
+            Def::FunDef(name, params, ret_ty, body) => {
+                let params_str = params
+                    .iter()
+                    .map(|(param_name, param_ty)| format!("({}: {})", param_name, param_ty))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+
+                write!(f, "let {} {} : {} = {};", name, params_str, ret_ty, body)
+            },
+        }
+    }
+}
+
+impl std::fmt::Display for Program {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for def in &self.defs {
+            writeln!(f, "{}", def)?;
+        }
+        write!(f, "{}", self.main)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -907,14 +949,14 @@ mod tests {
             fun_def(
                 "add".to_string(),
                 vec![("x".to_string(), ty_int()), ("y".to_string(), ty_int())],
-                Some(ty_int()),
+                ty_int(),
                 bin_op(BinOp::Add, var("x"), var("y"))
             )
         );
     }
 
     #[test]
-    fn test_parse_program() {
+    fn test_parse_program_add() {
         let source = r#"
             let x: Int = read_int ();
             let y: Bool = true;
@@ -932,7 +974,7 @@ mod tests {
             fun_def(
                 "add".to_string(),
                 vec![("a".to_string(), ty_int()), ("b".to_string(), ty_int())],
-                Some(ty_int()),
+                ty_int(),
                 bin_op(BinOp::Add, var("a"), var("b"))
             )
         );
@@ -943,6 +985,44 @@ mod tests {
                 app(var("add"), vec![var("x"), int(1)]),
                 app(var("add"), vec![var("x"), unary(UnaryOp::Neg, int(1))])
             )
+        );
+    }
+
+    #[test]
+    fn test_parse_program_max() {
+        let source = r#"
+            let answer: Int = 42;
+
+            let add (a: Int) (b: Int): Int = a + b;
+            let max (a: Int) (b: Int): Int = if a >= b then a else b;
+
+            add answer (max 1 2)
+        "#;
+
+        let program = parser::ProgramParser::new().parse(source).unwrap();
+        assert_eq!(program.defs.len(), 3);
+        assert_eq!(program.defs[0], val_def("answer".to_string(), Some(ty_int()), int(42)));
+        assert_eq!(
+            program.defs[1],
+            fun_def(
+                "add".to_string(),
+                vec![("a".to_string(), ty_int()), ("b".to_string(), ty_int())],
+                ty_int(),
+                bin_op(BinOp::Add, var("a"), var("b"))
+            )
+        );
+        assert_eq!(
+            program.defs[2],
+            fun_def(
+                "max".to_string(),
+                vec![("a".to_string(), ty_int()), ("b".to_string(), ty_int())],
+                ty_int(),
+                if_else(bin_op(BinOp::Geq, var("a"), var("b")), var("a"), var("b"))
+            )
+        );
+        assert_eq!(
+            program.main,
+            app(var("add"), vec![var("answer"), app(var("max"), vec![int(1), int(2)])])
         );
     }
 
