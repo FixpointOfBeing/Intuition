@@ -30,6 +30,11 @@ pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: TypedExpr) -> TypedE
         TypedExpr::Bool(_) => expr,
         TypedExpr::Int(_) => expr,
         TypedExpr::Float(_) => expr,
+        TypedExpr::Var(name, ty) => {
+            let new_name = env.get(&name).expect(&format!("unbound variable: {}", name));
+            TypedExpr::Var(new_name.to_string(), ty)
+        },
+        // TypedExpr::FunRef(name, arity, ty) => todo!(),
         TypedExpr::Tuple(typed_exprs, ty) => {
             let typed_exprs = typed_exprs
                 .into_iter()
@@ -74,10 +79,6 @@ pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: TypedExpr) -> TypedE
             env.insert(name, new_name.clone());
             let body = rename(gensym, env, *body);
             TypedExpr::Let(new_name, ty, Box::new(rhs), Box::new(body), let_ty)
-        },
-        TypedExpr::Var(name, ty) => {
-            let new_name = env.get(&name).expect(&format!("unbound variable: {}", name));
-            TypedExpr::Var(new_name.to_string(), ty)
         },
         TypedExpr::LetRec(fname, fparams, fty, fbody, body, letrec_ty) => {
             let mut new_fparams = Vec::with_capacity(fparams.len());

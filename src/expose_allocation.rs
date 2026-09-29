@@ -164,6 +164,7 @@ pub fn expose_allocation(typed_expr: TypedExpr, gs: &mut Gensym) -> AllocExpr {
         TypedExpr::Int(n) => alloc_int(n),
         TypedExpr::Float(f) => alloc_float(f),
         TypedExpr::Var(name, ty) => alloc_var(name, ty),
+        // TypedExpr::FunRef(name, arity, ty) => todo!(),
         TypedExpr::BinOp(bin_op, typed_expr, typed_expr1, ty) => {
             let left = expose_allocation(*typed_expr, gs);
             let right = expose_allocation(*typed_expr1, gs);
@@ -173,8 +174,12 @@ pub fn expose_allocation(typed_expr: TypedExpr, gs: &mut Gensym) -> AllocExpr {
             let mut init_tuple = Vec::with_capacity(typed_exprs.len() + 2);
             let bytes_needed = tuple_ty.bytes_of();
 
-            let ptr_after_alloc =
-                alloc_bin_op(BinOp::Add, global_freeptr(), alloc_int(bytes_needed as i64), Type::Int);
+            let ptr_after_alloc = alloc_bin_op(
+                BinOp::Add,
+                global_freeptr(),
+                alloc_int(bytes_needed as i64),
+                Type::Int,
+            );
             let cond = alloc_bin_op(BinOp::Lt, ptr_after_alloc, global_fromspace_end(), Type::Bool);
             let collect = collect(bytes_needed);
             let try_collect = alloc_if_else(cond, alloc_unit(), collect, Type::Unit);

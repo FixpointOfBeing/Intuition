@@ -143,6 +143,7 @@ fn collect_bindings(expr: TypedExpr, gs: &mut Gensym, bindings: &mut Bindings) -
         TypedExpr::Int(i) => CompExpr::Atom(AExpr::Int(i)),
         TypedExpr::Float(f) => CompExpr::Atom(AExpr::Float(f)),
         TypedExpr::Var(name, ty) => CompExpr::Atom(AExpr::Var(name, ty)),
+        // TypedExpr::FunRef(name, arity, ty) => todo!(),
         TypedExpr::Tuple(typed_exprs, _) => {
             let mut elements_atom = Vec::with_capacity(typed_exprs.len());
             for expr in typed_exprs {
@@ -233,8 +234,7 @@ mod tests {
     use crate::syntax::PrimIO;
     use crate::syntax::Type;
     use crate::typechecker::{
-        t_app, t_bin_op, t_bool, t_if, t_int, t_lambda, t_let, t_let_rec, t_prim_io, t_tuple,
-        t_var,
+        t_app, t_bin_op, t_bool, t_if, t_int, t_lambda, t_let, t_let_rec, t_prim_io, t_tuple, t_var,
     };
 
     #[test]
@@ -260,11 +260,7 @@ mod tests {
                 anf_let(
                     "$1",
                     c_bin_op(BinOp::Add, a_int(3), a_int(4)),
-                    complex(c_bin_op(
-                        BinOp::Mul,
-                        a_var("$0", Type::Int),
-                        a_var("$1", Type::Int)
-                    ))
+                    complex(c_bin_op(BinOp::Mul, a_var("$0", Type::Int), a_var("$1", Type::Int)))
                 )
             )
         );
@@ -446,10 +442,7 @@ mod tests {
         );
         let e = t_app(
             t_var("f", fn_ty.clone()),
-            vec![
-                t_bin_op(BinOp::Add, t_int(1), t_int(2), Type::Int),
-                t_int(3),
-            ],
+            vec![t_bin_op(BinOp::Add, t_int(1), t_int(2), Type::Int), t_int(3)],
             Type::Int,
         );
 
@@ -524,10 +517,7 @@ mod tests {
 
         let anf = anf_convert(e);
 
-        assert_eq!(
-            anf,
-            complex(c_bin_op(BinOp::Add, a_int(1), a_var("x", Type::Int)))
-        );
+        assert_eq!(anf, complex(c_bin_op(BinOp::Add, a_int(1), a_var("x", Type::Int))));
     }
 
     #[test]
@@ -650,7 +640,12 @@ mod tests {
                     t_if(
                         t_bin_op(BinOp::Lt, t_var("y", Type::Int), t_int(100), Type::Bool),
                         t_bin_op(BinOp::Add, t_var("y", Type::Int), t_int(100), Type::Int),
-                        t_bin_op(BinOp::Add, t_var("y", Type::Int), t_var("x", Type::Int), Type::Int),
+                        t_bin_op(
+                            BinOp::Add,
+                            t_var("y", Type::Int),
+                            t_var("x", Type::Int),
+                            Type::Int,
+                        ),
                         Type::Int,
                     ),
                     t_bin_op(BinOp::Add, t_var("y", Type::Int), t_int(10), Type::Int),
@@ -683,7 +678,7 @@ mod tests {
                                 complex(c_bin_op(
                                     BinOp::Add,
                                     a_var("y", Type::Int),
-                                    a_var("x", Type::Int)
+                                    a_var("x", Type::Int),
                                 )),
                             )),
                         ),
@@ -781,29 +776,21 @@ mod tests {
                                         a_var("$2", Type::Bool),
                                         anf_let(
                                             "$3",
-                                            c_bin_op(
-                                                BinOp::Add,
-                                                a_var("x", Type::Int),
-                                                a_int(10)
-                                            ),
+                                            c_bin_op(BinOp::Add, a_var("x", Type::Int), a_int(10)),
                                             complex(c_bin_op(
                                                 BinOp::Add,
                                                 a_var("$3", Type::Int),
-                                                a_var("y", Type::Int)
+                                                a_var("y", Type::Int),
                                             )),
                                         ),
                                         complex(c_bin_op(
                                             BinOp::Sub,
                                             a_var("x", Type::Int),
-                                            a_int(100)
+                                            a_int(100),
                                         )),
                                     )),
                                 ),
-                                complex(c_bin_op(
-                                    BinOp::Add,
-                                    a_var("x", Type::Int),
-                                    a_int(42)
-                                )),
+                                complex(c_bin_op(BinOp::Add, a_var("x", Type::Int), a_int(42))),
                             )),
                         ),
                     )),
@@ -832,11 +819,7 @@ mod tests {
         let expected = anf_let(
             "$0",
             c_bin_op(BinOp::Add, a_int(2), a_int(3)),
-            complex(c_tuple(vec![
-                a_int(1),
-                a_var("x", Type::Int),
-                a_var("$0", Type::Int),
-            ])),
+            complex(c_tuple(vec![a_int(1), a_var("x", Type::Int), a_var("$0", Type::Int)])),
         );
         assert_eq!(anf, expected);
     }

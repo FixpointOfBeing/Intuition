@@ -6,6 +6,7 @@ pub mod eval;
 pub mod explicate_control;
 pub mod expose_allocation;
 pub mod gensym;
+pub mod limit_functions;
 pub mod llvm;
 pub mod repl;
 pub mod riscv;
@@ -14,7 +15,6 @@ pub mod syntax;
 pub mod typechecker;
 pub mod uniquify;
 pub mod wasm;
-pub mod reveal_functions;
 
 use crate::eval::eval_file;
 use crate::repl::repl;

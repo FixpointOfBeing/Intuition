@@ -10,6 +10,11 @@ pub enum TypedExpr {
     Int(i64),
     Float(f64),
     Var(Ident, Type),
+    // FunRef(
+    //     Ident, // name
+    //     usize, // arity
+    //     Type,
+    // ),
     BinOp(BinOp, Box<TypedExpr>, Box<TypedExpr>, Type),
     Tuple(Vec<TypedExpr>, Type),
     TupleProj(Box<TypedExpr>, usize, Type),
@@ -60,6 +65,24 @@ pub struct TypedProgram {
     pub main: TypedExpr,
 }
 
+impl std::fmt::Display for TypedProgram {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
+
+impl std::fmt::Display for TypedDef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
+
+impl std::fmt::Display for TypedExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
+
 impl TypedExpr {
     pub fn type_of(&self) -> Type {
         match self {
@@ -68,6 +91,7 @@ impl TypedExpr {
             TypedExpr::Int(_) => Type::Int,
             TypedExpr::Float(_) => Type::Float,
             TypedExpr::Var(_, ty) => ty.clone(),
+            // TypedExpr::FunRef(_, _, ty) => ty.clone(),
             TypedExpr::BinOp(_, _, _, ty) => ty.clone(),
             TypedExpr::UnaryOp(_, _, ty) => ty.clone(),
             TypedExpr::Tuple(_, ty) => ty.clone(),
@@ -102,6 +126,10 @@ pub fn t_float(f: f64) -> TypedExpr {
 pub fn t_var(name: impl Into<Ident>, ty: Type) -> TypedExpr {
     TypedExpr::Var(name.into(), ty)
 }
+
+// pub fn t_fun_ref(name: impl Into<Ident>, n: usize, ty: Type) -> TypedExpr {
+//     TypedExpr::FunRef(name.into(), n, ty)
+// }
 
 pub fn t_tuple(elems: Vec<TypedExpr>, ty: Type) -> TypedExpr {
     TypedExpr::Tuple(elems, ty)
