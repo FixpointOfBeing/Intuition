@@ -1,6 +1,6 @@
 // use llvm_ir::types::Typed;
 
-use crate::syntax::{BinOp, Def, Expr, Ident, PrimIO, Program, Type, UnaryOp};
+use crate::syntax::{BinOp, Def, Expr, HasType, Ident, PrimIO, Program, Type, UnaryOp};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -22,7 +22,13 @@ pub enum TypedExpr {
     UnaryOp(UnaryOp, Box<TypedExpr>, Type),
     Ann(Box<TypedExpr>, Type),
     If(Box<TypedExpr>, Box<TypedExpr>, Box<TypedExpr>, Type),
-    Let(Ident, Type, Box<TypedExpr>, Box<TypedExpr>, Type),
+    Let(
+        Ident,
+        Type, // rhs's type
+        Box<TypedExpr>,
+        Box<TypedExpr>,
+        Type,
+    ),
     LetRec(
         Ident,              // function name
         Vec<(Ident, Type)>, // function parameters with their types
@@ -32,7 +38,11 @@ pub enum TypedExpr {
         Type,
     ),
     App(Box<TypedExpr>, Vec<TypedExpr>, Type),
-    Lambda(Vec<(Ident, Type)>, Type, Box<TypedExpr>, Type),
+    Lambda(
+        Vec<(Ident, Type)>, // parameters
+        Box<TypedExpr>,     // body
+        Type,
+    ),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -83,8 +93,8 @@ impl std::fmt::Display for TypedExpr {
     }
 }
 
-impl TypedExpr {
-    pub fn type_of(&self) -> Type {
+impl HasType for TypedExpr {
+    fn type_of(&self) -> Type {
         match self {
             TypedExpr::Unit => Type::Unit,
             TypedExpr::Bool(_) => Type::Bool,
@@ -102,7 +112,7 @@ impl TypedExpr {
             TypedExpr::Let(_, _, _, _, ty) => ty.clone(),
             TypedExpr::LetRec(_, _, _, _, _, ty) => ty.clone(),
             TypedExpr::App(_, _, ty) => ty.clone(),
-            TypedExpr::Lambda(_, _, _, ty) => ty.clone(),
+            TypedExpr::Lambda(_, _, ty) => ty.clone(),
         }
     }
 }
@@ -184,13 +194,8 @@ pub fn t_app(func: TypedExpr, args: Vec<TypedExpr>, ty: Type) -> TypedExpr {
     TypedExpr::App(Box::new(func), args, ty)
 }
 
-pub fn t_lambda(
-    params: Vec<(Ident, Type)>,
-    ret_ty: Type,
-    body: TypedExpr,
-    lambda_ty: Type,
-) -> TypedExpr {
-    TypedExpr::Lambda(params, ret_ty, Box::new(body), lambda_ty)
+pub fn t_lambda(params: Vec<(Ident, Type)>, body: TypedExpr, lambda_ty: Type) -> TypedExpr {
+    TypedExpr::Lambda(params, Box::new(body), lambda_ty)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -466,7 +471,7 @@ fn infer(ctx: &mut Context, expr: Expr) -> Result<TypedExpr, TypeError> {
                 }
             }
             let lambda_ty = build_arrow(param_tys, body_ty.clone());
-            let typed_lambda = TypedExpr::Lambda(params, body_ty, Box::new(typed_body), lambda_ty);
+            let typed_lambda = TypedExpr::Lambda(params, Box::new(typed_body), lambda_ty);
             Ok(typed_lambda)
         },
 
@@ -504,7 +509,7 @@ fn check(expected: &Type, inferred: &Type) -> Result<(), TypeError> {
     }
 }
 
-fn build_arrow(params: Vec<Type>, ret: Type) -> Type {
+pub fn build_arrow(params: Vec<Type>, ret: Type) -> Type {
     params
         .into_iter()
         .rev()

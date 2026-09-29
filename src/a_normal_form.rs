@@ -188,7 +188,8 @@ fn collect_bindings(expr: TypedExpr, gs: &mut Gensym, bindings: &mut Bindings) -
             }
             CompExpr::App(func_atom, args_atom)
         },
-        TypedExpr::Lambda(params, ret_ty, body, _) => {
+        TypedExpr::Lambda(params, body, _) => {
+            let ret_ty = body.type_of();
             let body_anf = normalize(*body, gs);
             CompExpr::Lambda(params, ret_ty, Box::new(body_anf))
         },
@@ -465,7 +466,6 @@ mod tests {
         // fun (x : Int) : Int => x + 1
         let e = t_lambda(
             vec![("x".to_string(), Type::Int)],
-            Type::Int,
             t_bin_op(BinOp::Add, t_var("x", Type::Int), t_int(1), Type::Int),
             Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)),
         );

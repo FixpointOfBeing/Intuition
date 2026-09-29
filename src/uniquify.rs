@@ -110,7 +110,7 @@ pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: TypedExpr) -> TypedE
             let args = args.into_iter().map(|e| rename(gensym, env, e)).collect();
             TypedExpr::App(Box::new(func), args, ty)
         },
-        TypedExpr::Lambda(param, ty, body, lambda_ty) => {
+        TypedExpr::Lambda(param, body, lambda_ty) => {
             let mut new_params = Vec::with_capacity(param.len());
 
             for (name, param_ty) in param {
@@ -121,7 +121,7 @@ pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: TypedExpr) -> TypedE
 
             let body = rename(gensym, env, *body);
 
-            TypedExpr::Lambda(new_params, ty, Box::new(body), lambda_ty)
+            TypedExpr::Lambda(new_params, Box::new(body), lambda_ty)
         },
     }
 }
@@ -282,7 +282,6 @@ mod tests {
                 Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)),
                 t_lambda(
                     vec![("x".to_string(), Type::Int)],
-                    Type::Int,
                     t_var("x", Type::Int),
                     Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)),
                 ),
@@ -297,7 +296,7 @@ mod tests {
         let (_, lambda_rhs, final_body) = expect_let(outer_body);
 
         let lambda_param_name = match lambda_rhs {
-            TypedExpr::Lambda(params, _, lambda_body, _) => {
+            TypedExpr::Lambda(params, lambda_body, _) => {
                 let param_name = &params[0].0;
                 let used_in_lambda = expect_var(lambda_body);
                 assert_eq!(param_name, used_in_lambda, "lambda body must refer to its own param");
@@ -380,13 +379,12 @@ mod tests {
     fn lambda_multi_param_each_gets_fresh_name() {
         let expr = t_lambda(
             vec![("x".to_string(), Type::Int), ("y".to_string(), Type::Int)],
-            Type::Int,
             t_bin_op(BinOp::Add, t_var("x", Type::Int), t_var("y", Type::Int), Type::Int),
             Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)),
         );
         let renamed = uniquify_expr(expr);
         match renamed {
-            TypedExpr::Lambda(params, _, body, _) => {
+            TypedExpr::Lambda(params, body, _) => {
                 assert_ne!(params[0].0, params[1].0);
                 match *body {
                     TypedExpr::BinOp(BinOp::Add, l, r, _) => {
@@ -525,13 +523,12 @@ mod tests {
     fn ann_nested_inside_lambda_still_renamed() {
         let expr = t_lambda(
             vec![("x".to_string(), Type::Int)],
-            Type::Int,
             t_ann(t_var("x", Type::Int), Type::Int),
             Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)),
         );
         let renamed = uniquify_expr(expr);
         match renamed {
-            TypedExpr::Lambda(params, _, body, _) => match *body {
+            TypedExpr::Lambda(params, body, _) => match *body {
                 TypedExpr::Ann(inner, _) => {
                     assert_eq!(expect_var(&inner), &params[0].0)
                 },

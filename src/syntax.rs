@@ -9,6 +9,11 @@ pub enum Type {
     Tuple(Vec<Type>),
     Arrow(Box<Type>, Box<Type>),
     Var(Ident),
+    Dummy,
+}
+
+pub trait HasType {
+    fn type_of(&self) -> Type;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,7 +30,12 @@ pub enum Expr {
     UnaryOp(UnaryOp, Box<Expr>),
     Ann(Box<Expr>, Type),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
-    Let(Ident, Option<Type>, Box<Expr>, Box<Expr>),
+    Let(
+        Ident,
+        Option<Type>, // rhs's type
+        Box<Expr>,
+        Box<Expr>,
+    ),
     LetRec(
         Ident,              // function name
         Vec<(Ident, Type)>, // function arguments with their types
@@ -99,6 +109,10 @@ pub struct Program {
 }
 
 impl Type {
+    pub fn is_func_type(&self) -> bool {
+        matches!(self, Type::Arrow(_, _))
+    }
+
     pub fn bytes_of(&self) -> usize {
         match self {
             Type::Unit => 8,
@@ -108,6 +122,7 @@ impl Type {
             Type::Tuple(types) => 8 * (types.len() + 1),
             Type::Arrow(_, _) => 8,
             Type::Var(_) => unreachable!(),
+            Type::Dummy => unreachable!(),
         }
     }
 }
@@ -129,6 +144,10 @@ pub fn ty_float() -> Type {
 
 pub fn ty_tuple(types: Vec<Type>) -> Type {
     Type::Tuple(types)
+}
+
+pub fn ty_dummy() -> Type {
+    Type::Dummy
 }
 
 pub fn ty_arrow(from: Type, to: Type) -> Type {
@@ -272,6 +291,7 @@ impl std::fmt::Display for Type {
                 };
                 write!(f, "{} -> {}", from_str, to)
             },
+            Type::Dummy => write!(f, "_"),
         }
     }
 }

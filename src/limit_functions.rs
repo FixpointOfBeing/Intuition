@@ -59,7 +59,7 @@ pub fn limit_funcs_expr(
                 t_app(func_limited, new_args, ty)
             }
         },
-        TypedExpr::Lambda(items, _, typed_expr, _) => todo!(),
+        TypedExpr::Lambda(items, typed_expr, _) => todo!(),
     }
 }
 
@@ -114,4 +114,3 @@ fn limit_funcs_prog(prog: TypedProgram, limit: usize) -> TypedProgram {
 }
 
 // todo: tests
-

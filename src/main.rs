@@ -9,6 +9,7 @@ pub mod gensym;
 pub mod limit_functions;
 pub mod llvm;
 pub mod repl;
+pub mod reveal_functions;
 pub mod riscv;
 pub mod shrink;
 pub mod syntax;
