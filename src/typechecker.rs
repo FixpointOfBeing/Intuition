@@ -20,7 +20,7 @@ pub enum TypedExpr {
     TupleProj(Box<TypedExpr>, usize, Type),
     PrimIO(PrimIO, Option<Box<TypedExpr>>, Type),
     UnaryOp(UnaryOp, Box<TypedExpr>, Type),
-    Ann(Box<TypedExpr>, Type),
+    // Ann(Box<TypedExpr>, Type),
     If(Box<TypedExpr>, Box<TypedExpr>, Box<TypedExpr>, Type),
     Let(
         Ident,
@@ -107,7 +107,7 @@ impl HasType for TypedExpr {
             TypedExpr::Tuple(_, ty) => ty.clone(),
             TypedExpr::TupleProj(_, _, ty) => ty.clone(),
             TypedExpr::PrimIO(_, _, ty) => ty.clone(),
-            TypedExpr::Ann(_, ty) => ty.clone(),
+            // TypedExpr::Ann(_, ty) => ty.clone(),
             TypedExpr::If(_, _, _, ty) => ty.clone(),
             TypedExpr::Let(_, _, _, _, ty) => ty.clone(),
             TypedExpr::LetRec(_, _, _, _, _, ty) => ty.clone(),
@@ -161,9 +161,9 @@ pub fn t_unary(op: UnaryOp, expr: TypedExpr, ty: Type) -> TypedExpr {
     TypedExpr::UnaryOp(op, Box::new(expr), ty)
 }
 
-pub fn t_ann(expr: TypedExpr, ty: Type) -> TypedExpr {
-    TypedExpr::Ann(Box::new(expr), ty)
-}
+// pub fn t_ann(expr: TypedExpr, ty: Type) -> TypedExpr {
+//     TypedExpr::Ann(Box::new(expr), ty)
+// }
 
 pub fn t_if(cond: TypedExpr, thn: TypedExpr, els: TypedExpr, ty: Type) -> TypedExpr {
     TypedExpr::If(Box::new(cond), Box::new(thn), Box::new(els), ty)

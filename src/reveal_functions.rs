@@ -25,7 +25,6 @@ pub enum RevealExpr {
     TupleProj(Box<RevealExpr>, usize, Type),
     PrimIO(PrimIO, Option<Box<RevealExpr>>, Type),
     UnaryOp(UnaryOp, Box<RevealExpr>, Type),
-    Ann(Box<RevealExpr>, Type),
     If(Box<RevealExpr>, Box<RevealExpr>, Box<RevealExpr>, Type),
     Let(Ident, Type, Box<RevealExpr>, Box<RevealExpr>, Type),
     LetRec(Ident, Vec<(Ident, Type)>, Type, Box<RevealExpr>, Box<RevealExpr>, Type),
@@ -47,7 +46,6 @@ impl HasType for RevealExpr {
             RevealExpr::TupleProj(_, _, ty) => ty.clone(),
             RevealExpr::PrimIO(_, _, ty) => ty.clone(),
             RevealExpr::UnaryOp(_, _, ty) => ty.clone(),
-            RevealExpr::Ann(_, ty) => ty.clone(),
             RevealExpr::If(_, _, _, ty) => ty.clone(),
             RevealExpr::Let(_, _, _, _, ty) => ty.clone(),
             RevealExpr::LetRec(_, _, _, _, _, ty) => ty.clone(),
@@ -122,10 +120,6 @@ pub fn r_unary(op: UnaryOp, expr: RevealExpr, ty: Type) -> RevealExpr {
     RevealExpr::UnaryOp(op, Box::new(expr), ty)
 }
 
-pub fn r_ann(expr: RevealExpr, ty: Type) -> RevealExpr {
-    RevealExpr::Ann(Box::new(expr), ty)
-}
-
 pub fn r_if(cond: RevealExpr, thn: RevealExpr, els: RevealExpr, ty: Type) -> RevealExpr {
     RevealExpr::If(Box::new(cond), Box::new(thn), Box::new(els), ty)
 }
@@ -193,10 +187,6 @@ pub fn reveal_expr(typed_expr: TypedExpr, fnames: &mut Fnames) -> RevealExpr {
             let operand = reveal_expr(*operand, fnames);
             r_unary(op, operand, ty)
         },
-        TypedExpr::Ann(expr, ty) => {
-            let expr = reveal_expr(*expr, fnames);
-            r_ann(expr, ty)
-        },
         TypedExpr::If(cond, thn, els, ty) => {
             let cond = reveal_expr(*cond, fnames);
             let thn = reveal_expr(*thn, fnames);
@@ -208,12 +198,12 @@ pub fn reveal_expr(typed_expr: TypedExpr, fnames: &mut Fnames) -> RevealExpr {
             let body = reveal_expr(*body, fnames);
             r_let(name, rhs_ty, rhs, body, let_ty)
         },
-        TypedExpr::LetRec(fname, params, f_ret_ty, fbody, body, ty) => {
+        TypedExpr::LetRec(fname, fparams, f_ret_ty, fbody, body, ty) => {
             let mut scoped = fnames.clone();
-            scoped.insert(fname.clone(), params.len());
+            scoped.insert(fname.clone(), fparams.len());
             let new_fbody = reveal_expr(*fbody, &mut scoped);
             let new_body = reveal_expr(*body, &mut scoped);
-            r_let_rec(fname, params, f_ret_ty, new_fbody, new_body, ty)
+            r_let_rec(fname, fparams, f_ret_ty, new_fbody, new_body, ty)
         },
         TypedExpr::App(func, args, ty) => {
             let func = reveal_expr(*func, fnames);
@@ -234,6 +224,7 @@ pub fn reveal_def(def: TypedDef, fnames: &mut Fnames) -> RevealDef {
             RevealDef::ValDef(name, ty, reveal)
         },
         TypedDef::FunDef(name, params, ty, typed_expr) => {
+            fnames.insert(name.clone(), params.len());
             let reveal = reveal_expr(typed_expr, fnames);
             RevealDef::FunDef(name, params, ty, reveal)
         },
@@ -245,10 +236,6 @@ pub fn reveal_program(prog: TypedProgram) -> RevealProgram {
 
     let mut reveal_defs = Vec::with_capacity(prog.defs.len());
     for def in prog.defs {
-        if let TypedDef::FunDef(name, params, _, _) = &def {
-            fnames.insert(name.clone(), params.len());
-        }
-
         let reveal_def = reveal_def(def, &mut fnames);
         reveal_defs.push(reveal_def);
     }

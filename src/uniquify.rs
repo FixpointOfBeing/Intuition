@@ -62,10 +62,10 @@ pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: TypedExpr) -> TypedE
             let expr = rename(gensym, env, *expr);
             TypedExpr::UnaryOp(op, Box::new(expr), ty)
         },
-        TypedExpr::Ann(expr, ty) => {
-            let expr = rename(gensym, env, *expr);
-            TypedExpr::Ann(Box::new(expr), ty)
-        },
+        // TypedExpr::Ann(expr, ty) => {
+        //     let expr = rename(gensym, env, *expr);
+        //     TypedExpr::Ann(Box::new(expr), ty)
+        // },
         TypedExpr::If(cond, thn, els, ty) => {
             let cond = rename(gensym, &mut env.clone(), *cond);
             let thn = rename(gensym, &mut env.clone(), *thn);
@@ -181,7 +181,7 @@ mod tests {
     use super::*;
     use crate::syntax::{BinOp, PrimIO, Type, UnaryOp};
     use crate::typechecker::{
-        t_ann, t_app, t_bin_op, t_bool, t_float, t_if, t_int, t_lambda, t_let, t_let_rec,
+         t_app, t_bin_op, t_bool, t_float, t_if, t_int, t_lambda, t_let, t_let_rec,
         t_prim_io, t_tuple, t_unary, t_unit, t_var,
     };
 
@@ -503,19 +503,14 @@ mod tests {
     #[test]
     fn ann_inner_expr_is_actually_renamed() {
         let expr =
-            t_let("x", Type::Int, t_int(1), t_ann(t_var("x", Type::Int), Type::Int), Type::Int);
+            t_let("x", Type::Int, t_int(1), t_var("x", Type::Int) , Type::Int);
         let renamed = uniquify_expr(expr);
         let (x_name, _, body) = expect_let(&renamed);
         match body {
-            TypedExpr::Ann(inner, ty) => {
-                assert_eq!(
-                    expect_var(inner),
-                    x_name,
-                    "Ann must rename its inner expr, not clone it verbatim"
-                );
-                assert_eq!(*ty, Type::Int);
+            TypedExpr::Var(name, _) => {
+                assert_eq!(name, x_name);
             },
-            other => panic!("expected Ann, got {:?}", other),
+            other => panic!("expected Var, got {:?}", other),
         }
     }
 
@@ -523,17 +518,21 @@ mod tests {
     fn ann_nested_inside_lambda_still_renamed() {
         let expr = t_lambda(
             vec![("x".to_string(), Type::Int)],
-            t_ann(t_var("x", Type::Int), Type::Int),
+            t_var("x", Type::Int),
             Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)),
         );
         let renamed = uniquify_expr(expr);
         match renamed {
-            TypedExpr::Lambda(params, body, _) => match *body {
-                TypedExpr::Ann(inner, _) => {
-                    assert_eq!(expect_var(&inner), &params[0].0)
-                },
-                other => panic!("expected Ann, got {:?}", other),
+            TypedExpr::Lambda(params, body, _) => {
+                match *body {
+                    TypedExpr::Var(name, _) => {
+                        assert_eq!(name, params[0].0);
+                    },
+                    other => panic!("expected Var, got {:?}", other),
+                }
+                
             },
+
             other => panic!("expected Lambda, got {:?}", other),
         }
     }

@@ -1,5 +1,5 @@
 use crate::gensym::Gensym;
-use crate::syntax::{BinOp, Ident, PrimIO, Type, UnaryOp};
+use crate::syntax::{BinOp, HasType, Ident, PrimIO, Type, UnaryOp};
 use crate::typechecker::TypedExpr;
 
 /*
@@ -172,7 +172,7 @@ fn collect_bindings(expr: TypedExpr, gs: &mut Gensym, bindings: &mut Bindings) -
             let operand_atom = to_atom(*operand, gs, bindings);
             CompExpr::UnaryOp(op, operand_atom)
         },
-        TypedExpr::Ann(inner, _) => collect_bindings(*inner, gs, bindings),
+        // TypedExpr::Ann(inner, _) => collect_bindings(*inner, gs, bindings),
         TypedExpr::If(cond, thn, els, _) => {
             let cond_atom = to_atom(*cond, gs, bindings);
             let then_anf = normalize(*thn, gs);

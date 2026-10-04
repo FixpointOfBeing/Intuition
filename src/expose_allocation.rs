@@ -204,7 +204,7 @@ pub fn expose_allocation(typed_expr: TypedExpr, gs: &mut Gensym) -> AllocExpr {
         TypedExpr::UnaryOp(unary_op, typed_expr, ty) => {
                 alloc_unary(unary_op, expose_allocation(*typed_expr, gs), ty)
             },
-        TypedExpr::Ann(typed_expr, _) => expose_allocation(*typed_expr, gs),
+        // TypedExpr::Ann(typed_expr, _) => expose_allocation(*typed_expr, gs),
         TypedExpr::If(typed_expr, typed_expr1, typed_expr2, ty) => {
                 let cond = expose_allocation(*typed_expr, gs);
                 let then_branch = expose_allocation(*typed_expr1, gs);

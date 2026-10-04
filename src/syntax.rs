@@ -56,6 +56,18 @@ pub enum PrimIO {
     ReadFloat,
 }
 
+impl std::fmt::Display for PrimIO {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PrimIO::PrintInt => write!(f, "print_int"),
+            PrimIO::PrintFloat => write!(f, "print_float"),
+            PrimIO::PrintBool => write!(f, "print_bool"),
+            PrimIO::ReadInt => write!(f, "read_int"),
+            PrimIO::ReadFloat => write!(f, "read_float"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum BinOp {
     Add,
