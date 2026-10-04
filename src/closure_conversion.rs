@@ -9,10 +9,10 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Closure {
-    func_arity: usize,
-    func_name: Ident,
-    func_ty: Type,
-    free_vars: Vec<(Ident, ClosureType)>,
+    pub(crate) func_arity: usize,
+    pub(crate) func_name: Ident,
+    pub(crate) func_ty: Type,
+    pub(crate) free_vars: Vec<(Ident, ClosureType)>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -21,11 +21,27 @@ pub enum ClosureType {
     Bool,
     Float,
     Int,
-    // A closure value. The precise free-variable types are erased here; they
-    // live in `Closure::free_vars` and in the `ClosureFreeVar` node's type.
-    Closure,
+    // A closure value; the boxed type is its original source function type.
+    // The precise free-variable types live in `Closure::free_vars` and in the
+    // `ClosureFreeVar` node's type.
+    Closure(Box<Type>),
     Tuple(Vec<ClosureType>),
     Arrow(Box<ClosureType>, Box<ClosureType>),
+}
+impl ClosureType {
+    pub fn to_type(&self) -> Type {
+        match self {
+            ClosureType::Unit => Type::Unit,
+            ClosureType::Bool => Type::Bool,
+            ClosureType::Float => Type::Float,
+            ClosureType::Int => Type::Int,
+            ClosureType::Tuple(ts) => Type::Tuple(ts.iter().map(|cty| cty.to_type()).collect()),
+            ClosureType::Closure(fn_ty) => (**fn_ty).clone(),
+            ClosureType::Arrow(from, to) => {
+                Type::Arrow(Box::new(from.to_type()), Box::new(to.to_type()))
+            },
+        }
+    }
 }
 impl std::fmt::Display for ClosureType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -34,7 +50,7 @@ impl std::fmt::Display for ClosureType {
             ClosureType::Bool => write!(f, "Bool"),
             ClosureType::Float => write!(f, "Float"),
             ClosureType::Int => write!(f, "Int"),
-            ClosureType::Closure => write!(f, "Closure"),
+            ClosureType::Closure(fn_ty) => write!(f, "Closure({:?})", fn_ty),
             ClosureType::Tuple(elems) => {
                 let elems_str = elems
                     .iter()
@@ -319,17 +335,9 @@ impl std::fmt::Display for ClosureProgram {
 
 /// Translate a source type into its runtime (closure-converted) type.
 ///
-/// A source function type denotes a *closure value*: a tuple
-/// `(fun_ptr, free_var_1, ..., free_var_k)` whose function pointer takes the
-/// whole closure as its first argument. So the type translation adds exactly
-/// one environment slot at the front of every function type:
-///
-///     A -> B        ==>   Closure -> (A' -> B')
-///     A -> (B -> C)  ==>   Closure -> (A' -> (B' -> C'))   (arity 2)
-///
-/// Multi-argument types are right-nested in the source AST
-/// (`A -> B -> C` is `A -> (B -> C)`), so we flatten the leading arrows into a
-/// parameter list and rebuild them after adding the environment slot.
+/// A source function type denotes a *closure value*, so it becomes
+/// `Closure(F)` carrying its original source type `F`. Base types and tuples
+/// translate structurally.
 fn convert_type(ty: Type) -> ClosureType {
     match ty {
         Type::Unit => ClosureType::Unit,
@@ -337,28 +345,30 @@ fn convert_type(ty: Type) -> ClosureType {
         Type::Float => ClosureType::Float,
         Type::Int => ClosureType::Int,
         Type::Tuple(tys) => ClosureType::Tuple(tys.into_iter().map(convert_type).collect()),
-        Type::Arrow(from, to) => {
-            let mut params = vec![*from];
-            let mut ret = *to;
-            while let Type::Arrow(param, rest) = ret {
-                params.push(*param);
-                ret = *rest;
-            }
-            convert_fun_type(params, ret)
-        },
+        Type::Arrow(_, _) => ClosureType::Closure(Box::new(ty)),
         Type::Var(_) => unreachable!(),
         Type::Dummy => unreachable!(),
     }
 }
 
-/// Translate an n-ary function type from its parameter types and return type,
-/// adding exactly one environment slot at the front.
-fn convert_fun_type(params: Vec<Type>, ret: Type) -> ClosureType {
+/// The runtime type of the function pointer stored at index 0 of a closure.
+///
+/// A closure of source type `F = A1 -> ... -> An -> R` holds a function pointer
+/// of type `Closure(F) -> A1' -> ... -> An' -> R'`: it receives the closure
+/// value itself followed by the original arguments.
+pub fn convert_fun_ptr_type(fn_ty: &Type) -> ClosureType {
+    let mut params = Vec::new();
+    let mut ret = fn_ty.clone();
+    while let Type::Arrow(param, rest) = ret {
+        params.push(*param);
+        ret = *rest;
+    }
+
     let mut acc = convert_type(ret);
     for param in params.into_iter().rev() {
         acc = ClosureType::Arrow(Box::new(convert_type(param)), Box::new(acc));
     }
-    ClosureType::Arrow(Box::new(ClosureType::Closure), Box::new(acc))
+    ClosureType::Arrow(Box::new(ClosureType::Closure(Box::new(fn_ty.clone()))), Box::new(acc))
 }
 
 pub fn convert_to_closure(
@@ -447,7 +457,7 @@ fn convert_expr(
             //   After conversion:
             //     1) Lift the recursive function; the self-reference `f`
             //        resolves to the closure itself:
-            //          def lambda$N (clos : Closure) (x : Int) : Int =
+            //          def lambda$N (clos : Closure(Int -> Int)) (x : Int) : Int =
             //            let y = ClosureFreeVar clos 1 in
             //            if x == 0 then y else ClosureFunPtr clos (x - 1)
             //     2) Bind `f` to a closure, then convert the body:
@@ -526,14 +536,16 @@ fn convert_expr(
             let clos_name = gensym.fresh_with_prefix("tmp");
             let clos_var = clos_var(clos_name.clone(), func_ty.clone());
 
-            // `func_ty` is `Closure -> arg1' -> ... -> ret'`. The function
-            // pointer stored inside the closure takes the closure value itself
-            // as its first argument, so its type is `func_ty -> arg1' -> ...`.
-            let rest_ty = match &func_ty {
-                ClosureType::Arrow(_, rest) => (**rest).clone(),
-                _ => unreachable!(),
+            // `func_ty` is `Closure(F)`. The function pointer stored inside the
+            // closure takes the closure value itself followed by the original
+            // arguments.
+            let fn_ty = match &func_ty {
+                ClosureType::Closure(fn_ty) => (**fn_ty).clone(),
+                other => {
+                    panic!("expected a closure value in application position, got {:?}", other)
+                },
             };
-            let func_ptr_ty = ClosureType::Arrow(Box::new(func_ty.clone()), Box::new(rest_ty));
+            let func_ptr_ty = convert_fun_ptr_type(&fn_ty);
             let new_func = clos_clos_fun_ptr(clos_var.clone(), func_ptr_ty);
 
             let mut new_args = Vec::with_capacity(args.len() + 1);
@@ -553,7 +565,7 @@ fn convert_expr(
             // =>
             // 1) Lift a top-level function (first parameter is `clos`, followed
             //    by the original parameters):
-            //          def lambda$N (clos : Closure) (x : Int) : Int =
+            //          def lambda$N (clos : Closure(Int -> Int)) (x : Int) : Int =
             //            let y = ClosureFreeVar clos 1 in   // free variable loaded from the closure
             //            x + y
             // 2) Replace the lambda with a closure value:
@@ -740,7 +752,26 @@ mod tests {
     use crate::reveal_functions::{
         r_app, r_bin_op, r_fun_ref, r_if, r_int, r_lambda, r_let, r_let_rec, r_var,
     };
-    use crate::syntax::{BinOp, ty_arrow, ty_bool, ty_int};
+    use crate::syntax::{BinOp, ty_arrow, ty_bool, ty_int, ty_tuple};
+
+    #[test]
+    fn closure_type_roundtrips_to_source_type() {
+        let int_to_int = ty_arrow(ty_int(), ty_int());
+        let cases = vec![
+            ty_int(),
+            ty_bool(),
+            ty_tuple(vec![ty_int(), ty_bool(), ty_arrow(ty_int(), ty_int())]),
+            int_to_int.clone(),
+            ty_arrow(int_to_int.clone(), ty_int()),
+            ty_arrow(int_to_int.clone(), int_to_int.clone()),
+            ty_arrow(ty_int(), ty_arrow(ty_int(), ty_int())),
+        ];
+
+        for ty in cases {
+            let converted = convert_type(ty.clone());
+            assert_eq!(converted.to_type(), ty);
+        }
+    }
 
     #[test]
     fn converts_simple_lambda_application() {
@@ -829,10 +860,7 @@ mod tests {
             .expect("expected the `double` lambda to have 3 params");
 
         // (clos, f, x) -- the function-typed parameter `f` becomes a closure type.
-        let expected_f_ty = ClosureType::Arrow(
-            Box::new(ClosureType::Closure),
-            Box::new(ClosureType::Arrow(Box::new(ClosureType::Int), Box::new(ClosureType::Int))),
-        );
+        let expected_f_ty = ClosureType::Closure(Box::new(ty_arrow(ty_int(), ty_int())));
         assert_eq!(&double_params[1].1, &expected_f_ty);
     }
     #[test]

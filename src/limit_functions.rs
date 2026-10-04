@@ -113,7 +113,7 @@ pub fn limit_funcs_def(def: TypedDef, limit: usize, gensym: &mut Gensym) -> Type
             if params.len() < limit {
                 TypedDef::FunDef(name, params, rt_ty, typed_expr)
             } else {
-                let tuple_name = gensym.fresh_with_prefix("$tuple");
+                let tuple_name = gensym.fresh_with_prefix("tuple");
                 let mut tuple_elems_ty = Vec::with_capacity(params.len() - limit);
                 for (idx, (_, ty)) in params.iter().enumerate() {
                     if idx >= limit {
@@ -172,11 +172,11 @@ mod tests {
         HashMap::from([
             (
                 "c".to_string(),
-                ("$tuple$0".to_string(), tuple_ty.clone(), 0usize),
+                ("tuple$0".to_string(), tuple_ty.clone(), 0usize),
             ),
             (
                 "d".to_string(),
-                ("$tuple$0".to_string(), tuple_ty, 1usize),
+                ("tuple$0".to_string(), tuple_ty, 1usize),
             ),
         ])
     }
@@ -195,7 +195,7 @@ mod tests {
 
         let expected = t_bin_op(
             BinOp::Add,
-            t_tuple_projection(t_var("$tuple$0", tuple_ty), 0, Type::Int),
+            t_tuple_projection(t_var("tuple$0", tuple_ty), 0, Type::Int),
             t_var("x", Type::Int),
             Type::Int,
         );
@@ -260,11 +260,11 @@ mod tests {
 
         let expected = t_if(
             t_bool(true),
-            t_tuple_projection(t_var("$tuple$0", tuple_ty.clone()), 1, Type::Bool),
+            t_tuple_projection(t_var("tuple$0", tuple_ty.clone()), 1, Type::Bool),
             t_let(
                 "x",
                 Type::Int,
-                t_tuple_projection(t_var("$tuple$0", tuple_ty), 0, Type::Int),
+                t_tuple_projection(t_var("tuple$0", tuple_ty), 0, Type::Int),
                 t_var("x", Type::Int),
                 Type::Int,
             ),
@@ -302,13 +302,13 @@ mod tests {
             vec![
                 ("a".to_string(), Type::Int),
                 ("b".to_string(), Type::Int),
-                ("$tuple$0".to_string(), tuple_ty.clone()),
+                ("tuple$0".to_string(), tuple_ty.clone()),
             ],
             Type::Int,
             t_bin_op(
                 BinOp::Add,
                 t_var("a", Type::Int),
-                t_tuple_projection(t_var("$tuple$0", tuple_ty), 0, Type::Int),
+                t_tuple_projection(t_var("tuple$0", tuple_ty), 0, Type::Int),
                 Type::Int,
             ),
         );

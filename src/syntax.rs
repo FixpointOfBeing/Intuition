@@ -131,7 +131,7 @@ impl Type {
             Type::Bool => 8,
             Type::Int => 8,
             Type::Float => 8,
-            Type::Tuple(types) => 8 * (types.len() + 1),
+            Type::Tuple(types) => 8 + (types.iter().rfold(0, |acc, ty| acc + ty.bytes_of())),
             Type::Arrow(_, _) => 8,
             Type::Var(_) => unreachable!(),
             Type::Dummy => unreachable!(),
