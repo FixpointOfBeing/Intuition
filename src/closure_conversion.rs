@@ -317,8 +317,8 @@ impl std::fmt::Display for ClosureDef {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClosureProgram {
-    defs: Vec<ClosureDef>,
-    main: ClosureExpr,
+    pub defs: Vec<ClosureDef>,
+    pub main: ClosureExpr,
 }
 
 impl std::fmt::Display for ClosureProgram {
