@@ -16,7 +16,10 @@ pub enum AllocExpr {
     Var(Ident, Type),
     BinOp(BinOp, Box<AllocExpr>, Box<AllocExpr>, Type),
     Collect(usize), // bytes
-    Allocate(usize, Type),
+    Allocate(
+        usize, // bytes
+        Type,
+    ),
     AllocateClosure(
         usize, // bytes
         usize, // arity

@@ -24,7 +24,7 @@ pub enum Expr {
     Float(f64),
     Var(Ident),
     Tuple(Vec<Expr>),
-    TupleProj(Box<Expr>, usize),
+    TupleProj(Box<Expr>, usize), // todo: rename to TupleRef
     PrimIO(PrimIO, Option<Box<Expr>>),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
     UnaryOp(UnaryOp, Box<Expr>),

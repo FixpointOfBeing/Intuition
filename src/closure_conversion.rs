@@ -164,7 +164,7 @@ impl std::fmt::Display for ClosureExpr {
 }
 
 impl ClosureExpr {
-    fn type_of(&self) -> ClosureType {
+    pub fn type_of(&self) -> ClosureType {
         match self {
             ClosureExpr::Unit => ClosureType::Unit,
             ClosureExpr::Bool(_) => ClosureType::Bool,
