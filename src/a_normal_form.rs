@@ -33,7 +33,6 @@ pub enum CompExpr {
     Atom(AExpr, Type),
     BinOp(BinOp, AExpr, AExpr, Type),
     UnaryOp(UnaryOp, AExpr, Type),
-
     TupleProj(AExpr, usize, Type),
     Allocate(
         usize, // bytes
@@ -46,10 +45,14 @@ pub enum CompExpr {
     ),
     PrimIO(PrimIO, Option<AExpr>, Type),
     App(AExpr, Vec<AExpr>, Type),
-    If(AExpr, Box<AnfExpr>, Box<AnfExpr>, Type),
+    If(AExpr, Box<AnfExpr>, Box<AnfExpr>, Type), // if <cond>
+                                                 // then let <name> = if <cond> 
+                                                 //                   then let <name> = <rhs> in <body>
+                                                 //                   else <expr>
+                                                 // else <expr>
     Collect(usize),
     TupleSet(AExpr, AExpr, usize),
-    Seq(Vec<CompExpr>, Box<AExpr>, Type),
+    // Seq(Vec<CompExpr>, Box<AExpr>, Type),
     GlobalValue(GlobalValue),
     FunRef(Ident, usize, Type), // closure convention去掉了FunRef, expose allocation加了回来
 }
@@ -68,7 +71,7 @@ impl HasType for CompExpr {
             CompExpr::If(_, _, _, ty) => ty.clone(),
             CompExpr::Collect(_) => Type::Unit,
             CompExpr::TupleSet(_, _, _) => Type::Int,
-            CompExpr::Seq(_, _, ty) => ty.clone(),
+            // CompExpr::Seq(_, _, ty) => ty.clone(),
             CompExpr::GlobalValue(gv) => gv.type_of(),
             CompExpr::FunRef(_, _, ty) => ty.clone(),
         }
@@ -175,9 +178,9 @@ pub fn c_tuple_set(tuple: AExpr, element: AExpr, index: usize) -> CompExpr {
     CompExpr::TupleSet(tuple, element, index)
 }
 
-pub fn c_seq(exprs: Vec<CompExpr>, last: AExpr, ty: Type) -> CompExpr {
-    CompExpr::Seq(exprs, Box::new(last), ty)
-}
+// pub fn c_seq(exprs: Vec<CompExpr>, last: AExpr, ty: Type) -> CompExpr {
+//     CompExpr::Seq(exprs, Box::new(last), ty)
+// }
 
 pub fn c_global_value(value: GlobalValue) -> CompExpr {
     CompExpr::GlobalValue(value)
@@ -290,15 +293,15 @@ fn to_complex(expr: AllocExpr, gs: &mut Gensym, bindings: &mut Bindings) -> Comp
             let elem_atom = to_atom(*elem, gs, bindings);
             c_tuple_set(tuple_atom, elem_atom, idx)
         },
-        AllocExpr::Seq(exprs, last, ty) => {
-            let mut c_exprs = Vec::with_capacity(exprs.len());
-            for expr in exprs {
-                let c_expr = to_complex(expr, gs, bindings);
-                c_exprs.push(c_expr);
-            }
-            let last_atom = to_atom(*last, gs, bindings);
-            c_seq(c_exprs, last_atom, ty)
-        },
+        // AllocExpr::Seq(exprs, last, ty) => {
+        //     let mut c_exprs = Vec::with_capacity(exprs.len());
+        //     for expr in exprs {
+        //         let c_expr = to_complex(expr, gs, bindings);
+        //         c_exprs.push(c_expr);
+        //     }
+        //     let last_atom = to_atom(*last, gs, bindings);
+        //     c_seq(c_exprs, last_atom, ty)
+        // },
     }
 }
 
@@ -349,7 +352,7 @@ mod tests {
 
     use crate::expose_allocation::{
         AllocDef, AllocExpr, AllocProgram, GlobalValue, alloc_app, alloc_bin_op, alloc_bool,
-        alloc_float, alloc_fun_ref, alloc_if_else, alloc_int, alloc_let, alloc_prim_io, alloc_seq,
+        alloc_float, alloc_fun_ref, alloc_if_else, alloc_int, alloc_let, alloc_prim_io, 
         alloc_tuple_proj, alloc_tuple_set, alloc_unary, alloc_unit, alloc_var, allocate,
         allocate_closure, collect, global_freeptr, global_fromspace_end, global_value,
     };
@@ -1098,38 +1101,6 @@ mod tests {
                 "$0",
                 c_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
                 complex(c_tuple_set(a_var("t", tuple_ty), a_var("$0", ty_int()), 1)),
-                ty_int(),
-            )
-        );
-    }
-
-    #[test]
-    fn seq_normalizes_steps_and_last() {
-        let e = alloc_seq(
-            vec![alloc_bin_op(BinOp::Add, alloc_int(1), alloc_int(2), ty_int())],
-            alloc_var("x", ty_int()),
-            ty_int(),
-        );
-        assert_eq!(
-            run(e),
-            complex(c_seq(
-                vec![c_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int())],
-                a_var("x", ty_int()),
-                ty_int(),
-            ))
-        );
-
-        let e = alloc_seq(
-            vec![alloc_int(7)],
-            alloc_bin_op(BinOp::Add, alloc_int(1), alloc_int(2), ty_int()),
-            ty_int(),
-        );
-        assert_eq!(
-            run(e),
-            anf_let(
-                "$0",
-                c_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
-                complex(c_seq(vec![c_atom(a_int(7), ty_int())], a_var("$0", ty_int()), ty_int(),)),
                 ty_int(),
             )
         );

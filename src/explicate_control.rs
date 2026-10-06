@@ -1,210 +1,338 @@
-// use crate::{
-//     a_normal_form::AExpr,
-//     // closure_conversion::{ClosCompExpr, ClosExpr},
-//     syntax::{BinOp, Ident, Type, UnaryOp},
-// };
-//
-// /*
-//  * For the integers and variables, we needed assignment and tail positions. The if expressions introduced predicate positions. For While , the begin expression introduces yet another kind of position: effect position.
-//  */
-// #[derive(Debug, Clone, PartialEq)]
-// pub enum CAtom {
-//     Unit,
-//     Bool(bool),
-//     Int(i64),
-//     Float(f64),
-//     Var(Ident, Type),
+use crate::{
+    a_normal_form::{AExpr, AnfExpr, CompExpr},
+    expose_allocation::GlobalValue,
+    syntax::{BinOp, HasType, Ident, PrimIO, Type, UnaryOp, ty_unit},
+};
+
+/*
+ * For the integers and variables, we needed assignment and tail positions. The if expressions introduced predicate positions. For While , the begin expression introduces yet another kind of position: effect position.
+ */
+#[derive(Debug, Clone, PartialEq)]
+pub enum CAtom {
+    Unit,
+    Bool(bool),
+    Int(i64),
+    Float(f64),
+    Var(Ident, Type),
+}
+
+impl HasType for CAtom {
+    fn type_of(&self) -> Type {
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CExpr {
+    Atom(CAtom, Type),
+    BinOp(BinOp, CAtom, CAtom, Type),
+    UnaryOp(UnaryOp, CAtom, Type),
+    TupleProj(CAtom, usize, Type),
+    Allocate(usize, Type),
+    AllocateClosure(usize, usize, Type),
+    Call(CAtom, Vec<CAtom>, Type),
+    FunRef(Ident, usize, Type),
+    GlobalValue(GlobalValue),
+}
+
+impl HasType for CExpr {
+    fn type_of(&self) -> Type {
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CStmt {
+    Assign(Ident, CExpr),
+    TupleSet(CAtom, CAtom, usize),
+    PrimIO(PrimIO, Option<CAtom>),
+    Collect(usize),
+    Effect(CExpr),
+    If(CAtom, Vec<CStmt>, Vec<CStmt>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CTail {
+    Return(CExpr),
+    // Goto(Ident),
+    TailCall(CAtom, Vec<CAtom>),
+    TailSeq(Vec<CStmt>, Box<CTail>),
+    TailIf(CAtom, Box<CTail>, Box<CTail>),
+}
+
+pub fn c_unit() -> CAtom {
+    CAtom::Unit
+}
+
+pub fn c_bool(b: bool) -> CAtom {
+    CAtom::Bool(b)
+}
+
+pub fn c_int(n: i64) -> CAtom {
+    CAtom::Int(n)
+}
+
+pub fn c_float(f: f64) -> CAtom {
+    CAtom::Float(f)
+}
+
+pub fn c_var(name: impl Into<Ident>, ty: Type) -> CAtom {
+    CAtom::Var(name.into(), ty)
+}
+
+pub fn c_atom(atom: CAtom, ty: Type) -> CExpr {
+    CExpr::Atom(atom, ty)
+}
+
+pub fn c_bin_op(op: BinOp, left: CAtom, right: CAtom, ty: Type) -> CExpr {
+    CExpr::BinOp(op, left, right, ty)
+}
+
+pub fn c_unary(op: UnaryOp, catom: CAtom, ty: Type) -> CExpr {
+    CExpr::UnaryOp(op, catom, ty)
+}
+
+pub fn c_tuple_proj(tuple: CAtom, index: usize, ty: Type) -> CExpr {
+    CExpr::TupleProj(tuple, index, ty)
+}
+
+pub fn c_allocate(bytes: usize, ty: Type) -> CExpr {
+    CExpr::Allocate(bytes, ty)
+}
+
+pub fn c_allocate_closure(bytes: usize, arity: usize, ty: Type) -> CExpr {
+    CExpr::AllocateClosure(bytes, arity, ty)
+}
+
+pub fn c_call(func: CAtom, args: Vec<CAtom>, ty: Type) -> CExpr {
+    CExpr::Call(func, args, ty)
+}
+
+pub fn c_fun_ref(name: impl Into<Ident>, arity: usize, ty: Type) -> CExpr {
+    CExpr::FunRef(name.into(), arity, ty)
+}
+
+pub fn c_global_value(value: GlobalValue) -> CExpr {
+    CExpr::GlobalValue(value)
+}
+
+pub fn c_assign(name: impl Into<Ident>, cexpr: CExpr) -> CStmt {
+    CStmt::Assign(name.into(), cexpr)
+}
+
+pub fn c_tuple_set(tuple: CAtom, element: CAtom, index: usize) -> CStmt {
+    CStmt::TupleSet(tuple, element, index)
+}
+
+pub fn c_prim_io(prim: PrimIO, expr: Option<CAtom>) -> CStmt {
+    CStmt::PrimIO(prim, expr)
+}
+
+pub fn c_collect(bytes: usize) -> CStmt {
+    CStmt::Collect(bytes)
+}
+
+pub fn c_effect(expr: CExpr) -> CStmt {
+    CStmt::Effect(expr)
+}
+
+pub fn c_return(expr: CExpr) -> CTail {
+    CTail::Return(expr)
+}
+
+// pub fn c_goto(label: impl Into<Ident>) -> CTail {
+//     CTail::Goto(label.into())
 // }
-//
-// // todo: CExpr应该携带Type信息
-// #[derive(Debug, Clone, PartialEq)]
-// pub enum CExpr {
-//     Atom(CAtom),
-//     BinOp(BinOp, CAtom, CAtom),
-//     UnaryOp(UnaryOp, CAtom),
-//     Call(CAtom, Vec<CAtom>),
-//     MakeClosure(CAtom, Vec<CAtom>, Type),
-//     Project(CAtom, usize, Type),
-// }
-//
-// #[derive(Debug, Clone, PartialEq)]
-// pub enum CStmt {
-//     Assign(Ident, CExpr, Type),
-// }
-//
-// #[derive(Debug, Clone, PartialEq)]
-// pub enum CTail {
-//     Return(CExpr),
-//     TailCall(CAtom, Vec<CAtom>),
-//     Seq(CStmt, Box<CTail>),
-//     If(CAtom, Box<CTail>, Box<CTail>),
-// }
-//
-// pub fn explicate_assign(expr: ClosExpr, name: &str, cont: CTail) -> CTail {
-//     match expr {
-//         ClosExpr::Complex(cexpr) => match cexpr {
-//             ClosCompExpr::Atom(aexpr) => {
-//                 let cexpr = CExpr::Atom(aexpr_to_catom(aexpr));
-//                 let ty = type_of_cexpr(&cexpr);
-//                 let stmt = CStmt::Assign(name.to_string(), cexpr, ty);
-//                 CTail::Seq(stmt, Box::new(cont))
-//             },
-//             ClosCompExpr::BinOp(op, left, right) => {
-//                 let cexpr = CExpr::BinOp(op, aexpr_to_catom(left), aexpr_to_catom(right));
-//                 let ty = type_of_cexpr(&cexpr);
-//                 let stmt = CStmt::Assign(name.to_string(), cexpr, ty);
-//                 CTail::Seq(stmt, Box::new(cont))
-//             },
-//             ClosCompExpr::UnaryOp(op, operand) => {
-//                 let cexpr = CExpr::UnaryOp(op, aexpr_to_catom(operand));
-//                 let ty = type_of_cexpr(&cexpr);
-//                 let stmt = CStmt::Assign(name.to_string(), cexpr, ty);
-//                 CTail::Seq(stmt, Box::new(cont))
-//             },
-//             ClosCompExpr::App(func, args) => {
-//                 let cexpr = CExpr::Call(
-//                     aexpr_to_catom(func),
-//                     args.into_iter().map(aexpr_to_catom).collect(),
-//                 );
-//                 let ty = type_of_cexpr(&cexpr);
-//                 let stmt = CStmt::Assign(name.to_string(), cexpr, ty);
-//                 CTail::Seq(stmt, Box::new(cont))
-//             },
-//             ClosCompExpr::If(cond, thn, els) => {
-//                 let cond_catom = aexpr_to_catom(cond);
-//                 let then_tail = explicate_assign(*thn, name, cont.clone());
-//                 let else_tail = explicate_assign(*els, name, cont);
-//                 CTail::If(cond_catom, Box::new(then_tail), Box::new(else_tail))
-//             },
-//             ClosCompExpr::MakeClosure(fn_ptr, captured, closure_type) => {
-//                 let cexpr = CExpr::MakeClosure(
-//                     aexpr_to_catom(fn_ptr),
-//                     captured.into_iter().map(aexpr_to_catom).collect(),
-//                     closure_type,
-//                 );
-//                 let ty = type_of_cexpr(&cexpr);
-//                 let stmt = CStmt::Assign(name.to_string(), cexpr, ty);
-//                 CTail::Seq(stmt, Box::new(cont))
-//             },
-//             ClosCompExpr::Project(env, idx, field_type) => {
-//                 let cexpr = CExpr::Project(aexpr_to_catom(env), idx, field_type);
-//                 let ty = type_of_cexpr(&cexpr);
-//                 let stmt = CStmt::Assign(name.to_string(), cexpr, ty);
-//                 CTail::Seq(stmt, Box::new(cont))
-//             },
-//         },
-//         ClosExpr::Let(name1, cexpr, body) => {
-//             let inner_cont = explicate_assign(*body, name, cont);
-//             explicate_assign(ClosExpr::Complex(cexpr), &name1, inner_cont)
-//         },
-//     }
-// }
-//
-// fn type_of_catom(atom: &CAtom) -> Type {
-//     match atom {
-//         CAtom::Unit => Type::Unit,
-//         CAtom::Bool(_) => Type::Bool,
-//         CAtom::Int(_) => Type::Int,
-//         CAtom::Float(_) => Type::Float,
-//         CAtom::Var(_, ty) => (*ty).clone(),
-//     }
-// }
-//
-// fn type_of_cexpr(cexpr: &CExpr) -> Type {
-//     match cexpr {
-//         CExpr::Atom(catom) => type_of_catom(catom),
-//         CExpr::BinOp(op, left, _) => match op {
-//             BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div => type_of_catom(left),
-//             BinOp::And
-//             | BinOp::Or
-//             | BinOp::Eq
-//             | BinOp::Lt
-//             | BinOp::Gt
-//             | BinOp::Leq
-//             | BinOp::Geq => Type::Bool,
-//             BinOp::Neq => Type::Bool,
-//         },
-//         CExpr::UnaryOp(op, catom) => match op {
-//             UnaryOp::Neg => type_of_catom(catom),
-//             UnaryOp::Not => Type::Bool,
-//         },
-//         CExpr::Call(func, args) => {
-//             let mut curr_ty = type_of_catom(func);
-//             for _arg in args.iter() {
-//                 match curr_ty {
-//                     Type::Arrow(_input_ty, output_ty) => {
-//                         curr_ty = *output_ty;
-//                     },
-//                     _ => unreachable!(),
-//                 }
-//             }
-//             curr_ty
-//         },
-//         CExpr::MakeClosure(_, _, closure_type) => closure_type.clone(),
-//         CExpr::Project(_, _, field_type) => field_type.clone(),
-//     }
-// }
-//
-// fn aexpr_to_catom(aexpr: AExpr) -> CAtom {
-//     match aexpr {
-//         AExpr::Unit => CAtom::Unit,
-//         AExpr::Bool(b) => CAtom::Bool(b),
-//         AExpr::Int(i) => CAtom::Int(i),
-//         AExpr::Float(f) => CAtom::Float(f),
-//         AExpr::Var(name, ty) => CAtom::Var(name, ty),
-//     }
-// }
-//
-// fn explicate_tail(clos: ClosExpr) -> CTail {
-//     match clos {
-//         ClosExpr::Complex(cexpr) => match cexpr {
-//             ClosCompExpr::Atom(aexpr) => CTail::Return(CExpr::Atom(aexpr_to_catom(aexpr))),
-//             ClosCompExpr::BinOp(op, left, right) => {
-//                 let cleft = aexpr_to_catom(left);
-//                 let cright = aexpr_to_catom(right);
-//                 let cexpr = CExpr::BinOp(op, cleft, cright);
-//                 CTail::Return(cexpr)
-//             },
-//             ClosCompExpr::UnaryOp(op, aexpr) => {
-//                 let catom = aexpr_to_catom(aexpr);
-//                 let cexpr = CExpr::UnaryOp(op, catom);
-//                 CTail::Return(cexpr)
-//             },
-//             ClosCompExpr::App(func, args) => {
-//                 let func_catom = aexpr_to_catom(func);
-//                 let args_catom = args.into_iter().map(aexpr_to_catom).collect();
-//                 CTail::TailCall(func_catom, args_catom)
-//             },
-//             ClosCompExpr::If(cond, thn, els) => {
-//                 let cond_catom = aexpr_to_catom(cond);
-//                 let then_tail = explicate_tail(*thn);
-//                 let else_tail = explicate_tail(*els);
-//                 CTail::If(cond_catom, Box::new(then_tail), Box::new(else_tail))
-//             },
-//             ClosCompExpr::MakeClosure(fn_ptr, captured, closure_type) => {
-//                 let cexpr = CExpr::MakeClosure(
-//                     aexpr_to_catom(fn_ptr),
-//                     captured.into_iter().map(aexpr_to_catom).collect(),
-//                     closure_type,
-//                 );
-//                 CTail::Return(cexpr)
-//             },
-//             ClosCompExpr::Project(env, idx, field_type) => {
-//                 let cexpr = CExpr::Project(aexpr_to_catom(env), idx, field_type);
-//                 CTail::Return(cexpr)
-//             },
-//         },
-//         ClosExpr::Let(name, rhs, body) => {
-//             let tail = explicate_tail(*body);
-//             explicate_assign(ClosExpr::Complex(rhs), &name, tail)
-//         },
-//     }
-// }
+
+pub fn c_tail_call(func: CAtom, args: Vec<CAtom>) -> CTail {
+    CTail::TailCall(func, args)
+}
+
+pub fn c_tail_seq(stmts: Vec<CStmt>, tail: CTail) -> CTail {
+    CTail::TailSeq(stmts, Box::new(tail))
+}
+
+pub fn c_tail_if(cond: CAtom, thn: CTail, els: CTail) -> CTail {
+    CTail::TailIf(cond, Box::new(thn), Box::new(els))
+}
+
+pub fn explicate_assign_anf(name: String, anf:AnfExpr, cont:CTail) -> CTail {
+    match anf {
+        AnfExpr::Complex(cexpr, _) => {
+            explicate_assign_complex(name, cexpr, cont)
+        }
+        AnfExpr::Let(let_name, rhs, body, _) => {
+            let inner_cont = explicate_assign_anf(name, *body, cont);
+            explicate_assign_complex(let_name, rhs, inner_cont)
+        }
+    }
+}
+
+pub fn explicate_assign_complex(name: String, cexpr: CompExpr, cont: CTail) -> CTail {
+    let dummy = "_".to_string();
+    match cexpr {
+        CompExpr::Atom(aexpr, ty) => {
+            let catom = aexpr_to_catom(aexpr);
+            let cexpr = c_atom(catom, ty);
+            let stmt = c_assign(name, cexpr);
+            c_tail_seq(vec![stmt], cont)
+        },
+        CompExpr::BinOp(op, left, right, ty) => {
+            let left_catom = aexpr_to_catom(left);
+            let right_catom = aexpr_to_catom(right);
+            let cexpr = c_bin_op(op, left_catom, right_catom, ty);
+            let stmt = c_assign(name, cexpr);
+            c_tail_seq(vec![stmt], cont)
+        },
+        CompExpr::UnaryOp(op, aexpr, ty) => {
+            let catom = aexpr_to_catom(aexpr);
+            let cexpr = c_unary(op, catom, ty);
+            let stmt = c_assign(name, cexpr);
+            c_tail_seq(vec![stmt], cont)
+        },
+        CompExpr::TupleProj(tuple, idx, ty) => {
+            let catom = aexpr_to_catom(tuple);
+            let cexpr = c_tuple_proj(catom, idx, ty);
+            let stmt = c_assign(name, cexpr);
+            c_tail_seq(vec![stmt], cont)
+        },
+        CompExpr::Allocate(bytes, ty) => {
+            let cexpr = c_allocate(bytes, ty);
+            let stmt = c_assign(name, cexpr);
+            c_tail_seq(vec![stmt], cont)
+        },
+        CompExpr::AllocateClosure(bytes, arity, ty) => {
+            let cexpr = c_allocate_closure(bytes, arity, ty);
+            let stmt = c_assign(name, cexpr);
+            c_tail_seq(vec![stmt], cont)
+        },
+        CompExpr::PrimIO(prim, aexpr, ty) => {
+            todo!()
+        },
+        CompExpr::App(func, args, ty) => {
+            let func_catom = aexpr_to_catom(func);
+            let args_catom = args.into_iter().map(aexpr_to_catom).collect();
+            let cexpr = c_call(func_catom, args_catom, ty);
+            let stmt = c_assign(name, cexpr);
+            c_tail_seq(vec![stmt], cont)
+        }
+        CompExpr::If(cond, thn, els, _) => {
+            let cond_catom = aexpr_to_catom(cond);
+            // todo! cont会复制
+            let thn_cont = explicate_assign_anf(name.clone(), *thn, cont.clone());
+            let els_cont = explicate_assign_anf(name, *els, cont);
+            c_tail_if(cond_catom, thn_cont, els_cont)
+        },
+        CompExpr::Collect(bytes) => {
+            assert!(name == dummy);
+            let stmt = c_collect(bytes);
+            c_tail_seq(vec![stmt], cont)
+        },
+        CompExpr::TupleSet(tuple, elem, idx) => {
+            assert!(name == dummy);
+            let tuple_catom = aexpr_to_catom(tuple);
+            let elem_catom = aexpr_to_catom(elem);
+            let stmt = c_tuple_set(tuple_catom, elem_catom, idx);
+            c_tail_seq(vec![stmt], cont)
+        },
+        CompExpr::GlobalValue(value) => {
+            let cexpr = c_global_value(value);
+            let stmt = c_assign(name, cexpr);
+            c_tail_seq(vec![stmt], cont)
+        },
+        CompExpr::FunRef(func_name, arity, ty) => {
+            let cexpr = c_fun_ref(func_name, arity, ty);
+            let stmt = c_assign(name, cexpr);
+            c_tail_seq(vec![stmt], cont)
+        },
+    }
+}
+
+fn aexpr_to_catom(aexpr: AExpr) -> CAtom {
+    match aexpr {
+        AExpr::Unit => CAtom::Unit,
+        AExpr::Bool(b) => CAtom::Bool(b),
+        AExpr::Int(i) => CAtom::Int(i),
+        AExpr::Float(f) => CAtom::Float(f),
+        AExpr::Var(name, ty) => CAtom::Var(name, ty),
+    }
+}
+
+fn explicate_tail(anf: AnfExpr) -> CTail {
+    match anf {
+        AnfExpr::Complex(comp_expr, ty) => match comp_expr {
+            CompExpr::Atom(aexpr, ty) => {
+                let catom = aexpr_to_catom(aexpr);
+                c_return(c_atom(catom, ty))
+            },
+            CompExpr::BinOp(op, left, right, ty) => {
+                let left_atom = aexpr_to_catom(left);
+                let right_atom = aexpr_to_catom(right);
+                let cexpr = c_bin_op(op, left_atom, right_atom, ty);
+                c_return(cexpr)
+            },
+            CompExpr::UnaryOp(op, aexpr, ty) => {
+                let atom = aexpr_to_catom(aexpr);
+                let cexpr = c_unary(op, atom, ty);
+                c_return(cexpr)
+            },
+            CompExpr::TupleProj(aexpr, idx, ty) => {
+                let atom = aexpr_to_catom(aexpr);
+                let cexpr = c_tuple_proj(atom, idx, ty);
+                c_return(cexpr)
+            },
+            CompExpr::Allocate(bytes, ty) => {
+                let cexpr = c_allocate(bytes, ty);
+                c_return(cexpr)
+            },
+            CompExpr::AllocateClosure(bytes, arity, ty) => {
+                let cexpr = c_allocate_closure(bytes, arity, ty);
+                c_return(cexpr)
+            },
+            CompExpr::PrimIO(prim, aexpr, _) => {
+                let atom = aexpr.map(|e| aexpr_to_catom(e));
+                let stmt = c_prim_io(prim, atom);
+
+                todo!()
+            },
+            CompExpr::App(func, args, _) => {
+                let func_atom = aexpr_to_catom(func);
+                let args_atom = args.into_iter().map(|e| aexpr_to_catom(e)).collect::<Vec<_>>();
+                c_tail_call(func_atom, args_atom)
+            },
+            CompExpr::If(cond, thn, els, _) => {
+                let cond_atom = aexpr_to_catom(cond);
+                let thn_atom = explicate_tail(*thn);
+                let els_atom = explicate_tail(*els);
+                c_tail_if(cond_atom, thn_atom, els_atom)
+            },
+            CompExpr::Collect(bytes) => {
+                let stmt = c_collect(bytes);
+                let last = c_return(c_atom(c_unit(), ty_unit()));
+                c_tail_seq(vec![stmt], last)
+            },
+            CompExpr::TupleSet(tuple, elem, idx) => {
+                let tuple_atom = aexpr_to_catom(tuple);
+                let elem_atom = aexpr_to_catom(elem);
+                let stmt = c_tuple_set(tuple_atom, elem_atom, idx);
+                let last = c_return(c_atom(c_unit(), ty_unit()));
+                c_tail_seq(vec![stmt], last)
+            },
+            CompExpr::GlobalValue(value) => c_return(c_global_value(value)),
+            CompExpr::FunRef(name, arity, ty) => c_return(c_fun_ref(name, arity, ty)),
+        },
+        AnfExpr::Let(name, rhs, body, _) => {
+            let tail = explicate_tail(*body);
+            explicate_assign_complex(name, rhs, tail)
+        },
+    }
+    
+}
 //
 // pub fn explicate_control_convert(clos: ClosExpr) -> CTail {
 //     explicate_tail(clos)
 // }
-//
+
 // #[cfg(test)]
 // mod tests {
 //     use super::*;
