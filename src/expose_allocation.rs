@@ -1,11 +1,11 @@
 use crate::closure_conversion::{ClosureDef, ClosureExpr, ClosureProgram, convert_fun_ptr_type};
 use crate::gensym::Gensym;
-use crate::syntax::HasType;
 use crate::syntax::Ident;
 use crate::syntax::PrimIO;
 use crate::syntax::Type;
 use crate::syntax::UnaryOp;
 use crate::syntax::{BinOp, ty_bool, ty_float, ty_int, ty_unit};
+use crate::syntax::{HasType, ty_tuple};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AllocExpr {
@@ -33,11 +33,11 @@ pub enum AllocExpr {
         Box<AllocExpr>, // element
         usize,          // idx
     ),
-    Seq(
-        Vec<AllocExpr>, // sequence
-        Box<AllocExpr>, // last expression
-        Type,           // last expression's type
-    ),
+    // Seq(
+    //     Vec<AllocExpr>, // sequence
+    //     Box<AllocExpr>, // last expression
+    //     Type,           // last expression's type
+    // ),
     PrimIO(PrimIO, Option<Box<AllocExpr>>, Type),
     UnaryOp(UnaryOp, Box<AllocExpr>, Type),
     If(Box<AllocExpr>, Box<AllocExpr>, Box<AllocExpr>, Type),
@@ -61,7 +61,7 @@ impl HasType for AllocExpr {
             AllocExpr::GlobalValue(gv) => gv.type_of(),
             AllocExpr::TupleProj(_, _, ty) => (*ty).clone(),
             AllocExpr::TupleSet(_, _, _) => ty_int(),
-            AllocExpr::Seq(_, _, ty) => (*ty).clone(),
+            // AllocExpr::Seq(_, _, ty) => (*ty).clone(),
             AllocExpr::PrimIO(_, _, ty) => (*ty).clone(),
             AllocExpr::UnaryOp(_, _, ty) => (*ty).clone(),
             AllocExpr::If(_, _, _, ty) => (*ty).clone(),
@@ -167,9 +167,9 @@ pub fn alloc_tuple_proj(tuple: AllocExpr, idx: usize, ty: Type) -> AllocExpr {
     AllocExpr::TupleProj(Box::new(tuple), idx, ty)
 }
 
-pub fn alloc_seq(exprs: Vec<AllocExpr>, last: AllocExpr, ty: Type) -> AllocExpr {
-    AllocExpr::Seq(exprs, Box::new(last), ty)
-}
+// pub fn alloc_seq(exprs: Vec<AllocExpr>, last: AllocExpr, ty: Type) -> AllocExpr {
+//     AllocExpr::Seq(exprs, Box::new(last), ty)
+// }
 
 pub fn alloc_prim_io(prim: PrimIO, expr: Option<AllocExpr>, ty: Type) -> AllocExpr {
     AllocExpr::PrimIO(prim, expr.map(Box::new), ty)
@@ -223,25 +223,41 @@ pub fn alloc_app(func: AllocExpr, args: Vec<AllocExpr>, ty: Type) -> AllocExpr {
 //     )
 // }
 
-fn expose_allocate_tuple(
-    try_collect: AllocExpr,
-    tuple_name: Ident,
-    tuple_ty: Type,
-    tuple: AllocExpr,
-    allocate: AllocExpr,
-    tuple_inits: Vec<AllocExpr>,
-) -> AllocExpr {
-    alloc_seq(
-        vec![try_collect],
-        alloc_let(
-            tuple_name,
-            tuple_ty.clone(),
-            allocate,
-            alloc_seq(tuple_inits, tuple, tuple_ty.clone()),
-            tuple_ty.clone(),
-        ),
-        tuple_ty,
-    )
+// fn expose_allocate_tuple(
+//     try_collect: AllocExpr,
+//     tuple_name: Ident,
+//     tuple_ty: Type,
+//     tuple: AllocExpr,
+//     allocate: AllocExpr,
+//     tuple_inits: Vec<AllocExpr>,
+// ) -> AllocExpr {
+//     alloc_seq(
+//         vec![try_collect],
+//         alloc_let(
+//             tuple_name,
+//             tuple_ty.clone(),
+//             allocate,
+//             alloc_seq(tuple_inits, tuple, tuple_ty.clone()),
+//             tuple_ty.clone(),
+//         ),
+//         tuple_ty,
+//     )
+// }
+
+fn make_try_collect(bytes: usize) -> AllocExpr {
+    let ptr_after_alloc =
+        alloc_bin_op(BinOp::Add, global_freeptr(), alloc_int(bytes as i64), Type::Int);
+    let cond = alloc_bin_op(BinOp::Lt, ptr_after_alloc, global_fromspace_end(), Type::Bool);
+    let collect = collect(bytes);
+
+    alloc_if_else(cond, alloc_unit(), collect, Type::Unit)
+}
+
+fn bindings_to_let(bindings: Vec<(Ident, AllocExpr, Type)>, body: AllocExpr) -> AllocExpr {
+    let body_ty = body.type_of();
+    bindings
+        .into_iter()
+        .rfold(body, |acc, (name, expr, ty)| alloc_let(name, ty, expr, acc, body_ty.clone()))
 }
 
 pub fn expose_allocation(clos_expr: ClosureExpr, gs: &mut Gensym) -> AllocExpr {
@@ -267,29 +283,23 @@ pub fn expose_allocation(clos_expr: ClosureExpr, gs: &mut Gensym) -> AllocExpr {
             // (Closure { func_name, func_arity, free_vars })
             // is compiled into:
             //
-            //   if free_ptr + bytes_needed < fromspace_end
-            //      then ()
-            //      else Collect(bytes_needed);
+            //   let _ = if free_ptr + bytes_needed < fromspace_end
+            //           then ()
+            //           else Collect(bytes_needed) in
             //   let closure = AllocateClosure(bytes_needed, func_arity) in
-            //       closure[0] := FunRef(func_name, func_arity, fun_ptr_ty);
+            //   let _ = closure[0] <- FunRef(func_name, func_arity, fun_ptr_ty) in
             //       closure
+            let mut bindings = Vec::with_capacity(3);
+
+            let dummy_name = "_".to_string();
+
             let bytes_needed = 8 + clos
                 .free_vars
                 .iter()
                 .rfold(0, |acc, (_, cty)| cty.to_type().bytes_of() + acc);
 
-            let try_collect = {
-                let ptr_after_alloc = alloc_bin_op(
-                    BinOp::Add,
-                    global_freeptr(),
-                    alloc_int(bytes_needed as i64),
-                    Type::Int,
-                );
-                let cond =
-                    alloc_bin_op(BinOp::Lt, ptr_after_alloc, global_fromspace_end(), Type::Bool);
-
-                alloc_if_else(cond, alloc_unit(), collect(bytes_needed), Type::Unit)
-            };
+            let try_collect = make_try_collect(bytes_needed);
+            bindings.push((dummy_name.clone(), try_collect, ty_unit()));
 
             let fun_ptr_ty = {
                 let fun_ptr_cty = convert_fun_ptr_type(&clos.func_ty);
@@ -305,33 +315,19 @@ pub fn expose_allocation(clos_expr: ClosureExpr, gs: &mut Gensym) -> AllocExpr {
                 });
                 Type::Tuple(tuple_elem_tys)
             };
-            let closure = alloc_var(closure_name.clone(), closure_ty.clone());
+            let closure_var = alloc_var(closure_name.clone(), closure_ty.clone());
 
             let allocate = allocate_closure(bytes_needed, clos.func_arity, closure_ty.clone());
+            bindings.push((closure_name, allocate, closure_ty));
 
-            let tuple_inits = {
-                let mut v = Vec::with_capacity(1 + clos.free_vars.len());
-                let init_func = alloc_tuple_set(
-                    closure.clone(),
-                    alloc_fun_ref(clos.func_name.clone(), clos.func_arity, fun_ptr_ty),
-                    0,
-                );
-                v.push(init_func);
-                for (idx, (name, cty)) in clos.free_vars.iter().enumerate() {
-                    let free_var = alloc_var(name.clone(), cty.to_type());
-                    v.push(alloc_tuple_set(closure.clone(), free_var, idx + 1));
-                }
-                v
-            };
+            let init_func = alloc_tuple_set(
+                closure_var.clone(),
+                alloc_fun_ref(clos.func_name.clone(), clos.func_arity, fun_ptr_ty),
+                0,
+            );
+            bindings.push((dummy_name, init_func, ty_unit()));
 
-            expose_allocate_tuple(
-                try_collect,
-                closure_name,
-                closure_ty,
-                closure,
-                allocate,
-                tuple_inits,
-            )
+            bindings_to_let(bindings, closure_var)
         },
         ClosureExpr::ClosureFunPtr(expr, clos_ty) => {
             let alloc_expr = expose_allocation(*expr, gs);
@@ -341,60 +337,60 @@ pub fn expose_allocation(clos_expr: ClosureExpr, gs: &mut Gensym) -> AllocExpr {
             let alloc_expr = expose_allocation(*expr, gs);
             alloc_tuple_proj(alloc_expr, idx, clos_ty.to_type())
         },
-        ClosureExpr::Tuple(exprs, clos_ty) => {
+        ClosureExpr::Tuple(exprs, _) => {
             // (Tuple exprs)
             //
             //   bytes_needed = <size of slots>
             //
             // is compiled into:
-            //
-            //   if free_ptr + bytes_needed < fromspace_end
-            //      then ()
-            //      else Collect(bytes_needed);
+            //   let elem_0 = expose_allocation exprs[0] in
+            //   let elem_1 = expose_allocation exprs[1] in
+            //   ...
+            //   let elem_n-1 = expose_allocation exprs[e-1] in
+            //   let _ = if free_ptr + bytes_needed < fromspace_end
+            //           then ()
+            //           else Collect(bytes_needed) on
             //   let tuple = Allocate(bytes) in
-            //       tuple[0] := exprs[0];
-            //       tuple[1] := exprs[1];
+            //   let _ = tuple[0] <- elem_0 in
+            //   let _ = tuple[1] <- elem_1 in
             //       ...
-            //       tuple
+            //   let _ = tuple[n-1] <- elem_n-1
+            //   tuple
 
-            let tuple_ty = clos_ty.to_type();
+            let mut bindings = Vec::with_capacity(exprs.len() * 2 + 2);
+
+            let mut elem_vars = Vec::with_capacity(exprs.len());
+            let mut elem_tys = Vec::with_capacity(exprs.len());
+            for clos_expr in exprs.clone() {
+                let elem_name = gs.fresh_with_prefix("elem");
+                let elem_ty = clos_expr.type_of().to_type();
+                let alloc_expr = expose_allocation(clos_expr, gs);
+
+                elem_vars.push(alloc_var(elem_name.clone(), elem_ty.clone()));
+                elem_tys.push(elem_ty.clone());
+                bindings.push((elem_name, alloc_expr, elem_ty));
+            }
+
+            let tuple_ty = ty_tuple(elem_tys);
 
             let bytes_needed = tuple_ty.bytes_of();
 
-            let try_collect = {
-                let ptr_after_alloc = alloc_bin_op(
-                    BinOp::Add,
-                    global_freeptr(),
-                    alloc_int(bytes_needed as i64),
-                    Type::Int,
-                );
-                let cond =
-                    alloc_bin_op(BinOp::Lt, ptr_after_alloc, global_fromspace_end(), Type::Bool);
-                let collect = collect(bytes_needed);
+            let dummy_name = "_".to_string();
 
-                alloc_if_else(cond, alloc_unit(), collect, Type::Unit)
-            };
-
-            let allocate = allocate(bytes_needed, tuple_ty.clone());
+            let try_collect = make_try_collect(bytes_needed);
+            bindings.push((dummy_name.clone(), try_collect, ty_unit()));
 
             let tuple_name = gs.fresh_with_prefix("tuple");
-            let tuple = alloc_var(tuple_name.clone(), tuple_ty.clone());
+            let tuple_var = alloc_var(tuple_name.clone(), tuple_ty.clone());
+            let allocate = allocate(bytes_needed, tuple_ty.clone());
+            bindings.push((tuple_name, allocate, tuple_ty));
 
-            let tuple_inits = {
-                let mut v = Vec::with_capacity(exprs.len());
-                let alloc_exprs = exprs
-                    .into_iter()
-                    .map(|e| expose_allocation(e, gs))
-                    .collect::<Vec<AllocExpr>>();
+            for (idx, elem_var) in elem_vars.into_iter().enumerate() {
+                let tuple_init = alloc_tuple_set(tuple_var.clone(), elem_var, idx);
+                bindings.push((dummy_name.clone(), tuple_init, ty_unit()));
+            }
 
-                for (idx, expr) in alloc_exprs.into_iter().enumerate() {
-                    let init_elem = alloc_tuple_set(tuple.clone(), expr, idx);
-                    v.push(init_elem);
-                }
-                v
-            };
-
-            expose_allocate_tuple(try_collect, tuple_name, tuple_ty, tuple, allocate, tuple_inits)
+            bindings_to_let(bindings, tuple_var)
         },
         ClosureExpr::TupleProj(expr, idx, clos_ty) => {
             let alloc_expr = expose_allocation(*expr, gs);
@@ -494,13 +490,6 @@ mod tests {
         )
     }
 
-    fn expect_seq(expr: &AllocExpr) -> (&[AllocExpr], &AllocExpr, &Type) {
-        match expr {
-            AllocExpr::Seq(items, last, ty) => (items, last, ty),
-            other => panic!("expected Seq, got {:?}", other),
-        }
-    }
-
     fn expect_let(expr: &AllocExpr) -> (&Ident, &Type, &AllocExpr, &AllocExpr, &Type) {
         match expr {
             AllocExpr::Let(name, ty, val, body, body_ty) => (name, ty, val, body, body_ty),
@@ -513,6 +502,20 @@ mod tests {
             AllocExpr::TupleSet(tuple, element, idx) => (tuple, element, *idx),
             other => panic!("expected TupleElemInit, got {:?}", other),
         }
+    }
+
+    fn expected_try_collect(bytes: usize) -> AllocExpr {
+        alloc_if_else(
+            alloc_bin_op(
+                BinOp::Lt,
+                alloc_bin_op(BinOp::Add, global_freeptr(), alloc_int(bytes as i64), Type::Int),
+                global_fromspace_end(),
+                Type::Bool,
+            ),
+            alloc_unit(),
+            collect(bytes),
+            Type::Unit,
+        )
     }
 
     #[test]
@@ -529,6 +532,7 @@ mod tests {
 
     #[test]
     fn exposes_operations_and_projections() {
+        // 1 + 2
         assert_eq!(
             run(ClosureExpr::BinOp(
                 BinOp::Add,
@@ -544,6 +548,7 @@ mod tests {
             )
         );
 
+        // - 3
         assert_eq!(
             run(ClosureExpr::UnaryOp(
                 UnaryOp::Neg,
@@ -553,6 +558,7 @@ mod tests {
             AllocExpr::UnaryOp(UnaryOp::Neg, Box::new(AllocExpr::Int(3)), Type::Int)
         );
 
+        // t.1
         assert_eq!(
             run(ClosureExpr::TupleProj(
                 Box::new(ClosureExpr::Var(
@@ -610,6 +616,7 @@ mod tests {
 
     #[test]
     fn exposes_tuple_allocation_shape() {
+        // (1, true)
         let tuple_ty = Type::Tuple(vec![Type::Int, Type::Bool]);
         let expr = ClosureExpr::Tuple(
             vec![ClosureExpr::Int(1), ClosureExpr::Bool(true)],
@@ -617,31 +624,49 @@ mod tests {
         );
 
         let result = run(expr);
-        let (collects, last, result_ty) = expect_seq(&result);
 
-        assert_eq!(collects.len(), 1);
-        assert!(matches!(&collects[0], AllocExpr::If(_, _, _, _)));
-        assert_eq!(result_ty, &tuple_ty);
-
-        let (name, bound_ty, allocate, inits_seq, body_ty) = expect_let(last);
-        assert!(name.starts_with("tuple$"));
-        assert_eq!(bound_ty, &tuple_ty);
+        let (elem_name, elem_ty, elem_val, rest, body_ty) = expect_let(&result);
+        assert_eq!(elem_name.as_str(), "elem$0");
+        assert_eq!(elem_ty, &Type::Int);
+        assert_eq!(elem_val, &AllocExpr::Int(1));
         assert_eq!(body_ty, &tuple_ty);
+
+        let (elem_name, elem_ty, elem_val, rest, body_ty) = expect_let(rest);
+        assert_eq!(elem_name.as_str(), "elem$1");
+        assert_eq!(elem_ty, &Type::Bool);
+        assert_eq!(elem_val, &AllocExpr::Bool(true));
+        assert_eq!(body_ty, &tuple_ty);
+
+        let (collect_name, collect_ty, try_collect, rest, body_ty) = expect_let(rest);
+        assert_eq!(collect_name.as_str(), "_");
+        assert_eq!(collect_ty, &Type::Unit);
+        assert!(matches!(try_collect, AllocExpr::If(_, _, _, _)));
+        assert_eq!(body_ty, &tuple_ty);
+
+        let (tuple_name, bound_ty, allocate, rest, body_ty) = expect_let(rest);
+        assert_eq!(tuple_name.as_str(), "tuple$2");
+        assert_eq!(bound_ty, &tuple_ty);
         assert_eq!(allocate, &AllocExpr::Allocate(tuple_ty.bytes_of(), tuple_ty.clone()));
+        assert_eq!(body_ty, &tuple_ty);
 
-        let (inits, tuple_var, inits_ty) = expect_seq(inits_seq);
-        assert_eq!(inits_ty, &tuple_ty);
-        assert_eq!(inits.len(), 2);
-
-        let (_, element, idx) = expect_tuple_set(&inits[0]);
+        let (init_name, init_ty, init_val, rest, body_ty) = expect_let(rest);
+        assert_eq!(init_name.as_str(), "_");
+        assert_eq!(init_ty, &Type::Unit);
+        let (target, element, idx) = expect_tuple_set(init_val);
         assert_eq!(idx, 0);
-        assert_eq!(element, &AllocExpr::Int(1));
+        assert_eq!(target, &AllocExpr::Var("tuple$2".to_string(), tuple_ty.clone()));
+        assert_eq!(element, &AllocExpr::Var("elem$0".to_string(), Type::Int));
+        assert_eq!(body_ty, &tuple_ty);
 
-        let (_, element, idx) = expect_tuple_set(&inits[1]);
+        let (init_name, init_ty, init_val, tuple_var, body_ty) = expect_let(rest);
+        assert_eq!(init_name.as_str(), "_");
+        assert_eq!(init_ty, &Type::Unit);
+        let (target, element, idx) = expect_tuple_set(init_val);
         assert_eq!(idx, 1);
-        assert_eq!(element, &AllocExpr::Bool(true));
-
-        assert_eq!(tuple_var, &AllocExpr::Var(name.clone(), tuple_ty));
+        assert_eq!(target, &AllocExpr::Var("tuple$2".to_string(), tuple_ty.clone()));
+        assert_eq!(element, &AllocExpr::Var("elem$1".to_string(), Type::Bool));
+        assert_eq!(body_ty, &tuple_ty);
+        assert_eq!(tuple_var, &AllocExpr::Var("tuple$2".to_string(), tuple_ty.clone()));
     }
 
     #[test]
@@ -652,31 +677,28 @@ mod tests {
         let expr = closure_expr("lambda$0", 1, func_ty, vec![("x", ClosureType::Int)]);
 
         let result = run(expr);
-        let (collects, last, result_ty) = expect_seq(&result);
 
-        assert_eq!(collects.len(), 1);
-        assert!(matches!(&collects[0], AllocExpr::If(_, _, _, _)));
-        assert_eq!(result_ty, &closure_ty);
-
-        let (name, bound_ty, allocate, inits_seq, body_ty) = expect_let(last);
-        assert!(name.starts_with("closure$"));
-        assert_eq!(bound_ty, &closure_ty);
+        let (collect_name, collect_ty, try_collect, rest, body_ty) = expect_let(&result);
+        assert_eq!(collect_name.as_str(), "_");
+        assert_eq!(collect_ty, &Type::Unit);
+        assert!(matches!(try_collect, AllocExpr::If(_, _, _, _)));
         assert_eq!(body_ty, &closure_ty);
+
+        let (closure_name, bound_ty, allocate, rest, body_ty) = expect_let(rest);
+        assert_eq!(closure_name.as_str(), "closure$0");
+        assert_eq!(bound_ty, &closure_ty);
         assert_eq!(allocate, &AllocExpr::AllocateClosure(16, 1, closure_ty.clone()));
+        assert_eq!(body_ty, &closure_ty);
 
-        let (inits, closure_var, inits_ty) = expect_seq(inits_seq);
-        assert_eq!(inits_ty, &closure_ty);
-        assert_eq!(inits.len(), 2);
-
-        let (_, element, idx) = expect_tuple_set(&inits[0]);
+        let (init_name, init_ty, init_val, closure_var, body_ty) = expect_let(rest);
+        assert_eq!(init_name.as_str(), "_");
+        assert_eq!(init_ty, &Type::Unit);
+        let (target, element, idx) = expect_tuple_set(init_val);
         assert_eq!(idx, 0);
+        assert_eq!(target, &AllocExpr::Var("closure$0".to_string(), closure_ty.clone()));
         assert_eq!(element, &AllocExpr::FunRef("lambda$0".to_string(), 1, fun_ptr_ty));
-
-        let (_, element, idx) = expect_tuple_set(&inits[1]);
-        assert_eq!(idx, 1);
-        assert_eq!(element, &AllocExpr::Var("x".to_string(), Type::Int));
-
-        assert_eq!(closure_var, &AllocExpr::Var(name.clone(), closure_ty));
+        assert_eq!(body_ty, &closure_ty);
+        assert_eq!(closure_var, &AllocExpr::Var("closure$0".to_string(), closure_ty.clone()));
     }
 
     #[test]
@@ -687,16 +709,28 @@ mod tests {
         let expr = closure_expr("lambda$1", 2, func_ty, vec![]);
 
         let result = run(expr);
-        let (_, last, _) = expect_seq(&result);
-        let (_, _, allocate, inits_seq, _) = expect_let(last);
 
+        let (collect_name, collect_ty, try_collect, rest, body_ty) = expect_let(&result);
+        assert_eq!(collect_name.as_str(), "_");
+        assert_eq!(collect_ty, &Type::Unit);
+        assert!(matches!(try_collect, AllocExpr::If(_, _, _, _)));
+        assert_eq!(body_ty, &closure_ty);
+
+        let (closure_name, bound_ty, allocate, rest, body_ty) = expect_let(rest);
+        assert_eq!(closure_name.as_str(), "closure$0");
+        assert_eq!(bound_ty, &closure_ty);
         assert_eq!(allocate, &AllocExpr::AllocateClosure(8, 2, closure_ty.clone()));
+        assert_eq!(body_ty, &closure_ty);
 
-        let (inits, _, _) = expect_seq(inits_seq);
-        assert_eq!(inits.len(), 1);
-        let (_, element, idx) = expect_tuple_set(&inits[0]);
+        let (init_name, init_ty, init_val, closure_var, body_ty) = expect_let(rest);
+        assert_eq!(init_name.as_str(), "_");
+        assert_eq!(init_ty, &Type::Unit);
+        let (target, element, idx) = expect_tuple_set(init_val);
         assert_eq!(idx, 0);
+        assert_eq!(target, &AllocExpr::Var("closure$0".to_string(), closure_ty.clone()));
         assert_eq!(element, &AllocExpr::FunRef("lambda$1".to_string(), 2, fun_ptr_ty));
+        assert_eq!(body_ty, &closure_ty);
+        assert_eq!(closure_var, &AllocExpr::Var("closure$0".to_string(), closure_ty.clone()));
     }
 
     #[test]
@@ -718,29 +752,146 @@ mod tests {
         );
 
         let result = run(expr);
-        let (_, last, _) = expect_seq(&result);
-        let (_, _, allocate, inits_seq, _) = expect_let(last);
 
+        let (collect_name, collect_ty, try_collect, rest, body_ty) = expect_let(&result);
+        assert_eq!(collect_name.as_str(), "_");
+        assert_eq!(collect_ty, &Type::Unit);
+        assert!(matches!(try_collect, AllocExpr::If(_, _, _, _)));
+        assert_eq!(body_ty, &closure_ty);
+
+        let (closure_name, bound_ty, allocate, rest, body_ty) = expect_let(rest);
+        assert_eq!(closure_name.as_str(), "closure$0");
+        assert_eq!(bound_ty, &closure_ty);
         assert_eq!(allocate, &AllocExpr::AllocateClosure(48, 1, closure_ty.clone()));
+        assert_eq!(body_ty, &closure_ty);
 
-        let (inits, _, _) = expect_seq(inits_seq);
-        assert_eq!(inits.len(), 4);
-
-        let (_, element, idx) = expect_tuple_set(&inits[0]);
+        let (init_name, init_ty, init_val, closure_var, body_ty) = expect_let(rest);
+        assert_eq!(init_name.as_str(), "_");
+        assert_eq!(init_ty, &Type::Unit);
+        let (target, element, idx) = expect_tuple_set(init_val);
         assert_eq!(idx, 0);
+        assert_eq!(target, &AllocExpr::Var("closure$0".to_string(), closure_ty.clone()));
         assert_eq!(element, &AllocExpr::FunRef("lambda$2".to_string(), 1, fun_ptr_ty));
+        assert_eq!(body_ty, &closure_ty);
+        assert_eq!(closure_var, &AllocExpr::Var("closure$0".to_string(), closure_ty.clone()));
+    }
 
-        let (_, element, idx) = expect_tuple_set(&inits[1]);
+    #[test]
+    // 测试 ClosureExpr::Tuple 的空 tuple 分支：不生成 elem 绑定，只生成
+    // GC 检查、Allocate(tuple_ty.bytes_of(), ()) 和 Var("tuple$0", ())。
+    fn exposes_empty_tuple_allocation_shape() {
+        let tuple_ty = Type::Tuple(vec![]);
+        let expr = ClosureExpr::Tuple(vec![], ClosureType::Tuple(vec![]));
+
+        let result = run(expr);
+
+        let (collect_name, collect_ty, try_collect, rest, body_ty) = expect_let(&result);
+        assert_eq!(collect_name.as_str(), "_");
+        assert_eq!(collect_ty, &Type::Unit);
+        assert_eq!(try_collect, &expected_try_collect(tuple_ty.bytes_of()));
+        assert_eq!(body_ty, &tuple_ty);
+
+        let (tuple_name, bound_ty, allocate, tuple_var, body_ty) = expect_let(rest);
+        assert_eq!(tuple_name.as_str(), "tuple$0");
+        assert_eq!(bound_ty, &tuple_ty);
+        assert_eq!(allocate, &AllocExpr::Allocate(tuple_ty.bytes_of(), tuple_ty.clone()));
+        assert_eq!(body_ty, &tuple_ty);
+        assert_eq!(tuple_var, &AllocExpr::Var("tuple$0".to_string(), tuple_ty.clone()));
+    }
+
+    #[test]
+    // 测试 ClosureExpr::Tuple 分支的 GC 检查：make_try_collect 使用
+    // tuple_ty.bytes_of()，因此 (Int, Bool) 生成 Collect(24)。
+    fn exposes_tuple_allocation_collect_bytes() {
+        let tuple_ty = Type::Tuple(vec![Type::Int, Type::Bool]);
+        let expr = ClosureExpr::Tuple(
+            vec![ClosureExpr::Int(1), ClosureExpr::Bool(true)],
+            ClosureType::Tuple(vec![ClosureType::Int, ClosureType::Bool]),
+        );
+
+        let result = run(expr);
+
+        let (_, _, _, rest, _) = expect_let(&result); // elem$0
+        let (_, _, _, rest, _) = expect_let(rest); // elem$1
+        let (_, collect_ty, try_collect, _, _) = expect_let(rest);
+        assert_eq!(collect_ty, &Type::Unit);
+        assert_eq!(try_collect, &expected_try_collect(tuple_ty.bytes_of()));
+    }
+
+    #[test]
+    // 测试 ClosureExpr::Closure 分支的 GC 检查：一个 Int free var 时分配
+    // 字节为 8 + 8 = 16，因此生成 Collect(16)。
+    fn exposes_closure_allocation_collect_bytes() {
+        let func_ty = ty_arrow(ty_int(), ty_int());
+        let expr = closure_expr("lambda$0", 1, func_ty, vec![("x", ClosureType::Int)]);
+
+        let result = run(expr);
+
+        let (_, collect_ty, try_collect, _, _) = expect_let(&result);
+        assert_eq!(collect_ty, &Type::Unit);
+        assert_eq!(try_collect, &expected_try_collect(16));
+    }
+
+    #[test]
+    // 测试 ClosureExpr::Tuple 会先把复杂元素 (BinOp/Var) 降为 elem 绑定，
+    // 再把 elem 变量写入 tuple 槽位。
+    fn exposes_tuple_allocation_binds_complex_elements() {
+        let tuple_ty = Type::Tuple(vec![Type::Int, Type::Int]);
+        let expr = ClosureExpr::Tuple(
+            vec![
+                ClosureExpr::BinOp(
+                    BinOp::Add,
+                    Box::new(ClosureExpr::Int(1)),
+                    Box::new(ClosureExpr::Int(2)),
+                    ClosureType::Int,
+                ),
+                ClosureExpr::Var("x".to_string(), ClosureType::Int),
+            ],
+            ClosureType::Tuple(vec![ClosureType::Int, ClosureType::Int]),
+        );
+
+        let result = run(expr);
+
+        let (elem_name, elem_ty, elem_val, rest, body_ty) = expect_let(&result);
+        assert_eq!(elem_name.as_str(), "elem$0");
+        assert_eq!(elem_ty, &Type::Int);
+        assert_eq!(
+            elem_val,
+            &AllocExpr::BinOp(
+                BinOp::Add,
+                Box::new(AllocExpr::Int(1)),
+                Box::new(AllocExpr::Int(2)),
+                Type::Int,
+            )
+        );
+        assert_eq!(body_ty, &tuple_ty);
+
+        let (elem_name, elem_ty, elem_val, rest, body_ty) = expect_let(rest);
+        assert_eq!(elem_name.as_str(), "elem$1");
+        assert_eq!(elem_ty, &Type::Int);
+        assert_eq!(elem_val, &AllocExpr::Var("x".to_string(), Type::Int));
+        assert_eq!(body_ty, &tuple_ty);
+
+        let (_, _, _, rest, _) = expect_let(rest); // GC 检查
+        let (tuple_name, _, allocate, rest, body_ty) = expect_let(rest);
+        assert_eq!(tuple_name.as_str(), "tuple$2");
+        assert_eq!(allocate, &AllocExpr::Allocate(tuple_ty.bytes_of(), tuple_ty.clone()));
+        assert_eq!(body_ty, &tuple_ty);
+
+        let (_, _, init_val, rest, body_ty) = expect_let(rest);
+        let (target, element, idx) = expect_tuple_set(init_val);
+        assert_eq!(idx, 0);
+        assert_eq!(target, &AllocExpr::Var("tuple$2".to_string(), tuple_ty.clone()));
+        assert_eq!(element, &AllocExpr::Var("elem$0".to_string(), Type::Int));
+        assert_eq!(body_ty, &tuple_ty);
+
+        let (_, _, init_val, tuple_var, body_ty) = expect_let(rest);
+        let (target, element, idx) = expect_tuple_set(init_val);
         assert_eq!(idx, 1);
-        assert_eq!(element, &AllocExpr::Var("x".to_string(), Type::Int));
-
-        let (_, element, idx) = expect_tuple_set(&inits[2]);
-        assert_eq!(idx, 2);
-        assert_eq!(element, &AllocExpr::Var("b".to_string(), Type::Bool));
-
-        let (_, element, idx) = expect_tuple_set(&inits[3]);
-        assert_eq!(idx, 3);
-        assert_eq!(element, &AllocExpr::Var("t".to_string(), tuple_free_ty));
+        assert_eq!(target, &AllocExpr::Var("tuple$2".to_string(), tuple_ty.clone()));
+        assert_eq!(element, &AllocExpr::Var("elem$1".to_string(), Type::Int));
+        assert_eq!(body_ty, &tuple_ty);
+        assert_eq!(tuple_var, &AllocExpr::Var("tuple$2".to_string(), tuple_ty.clone()));
     }
 
     #[test]
@@ -949,8 +1100,8 @@ mod tests {
 
     #[test]
     fn exposes_program_shares_gensym_across_defs_and_main() {
-        // Each tuple allocation draws exactly one fresh name, so the names must
-        // keep increasing across defs and then the main expression.
+        // Each singleton tuple allocation draws two fresh names (`elem$N` and
+        // `tuple$M`), so the tuple names keep increasing across defs and main.
         let tuple_ty = ClosureType::Tuple(vec![ClosureType::Int]);
         let tuple_expr = || ClosureExpr::Tuple(vec![ClosureExpr::Int(1)], tuple_ty.clone());
 
@@ -964,26 +1115,22 @@ mod tests {
 
         let alloc_prog = expose_allocation_prog(prog);
 
-        fn bound_tuple_name(def: &AllocDef) -> Ident {
+        fn bound_tuple_name(expr: &AllocExpr) -> Ident {
+            let (_, _, _, rest, _) = expect_let(expr);
+            let (_, _, _, rest, _) = expect_let(rest);
+            let (name, _, _, _, _) = expect_let(rest);
+            name.clone()
+        }
+
+        fn def_bound_tuple_name(def: &AllocDef) -> Ident {
             match def {
-                AllocDef::ValDef(_, _, AllocExpr::Seq(_, last, _)) => match &**last {
-                    AllocExpr::Let(name, _, _, _, _) => name.clone(),
-                    other => panic!("expected Let, got {:?}", other),
-                },
-                other => panic!("expected ValDef wrapping Seq, got {:?}", other),
+                AllocDef::ValDef(_, _, expr) => bound_tuple_name(expr),
+                other => panic!("expected ValDef, got {:?}", other),
             }
         }
 
-        let main_name = match &alloc_prog.main {
-            AllocExpr::Seq(_, last, _) => match &**last {
-                AllocExpr::Let(name, _, _, _, _) => name.clone(),
-                other => panic!("expected Let, got {:?}", other),
-            },
-            other => panic!("expected Seq, got {:?}", other),
-        };
-
-        assert_eq!(bound_tuple_name(&alloc_prog.defs[0]), "tuple$0");
-        assert_eq!(bound_tuple_name(&alloc_prog.defs[1]), "tuple$1");
-        assert_eq!(main_name, "tuple$2");
+        assert_eq!(def_bound_tuple_name(&alloc_prog.defs[0]), "tuple$1");
+        assert_eq!(def_bound_tuple_name(&alloc_prog.defs[1]), "tuple$3");
+        assert_eq!(bound_tuple_name(&alloc_prog.main), "tuple$5");
     }
 }
