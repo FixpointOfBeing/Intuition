@@ -1,7 +1,7 @@
 use crate::{
     a_normal_form::{AExpr, AnfExpr, CompExpr},
     expose_allocation::GlobalValue,
-    syntax::{BinOp, HasType, Ident, PrimIO, Type, UnaryOp, ty_unit},
+    syntax::{BinOp, HasType, Ident, PrimInput, PrimOutput, Type, UnaryOp, ty_unit},
 };
 
 /*
@@ -27,6 +27,7 @@ pub enum CExpr {
     Atom(CAtom, Type),
     BinOp(BinOp, CAtom, CAtom, Type),
     UnaryOp(UnaryOp, CAtom, Type),
+    PrimInput(PrimInput, Type),
     TupleProj(CAtom, usize, Type),
     Allocate(usize, Type),
     AllocateClosure(usize, usize, Type),
@@ -45,7 +46,8 @@ impl HasType for CExpr {
 pub enum CStmt {
     Assign(Ident, CExpr),
     TupleSet(CAtom, CAtom, usize),
-    PrimIO(PrimIO, Option<CAtom>),
+    PrimOutput(PrimOutput, CAtom),
+    // PrimIO(PrimIO, Option<CAtom>),
     Collect(usize),
     Effect(CExpr),
     If(CAtom, Vec<CStmt>, Vec<CStmt>),
@@ -124,8 +126,12 @@ pub fn c_tuple_set(tuple: CAtom, element: CAtom, index: usize) -> CStmt {
     CStmt::TupleSet(tuple, element, index)
 }
 
-pub fn c_prim_io(prim: PrimIO, expr: Option<CAtom>) -> CStmt {
-    CStmt::PrimIO(prim, expr)
+pub fn c_prim_input(prim: PrimInput) -> CExpr {
+    CExpr::PrimInput(prim, ty_unit())
+}
+
+pub fn c_prim_output(prim: PrimOutput, expr: CAtom) -> CStmt {
+    CStmt::PrimOutput(prim, expr)
 }
 
 pub fn c_collect(bytes: usize) -> CStmt {
@@ -156,15 +162,13 @@ pub fn c_tail_if(cond: CAtom, thn: CTail, els: CTail) -> CTail {
     CTail::TailIf(cond, Box::new(thn), Box::new(els))
 }
 
-pub fn explicate_assign_anf(name: String, anf:AnfExpr, cont:CTail) -> CTail {
+pub fn explicate_assign_anf(name: String, anf: AnfExpr, cont: CTail) -> CTail {
     match anf {
-        AnfExpr::Complex(cexpr, _) => {
-            explicate_assign_complex(name, cexpr, cont)
-        }
+        AnfExpr::Complex(cexpr, _) => explicate_assign_complex(name, cexpr, cont),
         AnfExpr::Let(let_name, rhs, body, _) => {
             let inner_cont = explicate_assign_anf(name, *body, cont);
             explicate_assign_complex(let_name, rhs, inner_cont)
-        }
+        },
     }
 }
 
@@ -206,16 +210,25 @@ pub fn explicate_assign_complex(name: String, cexpr: CompExpr, cont: CTail) -> C
             let stmt = c_assign(name, cexpr);
             c_tail_seq(vec![stmt], cont)
         },
-        CompExpr::PrimIO(prim, aexpr, ty) => {
-            todo!()
+        CompExpr::PrimInput(prim, _) => {
+            let cexpr = c_prim_input(prim);
+            let stmt = c_assign(name, cexpr);
+            c_tail_seq(vec![stmt], cont)
         },
+        CompExpr::PrimOutput(prim, aexpr, _) => {
+            assert!(name == dummy);
+            let catom = aexpr_to_catom(aexpr);
+            let stmt = c_prim_output(prim, catom);
+            c_tail_seq(vec![stmt], cont)
+        },
+
         CompExpr::App(func, args, ty) => {
             let func_catom = aexpr_to_catom(func);
             let args_catom = args.into_iter().map(aexpr_to_catom).collect();
             let cexpr = c_call(func_catom, args_catom, ty);
             let stmt = c_assign(name, cexpr);
             c_tail_seq(vec![stmt], cont)
-        }
+        },
         CompExpr::If(cond, thn, els, _) => {
             let cond_catom = aexpr_to_catom(cond);
             // todo! cont会复制
@@ -289,11 +302,15 @@ fn explicate_tail(anf: AnfExpr) -> CTail {
                 let cexpr = c_allocate_closure(bytes, arity, ty);
                 c_return(cexpr)
             },
-            CompExpr::PrimIO(prim, aexpr, _) => {
-                let atom = aexpr.map(|e| aexpr_to_catom(e));
-                let stmt = c_prim_io(prim, atom);
-
-                todo!()
+            CompExpr::PrimInput(prim, _) => {
+                let cexpr = c_prim_input(prim);
+                c_return(cexpr)
+            },
+            CompExpr::PrimOutput(prim, aexpr, _) => {
+                let catom = aexpr_to_catom(aexpr);
+                let stmt = c_prim_output(prim, catom);
+                let last = c_return(c_atom(c_unit(), ty_unit()));
+                c_tail_seq(vec![stmt], last)
             },
             CompExpr::App(func, args, _) => {
                 let func_atom = aexpr_to_catom(func);
@@ -326,7 +343,6 @@ fn explicate_tail(anf: AnfExpr) -> CTail {
             explicate_assign_complex(name, rhs, tail)
         },
     }
-    
 }
 //
 // pub fn explicate_control_convert(clos: ClosExpr) -> CTail {
@@ -477,7 +493,7 @@ fn explicate_tail(anf: AnfExpr) -> CTail {
 //             Box::new(anf_atom_to_anf(anf_int(2))),
 //         ));
 //         let expected = CTail::If(
-//             c_var("c", Type::Bool),
+//             c_var("c", Type::Bool)
 //             Box::new(CTail::Return(CExpr::Atom(c_int(1)))),
 //             Box::new(CTail::Return(CExpr::Atom(c_int(2)))),
 //         );

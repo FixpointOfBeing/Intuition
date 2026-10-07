@@ -25,7 +25,8 @@ pub enum Expr {
     Var(Ident),
     Tuple(Vec<Expr>),
     TupleProj(Box<Expr>, usize), // todo: rename to TupleRef
-    PrimIO(PrimIO, Option<Box<Expr>>),
+    PrimInput(PrimInput),
+    PrimOutput(PrimOutput, Box<Expr>),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
     UnaryOp(UnaryOp, Box<Expr>),
     Ann(Box<Expr>, Type),
@@ -48,22 +49,33 @@ pub enum Expr {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum PrimIO {
-    PrintInt,
-    PrintFloat,
-    PrintBool,
+pub enum PrimInput {
     ReadInt,
     ReadFloat,
 }
 
-impl std::fmt::Display for PrimIO {
+#[derive(Debug, Clone, PartialEq)]
+pub enum PrimOutput {
+    PrintInt,
+    PrintFloat,
+    PrintBool,
+}
+
+impl std::fmt::Display for PrimInput {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PrimIO::PrintInt => write!(f, "print_int"),
-            PrimIO::PrintFloat => write!(f, "print_float"),
-            PrimIO::PrintBool => write!(f, "print_bool"),
-            PrimIO::ReadInt => write!(f, "read_int"),
-            PrimIO::ReadFloat => write!(f, "read_float"),
+            PrimInput::ReadInt => write!(f, "read_int"),
+            PrimInput::ReadFloat => write!(f, "read_float"),
+        }
+    }
+}
+
+impl std::fmt::Display for PrimOutput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PrimOutput::PrintInt => write!(f, "print_int"),
+            PrimOutput::PrintFloat => write!(f, "print_float"),
+            PrimOutput::PrintBool => write!(f, "print_bool"),
         }
     }
 }
@@ -250,23 +262,23 @@ pub fn lambda(params: Vec<(Ident, Type)>, ret_ty: Option<Type>, body: Expr) -> E
 }
 
 pub fn print_int(expr: Expr) -> Expr {
-    Expr::PrimIO(PrimIO::PrintInt, Some(Box::new(expr)))
+    Expr::PrimOutput(PrimOutput::PrintInt, Box::new(expr))
 }
 
 pub fn print_float(expr: Expr) -> Expr {
-    Expr::PrimIO(PrimIO::PrintFloat, Some(Box::new(expr)))
+    Expr::PrimOutput(PrimOutput::PrintFloat, Box::new(expr))
 }
 
 pub fn print_bool(expr: Expr) -> Expr {
-    Expr::PrimIO(PrimIO::PrintBool, Some(Box::new(expr)))
+    Expr::PrimOutput(PrimOutput::PrintBool, Box::new(expr))
 }
 
 pub fn read_int() -> Expr {
-    Expr::PrimIO(PrimIO::ReadInt, None)
+    Expr::PrimInput(PrimInput::ReadInt)
 }
 
 pub fn read_float() -> Expr {
-    Expr::PrimIO(PrimIO::ReadFloat, None)
+    Expr::PrimInput(PrimInput::ReadFloat)
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -368,15 +380,14 @@ impl std::fmt::Display for Expr {
                 write!(f, "{}.{}", expr, idx)
             },
 
-            Expr::PrimIO(prim_io, Some(expr)) => match prim_io {
-                PrimIO::PrintInt => write!(f, "print_int {}", *expr),
-                PrimIO::PrintFloat => write!(f, "print_float {}", *expr),
-                PrimIO::PrintBool => write!(f, "print_bool {}", *expr),
-                _ => unreachable!(),
+            Expr::PrimOutput(prim_io, expr) => match prim_io {
+                PrimOutput::PrintInt => write!(f, "print_int {}", *expr),
+                PrimOutput::PrintFloat => write!(f, "print_float {}", *expr),
+                PrimOutput::PrintBool => write!(f, "print_bool {}", *expr),
             },
-            Expr::PrimIO(prim_io, None) => match prim_io {
-                PrimIO::ReadInt => write!(f, "read_int ()"),
-                PrimIO::ReadFloat => write!(f, "read_float ()"),
+            Expr::PrimInput(prim_io, ) => match prim_io {
+                PrimInput::ReadInt => write!(f, "read_int ()"),
+                PrimInput::ReadFloat => write!(f, "read_float ()"),
                 _ => unreachable!(),
             },
             Expr::BinOp(op, left, right) => {

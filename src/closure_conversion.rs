@@ -3,16 +3,16 @@ use std::collections::{HashMap, HashSet};
 use crate::{
     gensym::Gensym,
     reveal_functions::{RevealDef, RevealExpr, RevealProgram},
-    syntax::{BinOp, HasType, Ident, PrimIO, Type, UnaryOp},
+    syntax::{BinOp, HasType, Ident, PrimInput, PrimOutput, Type, UnaryOp},
     typechecker::build_arrow,
 };
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Closure {
-    pub(crate) func_arity: usize,
-    pub(crate) func_name: Ident,
-    pub(crate) func_ty: Type,
-    pub(crate) free_vars: Vec<(Ident, ClosureType)>,
+    pub func_arity: usize,
+    pub func_name: Ident,
+    pub func_ty: Type,
+    pub free_vars: Vec<(Ident, ClosureType)>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -83,7 +83,8 @@ pub enum ClosureExpr {
     ClosureFreeVar(Box<ClosureExpr>, usize, ClosureType), // get a free variable of closure (index 1..)
     Tuple(Vec<ClosureExpr>, ClosureType),
     TupleProj(Box<ClosureExpr>, usize, ClosureType),
-    PrimIO(PrimIO, Option<Box<ClosureExpr>>, ClosureType),
+    PrimInput(PrimInput, ClosureType),
+    PrimOutput(PrimOutput, Box<ClosureExpr>, ClosureType),
     UnaryOp(UnaryOp, Box<ClosureExpr>, ClosureType),
     If(Box<ClosureExpr>, Box<ClosureExpr>, Box<ClosureExpr>, ClosureType),
     Let(
@@ -135,12 +136,11 @@ impl std::fmt::Display for ClosureExpr {
             ClosureExpr::TupleProj(expr, idx, _) => {
                 write!(f, "({}).{}", expr, idx)
             },
-            ClosureExpr::PrimIO(prim, expr, _) => {
-                if let Some(expr) = expr {
-                    write!(f, "{} {}", prim, expr)
-                } else {
-                    write!(f, "{}", prim)
-                }
+            ClosureExpr::PrimInput(prim, _) => {
+                write!(f, "({} ())", prim)
+            },
+            ClosureExpr::PrimOutput(prim, expr, _) => {
+                write!(f, "{} {}", prim, expr)
             },
             ClosureExpr::UnaryOp(op, expr, _) => {
                 write!(f, "{} {}", op, expr)
@@ -172,16 +172,16 @@ impl ClosureExpr {
             ClosureExpr::Float(_) => ClosureType::Float,
             ClosureExpr::Var(_, ty) => (*ty).clone(),
             ClosureExpr::BinOp(_, _, _, ty) => (*ty).clone(),
+            ClosureExpr::UnaryOp(_, _, ty) => (*ty).clone(),
+            ClosureExpr::PrimInput(_, ty) => (*ty).clone(),
+            ClosureExpr::PrimOutput(_, _, ty) => (*ty).clone(),
             ClosureExpr::Closure(_, ty) => (*ty).clone(),
             ClosureExpr::ClosureFunPtr(_, ty) => (*ty).clone(),
             ClosureExpr::ClosureFreeVar(_, _, ty) => (*ty).clone(),
             ClosureExpr::Tuple(_, ty) => (*ty).clone(),
             ClosureExpr::TupleProj(_, _, ty) => (*ty).clone(),
-            ClosureExpr::PrimIO(_, _, ty) => (*ty).clone(),
-            ClosureExpr::UnaryOp(_, _, ty) => (*ty).clone(),
             ClosureExpr::If(_, _, _, ty) => (*ty).clone(),
             ClosureExpr::Let(_, _, _, _, ty) => (*ty).clone(),
-            // ClosureExpr::LetRec(_, _, _, _, _, ty) => (*ty).clone(),
             ClosureExpr::App(_, _, ty) => (*ty).clone(),
         }
     }
@@ -236,8 +236,12 @@ pub fn clos_bin_op(
     ClosureExpr::BinOp(op, Box::new(left), Box::new(right), ty)
 }
 
-pub fn clos_prim_io(prim: PrimIO, expr: Option<ClosureExpr>, ty: ClosureType) -> ClosureExpr {
-    ClosureExpr::PrimIO(prim, expr.map(Box::new), ty)
+pub fn clos_prim_output(prim: PrimOutput, expr: ClosureExpr, ty: ClosureType) -> ClosureExpr {
+    ClosureExpr::PrimOutput(prim, Box::new(expr), ty)
+}
+
+pub fn clos_prim_input(prim: PrimInput, ty: ClosureType) -> ClosureExpr {
+    ClosureExpr::PrimInput(prim, ty)
 }
 
 pub fn clos_unary(op: UnaryOp, expr: ClosureExpr, ty: ClosureType) -> ClosureExpr {
@@ -426,14 +430,19 @@ fn convert_expr(
             let clos_expr = convert_expr(*reveal_expr, gensym, lifted, closure_env);
             clos_tuple_projection(clos_expr, idx, convert_type(ty))
         },
-        RevealExpr::PrimIO(prim, expr, ty) => {
-            if let Some(reveal_expr) = expr {
-                let clos_expr = convert_expr(*reveal_expr, gensym, lifted, closure_env);
-                clos_prim_io(prim, Some(clos_expr), convert_type(ty))
-            } else {
-                clos_prim_io(prim, None, convert_type(ty))
-            }
+        RevealExpr::PrimInput(prim, ty) => clos_prim_input(prim, convert_type(ty)),
+        RevealExpr::PrimOutput(prim, reveal_expr, ty) => {
+            let clos_expr = convert_expr(*reveal_expr, gensym, lifted, closure_env);
+            clos_prim_output(prim, clos_expr, convert_type(ty))
         },
+        // RevealExpr::PrimIO(prim, expr, ty) => {
+        //     if let Some(reveal_expr) = expr {
+        //         let clos_expr = convert_expr(*reveal_expr, gensym, lifted, closure_env);
+        //         clos_prim_io(prim, Some(clos_expr), convert_type(ty))
+        //     } else {
+        //         clos_prim_io(prim, None, convert_type(ty))
+        //     }
+        // },
         RevealExpr::UnaryOp(op, reveal_expr, ty) => {
             let clos_expr = convert_expr(*reveal_expr, gensym, lifted, closure_env);
             clos_unary(op, clos_expr, convert_type(ty))
@@ -559,7 +568,6 @@ fn convert_expr(
             let let_body = clos_app(new_func, new_args, let_ty.clone());
             clos_let(clos_name, func_ty, clos_func, let_body, let_ty)
         },
-
         RevealExpr::Lambda(params, body, lambda_ty) => {
             // fun (x : Int) : Int => x + y      // y is a free variable
             // =>
@@ -698,11 +706,15 @@ fn free_vars_rec(expr: &RevealExpr, bound: &HashSet<Ident>, frees_map: &mut Hash
         RevealExpr::TupleProj(reveal_expr, _, _) => {
             free_vars_rec(reveal_expr, bound, frees_map);
         },
-        RevealExpr::PrimIO(_, reveal_expr, _) => {
-            if let Some(reveal_expr) = reveal_expr {
-                free_vars_rec(reveal_expr, bound, frees_map);
-            }
+        RevealExpr::PrimInput(_, _) => {},
+        RevealExpr::PrimOutput(_, reveal_expr, _) => {
+            free_vars_rec(reveal_expr, bound, frees_map);
         },
+        // RevealExpr::PrimIO(_, reveal_expr, _) => {
+        //     if let Some(reveal_expr) = reveal_expr {
+        //         free_vars_rec(reveal_expr, bound, frees_map);
+        //     }
+        // },
         RevealExpr::UnaryOp(_, reveal_expr, _) => {
             free_vars_rec(reveal_expr, bound, frees_map);
         },
@@ -1021,11 +1033,16 @@ mod tests {
                 elems.iter().for_each(|elem| collect_free_var_indices(elem, out));
             },
             ClosureExpr::TupleProj(inner, _, _) => collect_free_var_indices(inner, out),
-            ClosureExpr::PrimIO(_, expr, _) => {
-                if let Some(expr) = expr {
-                    collect_free_var_indices(expr, out);
-                }
+            ClosureExpr::PrimInput(_, _) => {},
+            ClosureExpr::PrimOutput(_, expr, _) => {
+                collect_free_var_indices(expr, out);
             },
+
+            // ClosureExpr::PrimIO(_, expr, _) => {
+            //     if let Some(expr) = expr {
+            //         collect_free_var_indices(expr, out);
+            //     }
+            // },
             ClosureExpr::UnaryOp(_, inner, _) => collect_free_var_indices(inner, out),
             ClosureExpr::If(cond, thn, els, _) => {
                 collect_free_var_indices(cond, out);
@@ -1056,11 +1073,15 @@ mod tests {
                 elems.iter().for_each(|elem| collect_closures(elem, out));
             },
             ClosureExpr::TupleProj(inner, _, _) => collect_closures(inner, out),
-            ClosureExpr::PrimIO(_, expr, _) => {
-                if let Some(expr) = expr {
-                    collect_closures(expr, out);
-                }
+            ClosureExpr::PrimInput(_, _) => {},
+            ClosureExpr::PrimOutput(_, expr, _) => {
+                collect_closures(expr, out);
             },
+            // ClosureExpr::PrimIO(_, expr, _) => {
+            //     if let Some(expr) = expr {
+            //         collect_closures(expr, out);
+            //     }
+            // },
             ClosureExpr::UnaryOp(_, inner, _) => collect_closures(inner, out),
             ClosureExpr::If(cond, thn, els, _) => {
                 collect_closures(cond, out);
@@ -1075,7 +1096,11 @@ mod tests {
                 collect_closures(func, out);
                 args.iter().for_each(|arg| collect_closures(arg, out));
             },
-            _ => {},
+            ClosureExpr::Unit => {},
+            ClosureExpr::Bool(_) => {},
+            ClosureExpr::Int(_) => {},
+            ClosureExpr::Float(_) => {},
+            ClosureExpr::Var(_, _) => {},
         }
     }
 }

@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use crate::syntax::BinOp;
 use crate::syntax::HasType;
 use crate::syntax::Ident;
-use crate::syntax::PrimIO;
+use crate::syntax::PrimInput;
+use crate::syntax::PrimOutput;
 use crate::syntax::Type;
 use crate::syntax::UnaryOp;
 use crate::typechecker::TypedDef;
@@ -23,7 +24,8 @@ pub enum RevealExpr {
     BinOp(BinOp, Box<RevealExpr>, Box<RevealExpr>, Type),
     Tuple(Vec<RevealExpr>, Type),
     TupleProj(Box<RevealExpr>, usize, Type),
-    PrimIO(PrimIO, Option<Box<RevealExpr>>, Type),
+    PrimInput(PrimInput, Type),
+    PrimOutput(PrimOutput, Box<RevealExpr>, Type),
     UnaryOp(UnaryOp, Box<RevealExpr>, Type),
     If(Box<RevealExpr>, Box<RevealExpr>, Box<RevealExpr>, Type),
     Let(Ident, Type, Box<RevealExpr>, Box<RevealExpr>, Type),
@@ -41,11 +43,12 @@ impl HasType for RevealExpr {
             RevealExpr::Float(_) => Type::Float,
             RevealExpr::Var(_, ty) => ty.clone(),
             RevealExpr::FunRef(_, _, ty) => ty.clone(),
-            RevealExpr::BinOp(_, _, _, ty) => ty.clone(),
             RevealExpr::Tuple(_, ty) => ty.clone(),
             RevealExpr::TupleProj(_, _, ty) => ty.clone(),
-            RevealExpr::PrimIO(_, _, ty) => ty.clone(),
+            RevealExpr::PrimInput(_, ty) => ty.clone(),
+            RevealExpr::PrimOutput(_, _, ty) => ty.clone(),
             RevealExpr::UnaryOp(_, _, ty) => ty.clone(),
+            RevealExpr::BinOp(_, _, _, ty) => ty.clone(),
             RevealExpr::If(_, _, _, ty) => ty.clone(),
             RevealExpr::Let(_, _, _, _, ty) => ty.clone(),
             RevealExpr::LetRec(_, _, _, _, _, ty) => ty.clone(),
@@ -112,8 +115,12 @@ pub fn r_bin_op(op: BinOp, left: RevealExpr, right: RevealExpr, ty: Type) -> Rev
     RevealExpr::BinOp(op, Box::new(left), Box::new(right), ty)
 }
 
-pub fn r_prim_io(prim: PrimIO, expr: Option<RevealExpr>, ty: Type) -> RevealExpr {
-    RevealExpr::PrimIO(prim, expr.map(Box::new), ty)
+pub fn r_prim_output(prim: PrimOutput, expr: RevealExpr, ty: Type) -> RevealExpr {
+    RevealExpr::PrimOutput(prim, Box::new(expr), ty)
+}
+
+pub fn r_prim_input(prim: PrimInput, ty: Type) -> RevealExpr {
+    RevealExpr::PrimInput(prim, ty)
 }
 
 pub fn r_unary(op: UnaryOp, expr: RevealExpr, ty: Type) -> RevealExpr {
@@ -179,9 +186,10 @@ pub fn reveal_expr(typed_expr: TypedExpr, fnames: &mut Fnames) -> RevealExpr {
             let tuple = reveal_expr(*tuple, fnames);
             r_tuple_projection(tuple, idx, ty)
         },
-        TypedExpr::PrimIO(prim, expr, ty) => {
-            let expr = expr.map(|e| reveal_expr(*e, fnames));
-            r_prim_io(prim, expr, ty)
+        TypedExpr::PrimInput(prim, ty) => r_prim_input(prim, ty),
+        TypedExpr::PrimOutput(prim, typed_expr, ty) => {
+            let expr = reveal_expr(*typed_expr, fnames);
+            r_prim_output(prim, expr, ty)
         },
         TypedExpr::UnaryOp(op, operand, ty) => {
             let operand = reveal_expr(*operand, fnames);

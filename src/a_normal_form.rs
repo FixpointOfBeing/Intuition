@@ -1,7 +1,7 @@
 use crate::expose_allocation::{AllocDef, AllocExpr, AllocProgram, GlobalValue};
 use crate::gensym::Gensym;
 use crate::syntax::{
-    BinOp, HasType, Ident, PrimIO, Type, UnaryOp, ty_bool, ty_float, ty_int, ty_unit,
+    BinOp, HasType, Ident, PrimInput, PrimOutput, Type, UnaryOp, ty_bool, ty_float, ty_int, ty_unit,
 };
 
 /*
@@ -43,13 +43,15 @@ pub enum CompExpr {
         usize, // arity
         Type,
     ),
-    PrimIO(PrimIO, Option<AExpr>, Type),
+    // PrimIO(PrimIO, Option<AExpr>, Type),
+    PrimInput(PrimInput, Type),
+    PrimOutput(PrimOutput, AExpr, Type),
     App(AExpr, Vec<AExpr>, Type),
     If(AExpr, Box<AnfExpr>, Box<AnfExpr>, Type), // if <cond>
-                                                 // then let <name> = if <cond> 
-                                                 //                   then let <name> = <rhs> in <body>
-                                                 //                   else <expr>
-                                                 // else <expr>
+    // then let <name> = if <cond>
+    //                   then let <name> = <rhs> in <body>
+    //                   else <expr>
+    // else <expr>
     Collect(usize),
     TupleSet(AExpr, AExpr, usize),
     // Seq(Vec<CompExpr>, Box<AExpr>, Type),
@@ -63,15 +65,15 @@ impl HasType for CompExpr {
             CompExpr::Atom(_, ty) => ty.clone(),
             CompExpr::BinOp(_, _, _, ty) => ty.clone(),
             CompExpr::UnaryOp(_, _, ty) => ty.clone(),
+            CompExpr::PrimInput(_, ty) => ty.clone(),
+            CompExpr::PrimOutput(_, _, ty) => ty.clone(),
             CompExpr::TupleProj(_, _, ty) => ty.clone(),
             CompExpr::Allocate(_, ty) => ty.clone(),
             CompExpr::AllocateClosure(_, _, ty) => ty.clone(),
-            CompExpr::PrimIO(_, _, ty) => ty.clone(),
             CompExpr::App(_, _, ty) => ty.clone(),
             CompExpr::If(_, _, _, ty) => ty.clone(),
             CompExpr::Collect(_) => Type::Unit,
             CompExpr::TupleSet(_, _, _) => Type::Int,
-            // CompExpr::Seq(_, _, ty) => ty.clone(),
             CompExpr::GlobalValue(gv) => gv.type_of(),
             CompExpr::FunRef(_, _, ty) => ty.clone(),
         }
@@ -158,8 +160,12 @@ pub fn c_allocate_closure(bytes: usize, arity: usize, ty: Type) -> CompExpr {
     CompExpr::AllocateClosure(bytes, arity, ty)
 }
 
-pub fn c_prim_io(prim: PrimIO, expr: Option<AExpr>, ty: Type) -> CompExpr {
-    CompExpr::PrimIO(prim, expr, ty)
+pub fn c_prim_input(prim: PrimInput, ty: Type) -> CompExpr {
+    CompExpr::PrimInput(prim, ty)
+}
+
+pub fn c_prim_output(prim: PrimOutput, expr: AExpr, ty: Type) -> CompExpr {
+    CompExpr::PrimOutput(prim, expr, ty)
 }
 
 pub fn c_app(func: AExpr, args: Vec<AExpr>, ty: Type) -> CompExpr {
@@ -244,16 +250,21 @@ fn to_complex(expr: AllocExpr, gs: &mut Gensym, bindings: &mut Bindings) -> Comp
             let atom = to_atom(*expr, gs, bindings);
             c_tuple_proj(atom, idx, ty)
         },
-        AllocExpr::PrimIO(prim_io, alloc_expr, ty) => {
-            let a_expr = match alloc_expr {
-                Some(e) => {
-                    let atom = to_atom(*e, gs, bindings);
-                    Some(atom)
-                },
-                None => None,
-            };
-            c_prim_io(prim_io, a_expr, ty)
+        AllocExpr::PrimInput(prim, ty) => c_prim_input(prim, ty),
+        AllocExpr::PrimOutput(prim, alloc_expr, ty) => {
+            let atom = to_atom(*alloc_expr, gs, bindings);
+            c_prim_output(prim, atom, ty)
         },
+        // AllocExpr::PrimIO(prim_io, alloc_expr, ty) => {
+        //     let a_expr = match alloc_expr {
+        //         Some(e) => {
+        //             let atom = to_atom(*e, gs, bindings);
+        //             Some(atom)
+        //         },
+        //         None => None,
+        //     };
+        //     c_prim_io(prim_io, a_expr, ty)
+        // },
         AllocExpr::BinOp(op, left, right, ty) => {
             let left_atom = to_atom(*left, gs, bindings);
             let right_atom = to_atom(*right, gs, bindings);
@@ -293,15 +304,6 @@ fn to_complex(expr: AllocExpr, gs: &mut Gensym, bindings: &mut Bindings) -> Comp
             let elem_atom = to_atom(*elem, gs, bindings);
             c_tuple_set(tuple_atom, elem_atom, idx)
         },
-        // AllocExpr::Seq(exprs, last, ty) => {
-        //     let mut c_exprs = Vec::with_capacity(exprs.len());
-        //     for expr in exprs {
-        //         let c_expr = to_complex(expr, gs, bindings);
-        //         c_exprs.push(c_expr);
-        //     }
-        //     let last_atom = to_atom(*last, gs, bindings);
-        //     c_seq(c_exprs, last_atom, ty)
-        // },
     }
 }
 
@@ -352,13 +354,13 @@ mod tests {
 
     use crate::expose_allocation::{
         AllocDef, AllocExpr, AllocProgram, GlobalValue, alloc_app, alloc_bin_op, alloc_bool,
-        alloc_float, alloc_fun_ref, alloc_if_else, alloc_int, alloc_let, alloc_prim_io, 
-        alloc_tuple_proj, alloc_tuple_set, alloc_unary, alloc_unit, alloc_var, allocate,
-        allocate_closure, collect, global_freeptr, global_fromspace_end, global_value,
+        alloc_float, alloc_fun_ref, alloc_if_else, alloc_int, alloc_let, alloc_prim_input,
+        alloc_prim_output, alloc_tuple_proj, alloc_tuple_set, alloc_unary, alloc_unit, alloc_var,
+        allocate, allocate_closure, collect, global_freeptr, global_fromspace_end, global_value,
     };
     use crate::gensym::Gensym;
     use crate::syntax::{
-        BinOp, HasType, PrimIO, Type, UnaryOp, ty_arrow, ty_bool, ty_int, ty_unit,
+        BinOp, HasType, PrimInput, PrimOutput, Type, UnaryOp, ty_arrow, ty_bool, ty_int, ty_unit,
     };
 
     fn run(expr: AllocExpr) -> AnfExpr {
@@ -745,11 +747,11 @@ mod tests {
         let e = alloc_let(
             "x",
             ty_int(),
-            alloc_prim_io(PrimIO::ReadInt, None, ty_int()),
+            alloc_prim_input(PrimInput::ReadInt, ty_int()),
             alloc_let(
                 "y",
                 ty_int(),
-                alloc_prim_io(PrimIO::ReadInt, None, ty_int()),
+                alloc_prim_input(PrimInput::ReadInt, ty_int()),
                 alloc_if_else(
                     alloc_bin_op(
                         BinOp::Lt,
@@ -790,10 +792,10 @@ mod tests {
             run(e),
             anf_let(
                 "x",
-                c_prim_io(PrimIO::ReadInt, None, ty_int()),
+                c_prim_input(PrimInput::ReadInt, ty_int()),
                 anf_let(
                     "y",
-                    c_prim_io(PrimIO::ReadInt, None, ty_int()),
+                    c_prim_input(PrimInput::ReadInt, ty_int()),
                     anf_let(
                         "$0",
                         c_bin_op(BinOp::Lt, a_var("x", ty_int()), a_var("y", ty_int()), ty_bool(),),
@@ -865,11 +867,11 @@ mod tests {
         let e = alloc_let(
             "x",
             ty_int(),
-            alloc_prim_io(PrimIO::ReadInt, None, ty_int()),
+            alloc_prim_input(PrimInput::ReadInt, ty_int()),
             alloc_let(
                 "y",
                 ty_int(),
-                alloc_prim_io(PrimIO::ReadInt, None, ty_int()),
+                alloc_prim_input(PrimInput::ReadInt, ty_int()),
                 alloc_if_else(
                     alloc_bin_op(
                         BinOp::Eq,
@@ -925,10 +927,10 @@ mod tests {
             run(e),
             anf_let(
                 "x",
-                c_prim_io(PrimIO::ReadInt, None, ty_int()),
+                c_prim_input(PrimInput::ReadInt, ty_int()),
                 anf_let(
                     "y",
-                    c_prim_io(PrimIO::ReadInt, None, ty_int()),
+                    c_prim_input(PrimInput::ReadInt, ty_int()),
                     anf_let(
                         "$0",
                         c_bin_op(BinOp::Eq, a_var("x", ty_int()), a_var("y", ty_int()), ty_bool(),),
@@ -1008,9 +1010,9 @@ mod tests {
         // --->
         // let $0 = 1 + 2 in
         // print_int $0
-        let e = alloc_prim_io(
-            PrimIO::PrintInt,
-            Some(alloc_bin_op(BinOp::Add, alloc_int(1), alloc_int(2), ty_int())),
+        let e = alloc_prim_output(
+            PrimOutput::PrintInt,
+            alloc_bin_op(BinOp::Add, alloc_int(1), alloc_int(2), ty_int()),
             ty_unit(),
         );
 
@@ -1019,7 +1021,7 @@ mod tests {
             anf_let(
                 "$0",
                 c_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
-                complex(c_prim_io(PrimIO::PrintInt, Some(a_var("$0", ty_int())), ty_unit(),)),
+                complex(c_prim_output(PrimOutput::PrintInt, a_var("$0", ty_int()), ty_unit(),)),
                 ty_unit(),
             )
         );
@@ -1030,8 +1032,8 @@ mod tests {
         // read_int ()
         // --->
         // read_int ()
-        let e = alloc_prim_io(PrimIO::ReadInt, None, ty_int());
-        assert_eq!(run(e), complex(c_prim_io(PrimIO::ReadInt, None, ty_int())));
+        let e = alloc_prim_input(PrimInput::ReadInt, ty_int());
+        assert_eq!(run(e), complex(c_prim_input(PrimInput::ReadInt, ty_int())));
     }
 
     #[test]

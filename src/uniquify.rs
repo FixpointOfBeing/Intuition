@@ -34,7 +34,6 @@ pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: TypedExpr) -> TypedE
             let new_name = env.get(&name).expect(&format!("unbound variable: {}", name));
             TypedExpr::Var(new_name.to_string(), ty)
         },
-        // TypedExpr::FunRef(name, arity, ty) => todo!(),
         TypedExpr::Tuple(typed_exprs, ty) => {
             let typed_exprs = typed_exprs
                 .into_iter()
@@ -46,13 +45,18 @@ pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: TypedExpr) -> TypedE
             let expr = rename(gensym, env, *expr);
             TypedExpr::TupleProj(Box::new(expr), index, ty)
         },
-        TypedExpr::PrimIO(prim_io, typed_expr, ty) => match typed_expr {
-            Some(typed_expr) => {
-                let renamed = rename(gensym, env, *typed_expr);
-                TypedExpr::PrimIO(prim_io, Some(Box::new(renamed)), ty)
-            },
-            None => TypedExpr::PrimIO(prim_io, None, ty),
+        TypedExpr::PrimInput(prim, ty) => TypedExpr::PrimInput(prim, ty),
+        TypedExpr::PrimOutput(prim, typed_expr, ty) => {
+            let renamed = rename(gensym, env, *typed_expr);
+            TypedExpr::PrimOutput(prim, Box::new(renamed), ty)
         },
+        // TypedExpr::PrimIO(prim_io, typed_expr, ty) => match typed_expr {
+        //     Some(typed_expr) => {
+        //         let renamed = rename(gensym, env, *typed_expr);
+        //         TypedExpr::PrimIO(prim_io, Some(Box::new(renamed)), ty)
+        //     },
+        //     None => TypedExpr::PrimIO(prim_io, None, ty),
+        // },
         TypedExpr::BinOp(op, left, right, ty) => {
             let left = rename(gensym, &mut env.clone(), *left);
             let right = rename(gensym, env, *right);
@@ -62,10 +66,6 @@ pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: TypedExpr) -> TypedE
             let expr = rename(gensym, env, *expr);
             TypedExpr::UnaryOp(op, Box::new(expr), ty)
         },
-        // TypedExpr::Ann(expr, ty) => {
-        //     let expr = rename(gensym, env, *expr);
-        //     TypedExpr::Ann(Box::new(expr), ty)
-        // },
         TypedExpr::If(cond, thn, els, ty) => {
             let cond = rename(gensym, &mut env.clone(), *cond);
             let thn = rename(gensym, &mut env.clone(), *thn);
@@ -179,10 +179,10 @@ pub fn uniquify_program(prog: TypedProgram) -> TypedProgram {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::syntax::{BinOp, PrimIO, Type, UnaryOp};
+    use crate::syntax::{BinOp, PrimInput, PrimOutput, Type, UnaryOp};
     use crate::typechecker::{
-         t_app, t_bin_op, t_bool, t_float, t_if, t_int, t_lambda, t_let, t_let_rec,
-        t_prim_io, t_tuple, t_unary, t_unit, t_var,
+        t_app, t_bin_op, t_bool, t_float, t_if, t_int, t_lambda, t_let, t_let_rec, t_prim_input,
+        t_prim_output, t_tuple, t_unary, t_unit, t_var,
     };
 
     fn expect_let(expr: &TypedExpr) -> (&Ident, &TypedExpr, &TypedExpr) {
@@ -502,8 +502,7 @@ mod tests {
 
     #[test]
     fn ann_inner_expr_is_actually_renamed() {
-        let expr =
-            t_let("x", Type::Int, t_int(1), t_var("x", Type::Int) , Type::Int);
+        let expr = t_let("x", Type::Int, t_int(1), t_var("x", Type::Int), Type::Int);
         let renamed = uniquify_expr(expr);
         let (x_name, _, body) = expect_let(&renamed);
         match body {
@@ -523,14 +522,11 @@ mod tests {
         );
         let renamed = uniquify_expr(expr);
         match renamed {
-            TypedExpr::Lambda(params, body, _) => {
-                match *body {
-                    TypedExpr::Var(name, _) => {
-                        assert_eq!(name, params[0].0);
-                    },
-                    other => panic!("expected Var, got {:?}", other),
-                }
-                
+            TypedExpr::Lambda(params, body, _) => match *body {
+                TypedExpr::Var(name, _) => {
+                    assert_eq!(name, params[0].0);
+                },
+                other => panic!("expected Var, got {:?}", other),
             },
 
             other => panic!("expected Lambda, got {:?}", other),
@@ -647,13 +643,13 @@ mod tests {
             "x",
             Type::Int,
             t_int(1),
-            t_prim_io(PrimIO::PrintInt, Some(t_var("x", Type::Int)), Type::Unit),
+            t_prim_output(PrimOutput::PrintInt, t_var("x", Type::Int), Type::Unit),
             Type::Unit,
         );
         let renamed = uniquify_expr(expr);
         let (x_name, _, body) = expect_let(&renamed);
         match body {
-            TypedExpr::PrimIO(PrimIO::PrintInt, Some(inner), _) => {
+            TypedExpr::PrimOutput(PrimOutput::PrintInt, inner, _) => {
                 assert_eq!(expect_var(inner), x_name);
             },
             other => panic!("expected PrimIO, got {:?}", other),
@@ -662,7 +658,7 @@ mod tests {
 
     #[test]
     fn prim_io_read_none_unchanged() {
-        let expr = t_prim_io(PrimIO::ReadInt, None, Type::Unit);
+        let expr = t_prim_input(PrimInput::ReadInt, Type::Unit);
         assert_eq!(uniquify_expr(expr.clone()), expr);
     }
 

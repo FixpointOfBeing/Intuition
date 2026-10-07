@@ -1,7 +1,8 @@
 use crate::closure_conversion::{ClosureDef, ClosureExpr, ClosureProgram, convert_fun_ptr_type};
 use crate::gensym::Gensym;
 use crate::syntax::Ident;
-use crate::syntax::PrimIO;
+use crate::syntax::PrimInput;
+use crate::syntax::PrimOutput;
 use crate::syntax::Type;
 use crate::syntax::UnaryOp;
 use crate::syntax::{BinOp, ty_bool, ty_float, ty_int, ty_unit};
@@ -38,7 +39,9 @@ pub enum AllocExpr {
     //     Box<AllocExpr>, // last expression
     //     Type,           // last expression's type
     // ),
-    PrimIO(PrimIO, Option<Box<AllocExpr>>, Type),
+    // PrimIO(PrimIO, Option<Box<AllocExpr>>, Type),
+    PrimInput(PrimInput, Type),
+    PrimOutput(PrimOutput, Box<AllocExpr>, Type),
     UnaryOp(UnaryOp, Box<AllocExpr>, Type),
     If(Box<AllocExpr>, Box<AllocExpr>, Box<AllocExpr>, Type),
     Let(Ident, Type, Box<AllocExpr>, Box<AllocExpr>, Type),
@@ -54,6 +57,10 @@ impl HasType for AllocExpr {
             AllocExpr::Float(_) => ty_float(),
             AllocExpr::Var(_, ty) => (*ty).clone(),
             AllocExpr::BinOp(_, _, _, ty) => (*ty).clone(),
+            AllocExpr::UnaryOp(_, _, ty) => (*ty).clone(),
+            AllocExpr::PrimInput(_, ty) => (*ty).clone(),
+            AllocExpr::PrimOutput(_, _, ty) => (*ty).clone(),
+            // AllocExpr::PrimIO(_, _, ty) => (*ty).clone(),
             AllocExpr::Collect(_) => ty_unit(),
             AllocExpr::Allocate(_, ty) => (*ty).clone(),
             AllocExpr::AllocateClosure(_, _, ty) => (*ty).clone(),
@@ -61,9 +68,7 @@ impl HasType for AllocExpr {
             AllocExpr::GlobalValue(gv) => gv.type_of(),
             AllocExpr::TupleProj(_, _, ty) => (*ty).clone(),
             AllocExpr::TupleSet(_, _, _) => ty_int(),
-            // AllocExpr::Seq(_, _, ty) => (*ty).clone(),
-            AllocExpr::PrimIO(_, _, ty) => (*ty).clone(),
-            AllocExpr::UnaryOp(_, _, ty) => (*ty).clone(),
+
             AllocExpr::If(_, _, _, ty) => (*ty).clone(),
             AllocExpr::Let(_, _, _, _, ty) => (*ty).clone(),
             AllocExpr::App(_, _, ty) => (*ty).clone(),
@@ -171,8 +176,12 @@ pub fn alloc_tuple_proj(tuple: AllocExpr, idx: usize, ty: Type) -> AllocExpr {
 //     AllocExpr::Seq(exprs, Box::new(last), ty)
 // }
 
-pub fn alloc_prim_io(prim: PrimIO, expr: Option<AllocExpr>, ty: Type) -> AllocExpr {
-    AllocExpr::PrimIO(prim, expr.map(Box::new), ty)
+pub fn alloc_prim_input(prim: PrimInput, ty: Type) -> AllocExpr {
+    AllocExpr::PrimInput(prim, ty)
+}
+
+pub fn alloc_prim_output(prim: PrimOutput, expr: AllocExpr, ty: Type) -> AllocExpr {
+    AllocExpr::PrimOutput(prim, Box::new(expr), ty)
 }
 
 pub fn alloc_unary(op: UnaryOp, expr: AllocExpr, ty: Type) -> AllocExpr {
@@ -396,10 +405,17 @@ pub fn expose_allocation(clos_expr: ClosureExpr, gs: &mut Gensym) -> AllocExpr {
             let alloc_expr = expose_allocation(*expr, gs);
             alloc_tuple_proj(alloc_expr, idx, clos_ty.to_type())
         },
-        ClosureExpr::PrimIO(prim_io, expr, clos_ty) => {
-            let expr = expr.map(|e| expose_allocation(*e, gs));
-            alloc_prim_io(prim_io, expr, clos_ty.to_type())
-        },
+        ClosureExpr::PrimInput(prim, clos_ty) => {
+            alloc_prim_input(prim, clos_ty.to_type())
+        }
+        ClosureExpr::PrimOutput(prim, clos_expr, clos_ty) => {
+            let expr = expose_allocation(*clos_expr, gs);
+            alloc_prim_output(prim, expr, clos_ty.to_type())
+        }
+        // ClosureExpr::PrimIO(prim_io, expr, clos_ty) => {
+        //     let expr = expr.map(|e| expose_allocation(*e, gs));
+        //     alloc_prim_io(prim_io, expr, clos_ty.to_type())
+        // },
         ClosureExpr::UnaryOp(unary_op, expr, clos_ty) => {
             let alloc_expr = expose_allocation(*expr, gs);
             alloc_unary(unary_op, alloc_expr, clos_ty.to_type())
@@ -459,7 +475,7 @@ mod tests {
     use crate::closure_conversion::{
         Closure, ClosureDef, ClosureProgram, ClosureType, convert_fun_ptr_type,
     };
-    use crate::syntax::{BinOp, PrimIO, Type, UnaryOp, ty_arrow, ty_int};
+    use crate::syntax::{BinOp, PrimOutput, PrimInput, Type, UnaryOp, ty_arrow, ty_int};
 
     fn run(expr: ClosureExpr) -> AllocExpr {
         expose_allocation(expr, &mut Gensym::new())
@@ -946,12 +962,12 @@ mod tests {
         );
 
         assert_eq!(
-            run(ClosureExpr::PrimIO(
-                PrimIO::PrintInt,
-                Some(Box::new(ClosureExpr::Int(7))),
+            run(ClosureExpr::PrimOutput(
+                PrimOutput::PrintInt,
+                Box::new(ClosureExpr::Int(7)),
                 ClosureType::Unit,
             )),
-            AllocExpr::PrimIO(PrimIO::PrintInt, Some(Box::new(AllocExpr::Int(7))), Type::Unit)
+            AllocExpr::PrimOutput(PrimOutput::PrintInt, Box::new(AllocExpr::Int(7)), Type::Unit)
         );
     }
 

@@ -26,14 +26,11 @@ pub fn eval(env: &mut Env, expr: &Expr) -> EvalResult {
         Expr::Bool(b) => Ok(Value::Bool(*b)),
         Expr::Int(n) => Ok(Value::Int(*n)),
         Expr::Float(f) => Ok(Value::Float(*f)),
-
         Expr::Var(name) => env
             .get(name)
             .cloned()
             .ok_or_else(|| EvalError(format!("unbound variable: {}", name))),
-
         Expr::Ann(e, _) => eval(env, e),
-
         Expr::Tuple(exprs) => {
             let vals = exprs
                 .into_iter()
@@ -41,7 +38,6 @@ pub fn eval(env: &mut Env, expr: &Expr) -> EvalResult {
                 .collect::<Result<Vec<Value>, _>>()?;
             Ok(Value::Tuple(vals))
         },
-
         Expr::TupleProj(expr, index) => {
             let val = eval(env, expr)?;
             match val {
@@ -52,74 +48,99 @@ pub fn eval(env: &mut Env, expr: &Expr) -> EvalResult {
                 other => err!("tuple projection on non-tuple: {}", other),
             }
         },
-
-        Expr::PrimIO(prim_io, None) => {
-            match prim_io {
-                PrimIO::ReadInt => {
-                    // 怎么确定语义和编译器的runtime相符？
-                    let mut input = String::new();
-                    io::stdin().read_line(&mut input).expect("failed to read line");
-                    let n: i64 = input.trim().parse().expect("input was not an integer");
-                    Ok(Value::Int(n))
-                },
-                PrimIO::ReadFloat => {
-                    // 怎么确定语义和编译器的runtime相符？
-                    let mut input = String::new();
-                    io::stdin().read_line(&mut input).expect("failed to read line");
-                    let f: f64 = input.trim().parse().expect("input was not an integer");
-                    Ok(Value::Float(f))
-                },
-                _ => unreachable!(),
-            }
+        Expr::PrimInput(prim) => match prim {
+            PrimInput::ReadInt => {
+                let mut input = String::new();
+                io::stdin().read_line(&mut input).expect("failed to read line");
+                let n: i64 = input.trim().parse().expect("input was not an integer");
+                Ok(Value::Int(n))
+            },
+            PrimInput::ReadFloat => {
+                let mut input = String::new();
+                io::stdin().read_line(&mut input).expect("failed to read line");
+                let f: f64 = input.trim().parse().expect("input was not an integer");
+                Ok(Value::Float(f))
+            },
         },
-        Expr::PrimIO(prim_io, Some(expr)) => {
-            match prim_io {
-                PrimIO::PrintInt => {
-                    let val = eval(env, expr)?;
-                    // 怎么确定语义和编译器的runtime相符？
-                    println!("{}", val);
-                    Ok(Value::Unit)
-                },
-                PrimIO::PrintFloat => {
-                    let val = eval(env, expr)?;
-                    // 怎么确定语义和编译器的runtime相符？
-                    println!("{}", val);
-                    Ok(Value::Unit)
-                },
-                PrimIO::PrintBool => {
-                    let val = eval(env, expr)?;
-                    // 怎么确定语义和编译器的runtime相符？
-                    println!("{}", val);
-                    Ok(Value::Unit)
-                },
-                _ => unreachable!(),
-            }
+        Expr::PrimOutput(prim, expr) => match prim {
+            PrimOutput::PrintInt => {
+                let val = eval(env, expr)?;
+                println!("{}", val);
+                Ok(Value::Unit)
+            },
+            PrimOutput::PrintFloat => {
+                let val = eval(env, expr)?;
+                println!("{}", val);
+                Ok(Value::Unit)
+            },
+            PrimOutput::PrintBool => {
+                let val = eval(env, expr)?;
+                println!("{}", val);
+                Ok(Value::Unit)
+            },
         },
-
+        // Expr::PrimIO(prim_io, None) => {
+        //     match prim_io {
+        //         PrimIO::ReadInt => {
+        //             // 怎么确定语义和编译器的runtime相符？
+        //             let mut input = String::new();
+        //             io::stdin().read_line(&mut input).expect("failed to read line");
+        //             let n: i64 = input.trim().parse().expect("input was not an integer");
+        //             Ok(Value::Int(n))
+        //         },
+        //         PrimIO::ReadFloat => {
+        //             // 怎么确定语义和编译器的runtime相符？
+        //             let mut input = String::new();
+        //             io::stdin().read_line(&mut input).expect("failed to read line");
+        //             let f: f64 = input.trim().parse().expect("input was not an integer");
+        //             Ok(Value::Float(f))
+        //         },
+        //         _ => unreachable!(),
+        //     }
+        // },
+        // Expr::PrimIO(prim_io, Some(expr)) => {
+        //     match prim_io {
+        //         PrimIO::PrintInt => {
+        //             let val = eval(env, expr)?;
+        //             // 怎么确定语义和编译器的runtime相符？
+        //             println!("{}", val);
+        //             Ok(Value::Unit)
+        //         },
+        //         PrimIO::PrintFloat => {
+        //             let val = eval(env, expr)?;
+        //             // 怎么确定语义和编译器的runtime相符？
+        //             println!("{}", val);
+        //             Ok(Value::Unit)
+        //         },
+        //         PrimIO::PrintBool => {
+        //             let val = eval(env, expr)?;
+        //             // 怎么确定语义和编译器的runtime相符？
+        //             println!("{}", val);
+        //             Ok(Value::Unit)
+        //         },
+        //         _ => unreachable!(),
+        //     }
+        // },
         Expr::UnaryOp(op, e) => {
             let v = eval(env, e)?;
             eval_unary(op, v)
         },
-
         Expr::BinOp(op, e1, e2) => {
             let v1 = eval(&mut env.clone(), e1)?;
 
             let v2 = eval(env, e2)?;
             eval_binop(op, v1, v2)
         },
-
         Expr::If(cond, thn, els) => match eval(&mut env.clone(), cond)? {
             Value::Bool(true) => eval(env, thn),
             Value::Bool(false) => eval(env, els),
             other => err!("condition must be Bool, got {}", other),
         },
-
         Expr::Let(name, _, rhs, body) => {
             let v = eval(&mut env.clone(), rhs)?;
             env.insert(name.to_string(), v);
             eval(env, body)
         },
-
         Expr::LetRec(fname, fparams, _, fbody, body) => {
             let params: Vec<Ident> = fparams.iter().map(|(id, _)| id.clone()).collect();
             let rec_val = Value::RecClosure {
@@ -131,12 +152,10 @@ pub fn eval(env: &mut Env, expr: &Expr) -> EvalResult {
             env.insert(fname.to_string(), rec_val);
             eval(env, body)
         },
-
         Expr::Lambda(params, _, body) => {
             let param_names: Vec<Ident> = params.iter().map(|(id, _)| id.clone()).collect();
             Ok(Value::Closure(env.clone(), param_names, (**body).clone()))
         },
-
         Expr::App(func, args) => {
             let fval = eval(&mut env.clone(), func)?;
             let mut argvs = vec![];

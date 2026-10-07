@@ -1,6 +1,9 @@
 // use llvm_ir::types::Typed;
 
-use crate::syntax::{BinOp, Def, Expr, HasType, Ident, PrimIO, Program, Type, UnaryOp};
+use crate::syntax::{
+    BinOp, Def, Expr, HasType, Ident, PrimInput, PrimOutput, Program, Type, UnaryOp, ty_arrow,
+    ty_bool, ty_float, ty_int, ty_unit,
+};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -18,7 +21,9 @@ pub enum TypedExpr {
     BinOp(BinOp, Box<TypedExpr>, Box<TypedExpr>, Type),
     Tuple(Vec<TypedExpr>, Type),
     TupleProj(Box<TypedExpr>, usize, Type),
-    PrimIO(PrimIO, Option<Box<TypedExpr>>, Type),
+    // PrimIO(PrimIO, Option<Box<TypedExpr>>, Type),
+    PrimInput(PrimInput, Type),
+    PrimOutput(PrimOutput, Box<TypedExpr>, Type),
     UnaryOp(UnaryOp, Box<TypedExpr>, Type),
     // Ann(Box<TypedExpr>, Type),
     If(Box<TypedExpr>, Box<TypedExpr>, Box<TypedExpr>, Type),
@@ -101,12 +106,12 @@ impl HasType for TypedExpr {
             TypedExpr::Int(_) => Type::Int,
             TypedExpr::Float(_) => Type::Float,
             TypedExpr::Var(_, ty) => ty.clone(),
-            // TypedExpr::FunRef(_, _, ty) => ty.clone(),
             TypedExpr::BinOp(_, _, _, ty) => ty.clone(),
             TypedExpr::UnaryOp(_, _, ty) => ty.clone(),
             TypedExpr::Tuple(_, ty) => ty.clone(),
             TypedExpr::TupleProj(_, _, ty) => ty.clone(),
-            TypedExpr::PrimIO(_, _, ty) => ty.clone(),
+            TypedExpr::PrimOutput(_, _, ty) => ty.clone(),
+            TypedExpr::PrimInput(_, ty) => ty.clone(),
             // TypedExpr::Ann(_, ty) => ty.clone(),
             TypedExpr::If(_, _, _, ty) => ty.clone(),
             TypedExpr::Let(_, _, _, _, ty) => ty.clone(),
@@ -153,8 +158,12 @@ pub fn t_bin_op(op: BinOp, left: TypedExpr, right: TypedExpr, ty: Type) -> Typed
     TypedExpr::BinOp(op, Box::new(left), Box::new(right), ty)
 }
 
-pub fn t_prim_io(prim: PrimIO, expr: Option<TypedExpr>, ty: Type) -> TypedExpr {
-    TypedExpr::PrimIO(prim, expr.map(Box::new), ty)
+pub fn t_prim_output(prim: PrimOutput, expr: TypedExpr, ty: Type) -> TypedExpr {
+    TypedExpr::PrimOutput(prim, Box::new(expr), ty)
+}
+
+pub fn t_prim_input(prim: PrimInput, ty: Type) -> TypedExpr {
+    TypedExpr::PrimInput(prim, ty)
 }
 
 pub fn t_unary(op: UnaryOp, expr: TypedExpr, ty: Type) -> TypedExpr {
@@ -329,36 +338,49 @@ fn infer(ctx: &mut Context, expr: Expr) -> Result<TypedExpr, TypeError> {
             }
         },
 
-        Expr::PrimIO(prim_io, Some(expr)) => match prim_io {
-            PrimIO::PrintInt => {
+        Expr::PrimInput(prim) => match &prim {
+            PrimInput::ReadInt => {
+                Ok(TypedExpr::PrimInput(prim, ty_int()))
+            },
+            PrimInput::ReadFloat => {
+                Ok(TypedExpr::PrimInput(prim, ty_float()))
+            },
+        },
+        Expr::PrimOutput(prim, expr) => match &prim {
+            PrimOutput::PrintInt => {
                 let typed_expr = infer(ctx, *expr)?;
                 let ty = typed_expr.type_of();
-                Ok(TypedExpr::PrimIO(PrimIO::PrintInt, Some(Box::new(typed_expr)), ty))
+                if ty != ty_int() {
+                    return Err(TypeError::Mismatch { expected: ty_int(), found: ty });
+                }
+                Ok(TypedExpr::PrimOutput(prim, Box::new(typed_expr), ty_unit()))
             },
-            PrimIO::PrintFloat => {
+            PrimOutput::PrintFloat => {
                 let typed_expr = infer(ctx, *expr)?;
                 let ty = typed_expr.type_of();
-                Ok(TypedExpr::PrimIO(PrimIO::PrintFloat, Some(Box::new(typed_expr)), ty))
+                if ty != ty_float() {
+                    return Err(TypeError::Mismatch { expected: ty_float(), found: ty });
+                }
+                Ok(TypedExpr::PrimOutput(
+                    prim,
+                    Box::new(typed_expr),
+                     ty_unit(),
+                ))
             },
-            PrimIO::PrintBool => {
+            PrimOutput::PrintBool => {
                 let typed_expr = infer(ctx, *expr)?;
                 let ty = typed_expr.type_of();
-                Ok(TypedExpr::PrimIO(PrimIO::PrintBool, Some(Box::new(typed_expr)), ty))
+                if ty != ty_bool() {
+                    return Err(TypeError::Mismatch { expected: ty_bool(), found: ty });
+                }
+                Ok(TypedExpr::PrimOutput(
+                    prim,
+                    Box::new(typed_expr),
+                    ty_unit(),
+                ))
             },
-            _ => unreachable!(),
         },
 
-        Expr::PrimIO(prim_io, None) => match prim_io {
-            PrimIO::ReadInt => {
-                let ty = Type::Unit;
-                Ok(TypedExpr::PrimIO(PrimIO::ReadInt, None, ty))
-            },
-            PrimIO::ReadFloat => {
-                let ty = Type::Unit;
-                Ok(TypedExpr::PrimIO(PrimIO::ReadFloat, None, ty))
-            },
-            _ => unreachable!(),
-        },
         Expr::UnaryOp(op, operand) => {
             let typed_operand = infer(ctx, *operand)?;
             let ty = typed_operand.type_of();
@@ -917,27 +939,27 @@ mod tests {
 
     #[test]
     fn test_print_int() {
-        assert_eq!(infer_type(print_int(int(42))), Ok(Type::Int));
+        assert_eq!(infer_type(print_int(int(42))), Ok(Type::Unit));
     }
 
     #[test]
     fn test_print_bool() {
-        assert_eq!(infer_type(print_bool(bool(true))), Ok(Type::Bool));
+        assert_eq!(infer_type(print_bool(bool(true))), Ok(Type::Unit));
     }
 
     #[test]
     fn test_print_float() {
-        assert_eq!(infer_type(print_float(float(3.14))), Ok(Type::Float));
+        assert_eq!(infer_type(print_float(float(3.14))), Ok(Type::Unit));
     }
 
     #[test]
     fn test_read_int() {
-        assert_eq!(infer_type(read_int()), Ok(Type::Unit));
+        assert_eq!(infer_type(read_int()), Ok(Type::Int));
     }
 
     #[test]
     fn test_read_float() {
-        assert_eq!(infer_type(read_float()), Ok(Type::Unit));
+        assert_eq!(infer_type(read_float()), Ok(Type::Float));
     }
 
     // ---- typecheck_def ----
