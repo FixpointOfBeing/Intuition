@@ -1,8 +1,8 @@
 // use llvm_ir::types::Typed;
 
 use crate::syntax::{
-    BinOp, Def, Expr, HasType, Ident, PrimInput, PrimOutput, Program, Type, UnaryOp, ty_arrow,
-    ty_bool, ty_float, ty_int, ty_unit,
+    BinOp, Def, Expr, HasType, Ident, PrimInput, PrimOutput, Program, Type, UnaryOp, ty_bool,
+    ty_float, ty_int, ty_unit,
 };
 use std::collections::HashMap;
 
@@ -82,20 +82,124 @@ pub struct TypedProgram {
 
 impl std::fmt::Display for TypedProgram {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        for def in &self.defs {
+            writeln!(f, "{}", def)?;
+        }
+        write!(f, "{}", self.main)
     }
 }
 
 impl std::fmt::Display for TypedDef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        match self {
+            TypedDef::ValDef(name, ann, expr) => {
+                if let Some(ty) = ann {
+                    write!(f, "let {}: {} = {};", name, ty, expr)
+                } else {
+                    write!(f, "let {} = {};", name, expr)
+                }
+            },
+            TypedDef::FunDef(name, params, ret_ty, body) => {
+                let params_str = params
+                    .iter()
+                    .map(|(param_name, param_ty)| format!("({}: {})", param_name, param_ty))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                write!(f, "let {} {} : {} = {};", name, params_str, ret_ty, body)
+            },
+        }
     }
 }
 
 impl std::fmt::Display for TypedExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        match self {
+            TypedExpr::Unit => {
+                write!(f, "()")
+            },
+            TypedExpr::Bool(b) => {
+                write!(f, "{}", b)
+            },
+            TypedExpr::Int(n) => {
+                write!(f, "{}", n)
+            },
+            TypedExpr::Float(fl) => {
+                write!(f, "{}", fl)
+            },
+            TypedExpr::Var(name, ty) => {
+                write!(f, "({}: {})", name, ty)
+            },
+            TypedExpr::BinOp(op, left, right, _) => {
+                write!(f, "({} {} {})", left, op, right)
+            },
+            TypedExpr::Tuple(elems, _) => {
+                let elems_str = elems
+                    .iter()
+                    .map(|elem| format!("{}", elem))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                write!(f, "({})", elems_str)
+            },
+            TypedExpr::TupleProj(expr, idx, _) => {
+                write!(f, "{}.{}", expr, idx)
+            },
+            TypedExpr::PrimInput(prim, _) => {
+                write!(f, "{} ()", prim)
+            },
+            TypedExpr::PrimOutput(prim, expr, _) => {
+                write!(f, "{} {}", prim, expr)
+            },
+            TypedExpr::UnaryOp(op, expr, _) => {
+                write!(f, "({}{})", op, expr)
+            },
+            TypedExpr::If(cond, thn, els, _) => {
+                write!(f, "if {} then {} else {}", cond, thn, els)
+            },
+            TypedExpr::Let(name, rhs_ty, rhs, body, _) => {
+                write!(f, "let {}: {} = {} in {}", name, rhs_ty, rhs, body)
+            },
+            TypedExpr::LetRec(fname, fparams, fret_ty, fbody, body, _) => {
+                let params_str = fparams
+                    .iter()
+                    .map(|(param_name, param_ty)| format!("({}: {})", param_name, param_ty))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                write!(f, "let rec {} {} : {} = {} in {}", fname, params_str, fret_ty, fbody, body)
+            },
+            TypedExpr::App(func, args, _) => {
+                let args_str = args
+                    .iter()
+                    .map(|arg| format!("{}", arg))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                write!(f, "({} {})", func, args_str)
+            },
+            TypedExpr::Lambda(params, body, ty) => {
+                let params_str = params
+                    .iter()
+                    .map(|(param_name, param_ty)| format!("({}: {})", param_name, param_ty))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let ret_ty = arrow_return_type(ty, params.len());
+                write!(f, "fun {} : {} => {}", params_str, ret_ty, body)
+            },
+        }
     }
+}
+
+/// Given an arrow type `A1 -> ... -> An -> R` and its arity `n`, return the return type `R`.
+///
+/// The typed AST stores the full arrow type on `TypedExpr::Lambda`, so this recovers the
+/// source-level return annotation for printing.
+fn arrow_return_type(ty: &Type, arity: usize) -> Type {
+    let mut curr = ty;
+    for _ in 0..arity {
+        match curr {
+            Type::Arrow(_, ret) => curr = ret,
+            _ => break,
+        }
+    }
+    curr.clone()
 }
 
 impl HasType for TypedExpr {
@@ -339,12 +443,8 @@ fn infer(ctx: &mut Context, expr: Expr) -> Result<TypedExpr, TypeError> {
         },
 
         Expr::PrimInput(prim) => match &prim {
-            PrimInput::ReadInt => {
-                Ok(TypedExpr::PrimInput(prim, ty_int()))
-            },
-            PrimInput::ReadFloat => {
-                Ok(TypedExpr::PrimInput(prim, ty_float()))
-            },
+            PrimInput::ReadInt => Ok(TypedExpr::PrimInput(prim, ty_int())),
+            PrimInput::ReadFloat => Ok(TypedExpr::PrimInput(prim, ty_float())),
         },
         Expr::PrimOutput(prim, expr) => match &prim {
             PrimOutput::PrintInt => {
@@ -361,11 +461,7 @@ fn infer(ctx: &mut Context, expr: Expr) -> Result<TypedExpr, TypeError> {
                 if ty != ty_float() {
                     return Err(TypeError::Mismatch { expected: ty_float(), found: ty });
                 }
-                Ok(TypedExpr::PrimOutput(
-                    prim,
-                    Box::new(typed_expr),
-                     ty_unit(),
-                ))
+                Ok(TypedExpr::PrimOutput(prim, Box::new(typed_expr), ty_unit()))
             },
             PrimOutput::PrintBool => {
                 let typed_expr = infer(ctx, *expr)?;
@@ -373,11 +469,7 @@ fn infer(ctx: &mut Context, expr: Expr) -> Result<TypedExpr, TypeError> {
                 if ty != ty_bool() {
                     return Err(TypeError::Mismatch { expected: ty_bool(), found: ty });
                 }
-                Ok(TypedExpr::PrimOutput(
-                    prim,
-                    Box::new(typed_expr),
-                    ty_unit(),
-                ))
+                Ok(TypedExpr::PrimOutput(prim, Box::new(typed_expr), ty_unit()))
             },
         },
 
@@ -1169,5 +1261,85 @@ mod tests {
         let (ty, typed_prog) = typecheck_program(prog).unwrap();
         assert_eq!(ty, Type::Int);
         assert_eq!(typed_prog.defs.len(), 3);
+    }
+
+    // ---- Display ----
+
+    #[test]
+    fn test_display_typed_expr_atoms() {
+        assert_eq!(t_unit().to_string(), "()");
+        assert_eq!(t_bool(true).to_string(), "true");
+        assert_eq!(t_int(42).to_string(), "42");
+        assert_eq!(t_float(3.14).to_string(), "3.14");
+        assert_eq!(t_var("x", ty_int()).to_string(), "(x: Int)");
+    }
+
+    #[test]
+    fn test_display_typed_expr_operators() {
+        assert_eq!(
+            t_bin_op(BinOp::Add, t_var("x", ty_int()), t_int(1), ty_int()).to_string(),
+            "((x: Int) + 1)"
+        );
+        assert_eq!(t_unary(UnaryOp::Neg, t_int(1), ty_int()).to_string(), "(-1)");
+        assert_eq!(
+            t_tuple(vec![t_int(1), t_bool(true)], Type::Tuple(vec![Type::Int, Type::Bool]))
+                .to_string(),
+            "(1, true)"
+        );
+        assert_eq!(
+            t_tuple_projection(t_tuple(vec![t_int(1)], Type::Tuple(vec![Type::Int])), 0, ty_int())
+                .to_string(),
+            "(1).0"
+        );
+    }
+
+    #[test]
+    fn test_display_typed_expr_bindings() {
+        let let_expr = t_let("x", ty_int(), t_int(1), t_var("x", ty_int()), ty_int());
+        assert_eq!(let_expr.to_string(), "let x: Int = 1 in (x: Int)");
+
+        let lambda = t_lambda(
+            vec![("x".to_string(), ty_int())],
+            t_var("x", ty_int()),
+            Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)),
+        );
+        assert_eq!(lambda.to_string(), "fun (x: Int) : Int => (x: Int)");
+
+        let let_rec = t_let_rec(
+            "f",
+            vec![("n".to_string(), ty_int())],
+            ty_int(),
+            t_int(0),
+            t_app(
+                t_var("f", Type::Arrow(Box::new(Type::Int), Box::new(Type::Int))),
+                vec![t_int(1)],
+                ty_int(),
+            ),
+            ty_int(),
+        );
+        assert_eq!(let_rec.to_string(), "let rec f (n: Int) : Int = 0 in ((f: Int -> Int) 1)");
+    }
+
+    #[test]
+    fn test_display_typed_def() {
+        let val = TypedDef::ValDef("x".to_string(), Some(ty_int()), t_int(1));
+        assert_eq!(val.to_string(), "let x: Int = 1;");
+
+        let fun = TypedDef::FunDef(
+            "add".to_string(),
+            vec![("a".to_string(), ty_int()), ("b".to_string(), ty_int())],
+            ty_int(),
+            t_bin_op(BinOp::Add, t_var("a", ty_int()), t_var("b", ty_int()), ty_int()),
+        );
+        assert_eq!(fun.to_string(), "let add (a: Int) (b: Int) : Int = ((a: Int) + (b: Int));");
+    }
+
+    #[test]
+    fn test_display_typed_program() {
+        let prog = TypedProgram {
+            defs: vec![TypedDef::ValDef("x".to_string(), Some(ty_int()), t_int(1))],
+            main: t_var("x", ty_int()),
+        };
+        assert_eq!(prog.to_string(), "let x: Int = 1;\n(x: Int)");
     }
 }

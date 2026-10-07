@@ -388,7 +388,6 @@ impl std::fmt::Display for Expr {
             Expr::PrimInput(prim_io, ) => match prim_io {
                 PrimInput::ReadInt => write!(f, "read_int ()"),
                 PrimInput::ReadFloat => write!(f, "read_float ()"),
-                _ => unreachable!(),
             },
             Expr::BinOp(op, left, right) => {
                 write!(f, "({} {} {})", left, op, right)
