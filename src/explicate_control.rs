@@ -1,7 +1,11 @@
 use crate::{
-    a_normal_form::{AExpr, AnfExpr, CompExpr},
+    a_normal_form::{AExpr, AnfDef, AnfExpr, AnfProgram, CompExpr},
     expose_allocation::GlobalValue,
-    syntax::{BinOp, HasType, Ident, PrimInput, PrimOutput, Type, UnaryOp, ty_unit},
+    gensym::Gensym,
+    syntax::{
+        BinOp, HasType, Ident, PrimInput, PrimOutput, Type, UnaryOp, ty_bool, ty_float, ty_int,
+        ty_unit,
+    },
 };
 
 /*
@@ -16,9 +20,27 @@ pub enum CAtom {
     Var(Ident, Type),
 }
 
+impl std::fmt::Display for CAtom {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CAtom::Unit => write!(f, "()"),
+            CAtom::Bool(b) => write!(f, "{}", b),
+            CAtom::Int(n) => write!(f, "{}", n),
+            CAtom::Float(fl) => write!(f, "{}", fl),
+            CAtom::Var(name, _) => write!(f, "{}", name),
+        }
+    }
+}
+
 impl HasType for CAtom {
     fn type_of(&self) -> Type {
-        todo!()
+        match self {
+            CAtom::Unit => ty_unit(),
+            CAtom::Bool(_) => ty_bool(),
+            CAtom::Int(_) => ty_int(),
+            CAtom::Float(_) => ty_float(),
+            CAtom::Var(_, ty) => ty.clone(),
+        }
     }
 }
 
@@ -36,9 +58,46 @@ pub enum CExpr {
     GlobalValue(GlobalValue),
 }
 
+impl std::fmt::Display for CExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CExpr::Atom(atom, _) => write!(f, "{}", atom),
+            CExpr::BinOp(op, left, right, _) => write!(f, "({} {} {})", left, op, right),
+            CExpr::UnaryOp(op, atom, _) => write!(f, "({}{})", op, atom),
+            CExpr::PrimInput(prim, _) => write!(f, "{} ()", prim),
+            CExpr::TupleProj(atom, index, _) => write!(f, "{}.{}", atom, index),
+            CExpr::Allocate(bytes, ty) => write!(f, "allocate({}, {})", bytes, ty),
+            CExpr::AllocateClosure(bytes, arity, ty) => {
+                write!(f, "allocate_closure({}, {}, {})", bytes, arity, ty)
+            },
+            CExpr::Call(func, args, _) => {
+                let args_str = args
+                    .iter()
+                    .map(|arg| format!("{}", arg))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                write!(f, "({} {})", func, args_str)
+            },
+            CExpr::FunRef(name, arity, _) => write!(f, "fun_ref({}, {})", name, arity),
+            CExpr::GlobalValue(value) => write!(f, "{}", value),
+        }
+    }
+}
+
 impl HasType for CExpr {
     fn type_of(&self) -> Type {
-        todo!()
+        match self {
+            CExpr::Atom(_, ty) => ty.clone(),
+            CExpr::BinOp(_, _, _, ty) => ty.clone(),
+            CExpr::UnaryOp(_, _, ty) => ty.clone(),
+            CExpr::PrimInput(_, ty) => ty.clone(),
+            CExpr::TupleProj(_, _, ty) => ty.clone(),
+            CExpr::Allocate(_, ty) => ty.clone(),
+            CExpr::AllocateClosure(_, _, ty) => ty.clone(),
+            CExpr::Call(_, _, ty) => ty.clone(),
+            CExpr::FunRef(_, _, ty) => ty.clone(),
+            CExpr::GlobalValue(value) => value.type_of(),
+        }
     }
 }
 
@@ -47,19 +106,99 @@ pub enum CStmt {
     Assign(Ident, CExpr),
     TupleSet(CAtom, CAtom, usize),
     PrimOutput(PrimOutput, CAtom),
-    // PrimIO(PrimIO, Option<CAtom>),
     Collect(usize),
-    Effect(CExpr),
-    If(CAtom, Vec<CStmt>, Vec<CStmt>),
+    // Effect(CExpr),
+    // If(CAtom, Vec<CStmt>, Vec<CStmt>),
+}
+
+impl std::fmt::Display for CStmt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CStmt::Assign(name, expr) => writeln!(f, "{} = {};", name, expr),
+            CStmt::TupleSet(tuple, element, index) => {
+                write!(f, "{}[{}] = {};", tuple, index, element)
+            },
+            CStmt::PrimOutput(prim, atom) => write!(f, "{} {};", prim, atom),
+            CStmt::Collect(bytes) => write!(f, "collect({});", bytes),
+            // CStmt::Effect(expr) => write!(f, "{};", expr),
+            // CStmt::If(cond, thn, els) => {
+            //     let thn_str = thn.iter().map(|s| format!("{}", s)).collect::<Vec<_>>().join(" ");
+            //     let els_str = els.iter().map(|s| format!("{}", s)).collect::<Vec<_>>().join(" ");
+            //     write!(f, "if {} {{ {} }} else {{ {} }}", cond, thn_str, els_str)
+            // },
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CTail {
     Return(CExpr),
-    // Goto(Ident),
+    Goto(Ident),
+    Seq(Vec<CStmt>, Box<CTail>),
     TailCall(CAtom, Vec<CAtom>),
-    TailSeq(Vec<CStmt>, Box<CTail>),
     TailIf(CAtom, Box<CTail>, Box<CTail>),
+}
+
+impl std::fmt::Display for CTail {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CTail::Return(expr) => write!(f, "return {};", expr),
+            CTail::Goto(label) => write!(f, "goto {};", label),
+            CTail::Seq(stmts, tail) => {
+                for stmt in stmts {
+                    write!(f, "{} ", stmt)?;
+                }
+                write!(f, "{}", tail)
+            },
+            CTail::TailCall(func, args) => {
+                let args_str = args
+                    .iter()
+                    .map(|arg| format!("{}", arg))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                write!(f, "tailcall {} {}", func, args_str)
+            },
+            CTail::TailIf(cond, thn, els) => {
+                write!(f, "if {} {{\n {} }}\n else {{\n {} }}", cond, thn, els)
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Block {
+    pub label: Ident,
+    pub tail: CTail,
+}
+
+impl std::fmt::Display for Block {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:\n{}", self.label, self.tail)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CDef {
+    ValDef(
+        Ident,        // name
+        Option<Type>, // optional type annotation
+        CTail,        // expresion
+        Vec<Block>,   // blocks
+    ),
+    FunDef(
+        Ident,              // function name
+        Vec<(Ident, Type)>, // function arguments with their types
+        Type,               // function return type
+        CTail,              // function body
+        Vec<Block>,         // blocks
+    ),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CProgram {
+    pub defs: Vec<CDef>,
+    pub main: CTail,
+    pub main_blocks: Vec<Block>,
 }
 
 pub fn c_unit() -> CAtom {
@@ -138,88 +277,100 @@ pub fn c_collect(bytes: usize) -> CStmt {
     CStmt::Collect(bytes)
 }
 
-pub fn c_effect(expr: CExpr) -> CStmt {
-    CStmt::Effect(expr)
-}
+// pub fn c_effect(expr: CExpr) -> CStmt {
+//     CStmt::Effect(expr)
+// }
 
 pub fn c_return(expr: CExpr) -> CTail {
     CTail::Return(expr)
 }
 
-// pub fn c_goto(label: impl Into<Ident>) -> CTail {
-//     CTail::Goto(label.into())
-// }
+pub fn c_goto(label: Ident) -> CTail {
+    CTail::Goto(label)
+}
 
 pub fn c_tail_call(func: CAtom, args: Vec<CAtom>) -> CTail {
     CTail::TailCall(func, args)
 }
 
-pub fn c_tail_seq(stmts: Vec<CStmt>, tail: CTail) -> CTail {
-    CTail::TailSeq(stmts, Box::new(tail))
+pub fn c_seq(stmts: Vec<CStmt>, tail: CTail) -> CTail {
+    CTail::Seq(stmts, Box::new(tail))
 }
 
 pub fn c_tail_if(cond: CAtom, thn: CTail, els: CTail) -> CTail {
     CTail::TailIf(cond, Box::new(thn), Box::new(els))
 }
 
-pub fn explicate_assign_anf(name: String, anf: AnfExpr, cont: CTail) -> CTail {
+pub fn explicate_assign_anf(
+    name: String,
+    anf: AnfExpr,
+    cont: CTail,
+    gensym: &mut Gensym,
+    blocks: &mut Vec<Block>,
+) -> CTail {
     match anf {
-        AnfExpr::Complex(cexpr, _) => explicate_assign_complex(name, cexpr, cont),
+        AnfExpr::Complex(cexpr, _) => explicate_assign_complex(name, cexpr, cont, gensym, blocks),
         AnfExpr::Let(let_name, rhs, body, _) => {
-            let inner_cont = explicate_assign_anf(name, *body, cont);
-            explicate_assign_complex(let_name, rhs, inner_cont)
+            let inner_cont = explicate_assign_anf(name, *body, cont, gensym, blocks);
+            explicate_assign_complex(let_name, rhs, inner_cont, gensym, blocks)
         },
     }
 }
 
-pub fn explicate_assign_complex(name: String, cexpr: CompExpr, cont: CTail) -> CTail {
+pub fn explicate_assign_complex(
+    name: String,
+    cexpr: CompExpr,
+    cont: CTail,
+    gensym: &mut Gensym,
+    blocks: &mut Vec<Block>,
+) -> CTail {
     let dummy = "_".to_string();
     match cexpr {
         CompExpr::Atom(aexpr, ty) => {
             let catom = aexpr_to_catom(aexpr);
             let cexpr = c_atom(catom, ty);
             let stmt = c_assign(name, cexpr);
-            c_tail_seq(vec![stmt], cont)
+            c_seq(vec![stmt], cont)
         },
         CompExpr::BinOp(op, left, right, ty) => {
             let left_catom = aexpr_to_catom(left);
             let right_catom = aexpr_to_catom(right);
             let cexpr = c_bin_op(op, left_catom, right_catom, ty);
             let stmt = c_assign(name, cexpr);
-            c_tail_seq(vec![stmt], cont)
+            c_seq(vec![stmt], cont)
         },
         CompExpr::UnaryOp(op, aexpr, ty) => {
             let catom = aexpr_to_catom(aexpr);
             let cexpr = c_unary(op, catom, ty);
             let stmt = c_assign(name, cexpr);
-            c_tail_seq(vec![stmt], cont)
+            c_seq(vec![stmt], cont)
         },
         CompExpr::TupleProj(tuple, idx, ty) => {
             let catom = aexpr_to_catom(tuple);
             let cexpr = c_tuple_proj(catom, idx, ty);
             let stmt = c_assign(name, cexpr);
-            c_tail_seq(vec![stmt], cont)
+            c_seq(vec![stmt], cont)
         },
         CompExpr::Allocate(bytes, ty) => {
             let cexpr = c_allocate(bytes, ty);
             let stmt = c_assign(name, cexpr);
-            c_tail_seq(vec![stmt], cont)
+            c_seq(vec![stmt], cont)
         },
         CompExpr::AllocateClosure(bytes, arity, ty) => {
             let cexpr = c_allocate_closure(bytes, arity, ty);
             let stmt = c_assign(name, cexpr);
-            c_tail_seq(vec![stmt], cont)
+            c_seq(vec![stmt], cont)
         },
         CompExpr::PrimInput(prim, _) => {
             let cexpr = c_prim_input(prim);
             let stmt = c_assign(name, cexpr);
-            c_tail_seq(vec![stmt], cont)
+            c_seq(vec![stmt], cont)
         },
         CompExpr::PrimOutput(prim, aexpr, _) => {
             assert!(name == dummy);
             let catom = aexpr_to_catom(aexpr);
             let stmt = c_prim_output(prim, catom);
-            c_tail_seq(vec![stmt], cont)
+            c_seq(vec![stmt], cont)
         },
 
         CompExpr::App(func, args, ty) => {
@@ -227,38 +378,58 @@ pub fn explicate_assign_complex(name: String, cexpr: CompExpr, cont: CTail) -> C
             let args_catom = args.into_iter().map(aexpr_to_catom).collect();
             let cexpr = c_call(func_catom, args_catom, ty);
             let stmt = c_assign(name, cexpr);
-            c_tail_seq(vec![stmt], cont)
+            c_seq(vec![stmt], cont)
         },
         CompExpr::If(cond, thn, els, _) => {
+            // name = if <cond> then <thn> else <els>
+            // cont
+            let block = create_block(cont, gensym);
+            let cont_goto = c_goto(block.label.clone());
+            blocks.push(block);
+
+            let thn_cont =
+                explicate_assign_anf(name.clone(), *thn, cont_goto.clone(), gensym, blocks);
+            // let thn_block = create_block(thn_cont, gensym);
+            // let thn_goto = c_goto(thn_block.label.clone());
+            // blocks.push(thn_block);
+
+            let els_cont = explicate_assign_anf(name, *els, cont_goto, gensym, blocks);
+            // let els_block = create_block(els_cont, gensym);
+            // let els_goto = c_goto(els_block.label.clone());
+            // blocks.push(els_block);
+
             let cond_catom = aexpr_to_catom(cond);
-            // todo! cont会复制
-            let thn_cont = explicate_assign_anf(name.clone(), *thn, cont.clone());
-            let els_cont = explicate_assign_anf(name, *els, cont);
+
             c_tail_if(cond_catom, thn_cont, els_cont)
         },
         CompExpr::Collect(bytes) => {
             assert!(name == dummy);
             let stmt = c_collect(bytes);
-            c_tail_seq(vec![stmt], cont)
+            c_seq(vec![stmt], cont)
         },
         CompExpr::TupleSet(tuple, elem, idx) => {
             assert!(name == dummy);
             let tuple_catom = aexpr_to_catom(tuple);
             let elem_catom = aexpr_to_catom(elem);
             let stmt = c_tuple_set(tuple_catom, elem_catom, idx);
-            c_tail_seq(vec![stmt], cont)
+            c_seq(vec![stmt], cont)
         },
         CompExpr::GlobalValue(value) => {
             let cexpr = c_global_value(value);
             let stmt = c_assign(name, cexpr);
-            c_tail_seq(vec![stmt], cont)
+            c_seq(vec![stmt], cont)
         },
         CompExpr::FunRef(func_name, arity, ty) => {
             let cexpr = c_fun_ref(func_name, arity, ty);
             let stmt = c_assign(name, cexpr);
-            c_tail_seq(vec![stmt], cont)
+            c_seq(vec![stmt], cont)
         },
     }
+}
+
+fn create_block(cont: CTail, gensym: &mut Gensym) -> Block {
+    let name = gensym.fresh_with_prefix("block");
+    Block { label: name, tail: cont }
 }
 
 fn aexpr_to_catom(aexpr: AExpr) -> CAtom {
@@ -271,9 +442,9 @@ fn aexpr_to_catom(aexpr: AExpr) -> CAtom {
     }
 }
 
-fn explicate_tail(anf: AnfExpr) -> CTail {
+fn explicate_tail(anf: AnfExpr, gensym: &mut Gensym, blocks: &mut Vec<Block>) -> CTail {
     match anf {
-        AnfExpr::Complex(comp_expr, ty) => match comp_expr {
+        AnfExpr::Complex(comp_expr, _) => match comp_expr {
             CompExpr::Atom(aexpr, ty) => {
                 let catom = aexpr_to_catom(aexpr);
                 c_return(c_atom(catom, ty))
@@ -310,7 +481,7 @@ fn explicate_tail(anf: AnfExpr) -> CTail {
                 let catom = aexpr_to_catom(aexpr);
                 let stmt = c_prim_output(prim, catom);
                 let last = c_return(c_atom(c_unit(), ty_unit()));
-                c_tail_seq(vec![stmt], last)
+                c_seq(vec![stmt], last)
             },
             CompExpr::App(func, args, _) => {
                 let func_atom = aexpr_to_catom(func);
@@ -319,360 +490,518 @@ fn explicate_tail(anf: AnfExpr) -> CTail {
             },
             CompExpr::If(cond, thn, els, _) => {
                 let cond_atom = aexpr_to_catom(cond);
-                let thn_atom = explicate_tail(*thn);
-                let els_atom = explicate_tail(*els);
+                let thn_atom = explicate_tail(*thn, gensym, blocks);
+                let els_atom = explicate_tail(*els, gensym, blocks);
                 c_tail_if(cond_atom, thn_atom, els_atom)
             },
             CompExpr::Collect(bytes) => {
                 let stmt = c_collect(bytes);
                 let last = c_return(c_atom(c_unit(), ty_unit()));
-                c_tail_seq(vec![stmt], last)
+                c_seq(vec![stmt], last)
             },
             CompExpr::TupleSet(tuple, elem, idx) => {
                 let tuple_atom = aexpr_to_catom(tuple);
                 let elem_atom = aexpr_to_catom(elem);
                 let stmt = c_tuple_set(tuple_atom, elem_atom, idx);
                 let last = c_return(c_atom(c_unit(), ty_unit()));
-                c_tail_seq(vec![stmt], last)
+                c_seq(vec![stmt], last)
             },
             CompExpr::GlobalValue(value) => c_return(c_global_value(value)),
             CompExpr::FunRef(name, arity, ty) => c_return(c_fun_ref(name, arity, ty)),
         },
         AnfExpr::Let(name, rhs, body, _) => {
-            let tail = explicate_tail(*body);
-            explicate_assign_complex(name, rhs, tail)
+            let tail = explicate_tail(*body, gensym, blocks);
+            explicate_assign_complex(name, rhs, tail, gensym, blocks)
         },
     }
 }
-//
-// pub fn explicate_control_convert(clos: ClosExpr) -> CTail {
-//     explicate_tail(clos)
-// }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::a_normal_form::AExpr;
-//     use crate::closure_conversion::{ClosCompExpr, ClosExpr};
-//     use crate::syntax::BinOp;
-//     use crate::syntax::UnaryOp;
-//     use rand::seq::IndexedRandom;
-//
-//     fn anf_var(name: &str, ty: Type) -> AExpr {
-//         AExpr::Var(name.to_string(), ty)
-//     }
-//
-//     fn random_type_with_depth(depth: usize) -> Type {
-//         let mut rng = rand::rng();
-//
-//         if depth == 0 {
-//             let leaf_variants: &[fn() -> Type] = &[
-//                 || Type::Unit,
-//                 || Type::Bool,
-//                 || Type::Float,
-//                 || Type::Int,
-//                 || Type::Var("$dummy".to_string()),
-//             ];
-//             return leaf_variants.choose(&mut rng).unwrap()();
-//         }
-//
-//         let all_variants: &[fn(usize) -> Type] = &[
-//             |_| Type::Unit,
-//             |_| Type::Bool,
-//             |_| Type::Float,
-//             |_| Type::Int,
-//             |d| {
-//                 Type::Arrow(
-//                     Box::new(random_type_with_depth(d - 1)),
-//                     Box::new(random_type_with_depth(d - 1)),
-//                 )
-//             },
-//             |_| Type::Var("$dummy".to_string()),
-//         ];
-//         all_variants.choose(&mut rng).unwrap()(depth)
-//     }
-//
-//     fn random_type() -> Type {
-//         random_type_with_depth(5)
-//     }
-//
-//     fn anf_int(n: i64) -> AExpr {
-//         AExpr::Int(n)
-//     }
-//
-//     fn anf_bool(b: bool) -> AExpr {
-//         AExpr::Bool(b)
-//     }
-//
-//     fn anf_atom_to_comp(a: AExpr) -> ClosCompExpr {
-//         ClosCompExpr::Atom(a)
-//     }
-//
-//     fn anf_atom_to_anf(a: AExpr) -> ClosExpr {
-//         ClosExpr::Complex(ClosCompExpr::Atom(a))
-//     }
-//
-//     fn anf_let(name: &str, rhs: ClosCompExpr, body: ClosExpr) -> ClosExpr {
-//         ClosExpr::Let(name.to_string(), rhs, Box::new(body))
-//     }
-//
-//     fn c_var(name: &str, ty: Type) -> CAtom {
-//         CAtom::Var(name.to_string(), ty)
-//     }
-//
-//     fn c_int(n: i64) -> CAtom {
-//         CAtom::Int(n)
-//     }
-//
-//     fn c_bool(b: bool) -> CAtom {
-//         CAtom::Bool(b)
-//     }
-//
-//     fn c_assign(name: &str, e: CExpr, cont: CTail) -> CTail {
-//         let ty = type_of_cexpr(&e);
-//         CTail::Seq(CStmt::Assign(name.to_string(), e, ty), Box::new(cont))
-//     }
-//
-//     #[test]
-//     fn tail_atom_int() {
-//         let input = anf_atom_to_anf(anf_int(5));
-//         let expected = CTail::Return(CExpr::Atom(CAtom::Int(5)));
-//         assert_eq!(explicate_tail(input), expected);
-//     }
-//
-//     #[test]
-//     fn tail_atom_var() {
-//         let ty = random_type();
-//         let input = anf_atom_to_anf(anf_var("x", ty.clone()));
-//         let expected = CTail::Return(CExpr::Atom(c_var("x", ty)));
-//         assert_eq!(explicate_tail(input), expected);
-//     }
-//
-//     #[test]
-//     fn tail_binop() {
-//         let ty = Type::Int;
-//         let input = ClosExpr::Complex(ClosCompExpr::BinOp(
-//             BinOp::Add,
-//             anf_var("x", ty.clone()),
-//             anf_int(1),
-//         ));
-//         let expected = CTail::Return(CExpr::BinOp(BinOp::Add, c_var("x", ty), c_int(1)));
-//         assert_eq!(explicate_tail(input), expected);
-//     }
-//
-//     #[test]
-//     fn tail_unaryop() {
-//         let ty = Type::Float;
-//         let input =
-//             ClosExpr::Complex(ClosCompExpr::UnaryOp(UnaryOp::Neg, anf_var("x", ty.clone())));
-//         let expected = CTail::Return(CExpr::UnaryOp(UnaryOp::Neg, c_var("x", ty)));
-//         assert_eq!(explicate_tail(input), expected);
-//     }
-//
-//     #[test]
-//     fn tail_app_becomes_tailcall() {
-//         let x_ty = random_type();
-//         let y_ty = random_type();
-//         let fn_ty = Type::Arrow(
-//             Box::new(x_ty.clone()),
-//             Box::new(Type::Arrow(Box::new(y_ty.clone()), Box::new(Type::Unit))),
-//         );
-//         let input = ClosExpr::Complex(ClosCompExpr::App(
-//             anf_var("f", fn_ty.clone()),
-//             vec![anf_var("x", x_ty.clone()), anf_var("y", y_ty.clone())],
-//         ));
-//         let expected = CTail::TailCall(c_var("f", fn_ty), vec![c_var("x", x_ty), c_var("y", y_ty)]);
-//         assert_eq!(explicate_tail(input), expected);
-//     }
-//
-//     #[test]
-//     fn tail_if_both_branches_are_tail() {
-//         let input = ClosExpr::Complex(ClosCompExpr::If(
-//             anf_var("c", Type::Bool),
-//             Box::new(anf_atom_to_anf(anf_int(1))),
-//             Box::new(anf_atom_to_anf(anf_int(2))),
-//         ));
-//         let expected = CTail::If(
-//             c_var("c", Type::Bool)
-//             Box::new(CTail::Return(CExpr::Atom(c_int(1)))),
-//             Box::new(CTail::Return(CExpr::Atom(c_int(2)))),
-//         );
-//         assert_eq!(explicate_tail(input), expected);
-//     }
-//
-//     #[test]
-//     fn tail_let_single() {
-//         let input =
-//             anf_let("x", anf_atom_to_comp(anf_int(1)), anf_atom_to_anf(anf_var("x", Type::Int)));
-//         let expected =
-//             c_assign("x", CExpr::Atom(c_int(1)), CTail::Return(CExpr::Atom(c_var("x", Type::Int))));
-//         assert_eq!(explicate_tail(input), expected);
-//     }
-//
-//     #[test]
-//     fn tail_let_nested_order_is_preserved() {
-//         let input = anf_let(
-//             "x",
-//             anf_atom_to_comp(anf_int(1)),
-//             anf_let(
-//                 "y",
-//                 ClosCompExpr::BinOp(BinOp::Add, anf_var("x", Type::Int), anf_int(1)),
-//                 anf_atom_to_anf(anf_var("y", Type::Int)),
-//             ),
-//         );
-//         let expected = c_assign(
-//             "x",
-//             CExpr::Atom(c_int(1)),
-//             c_assign(
-//                 "y",
-//                 CExpr::BinOp(BinOp::Add, c_var("x", Type::Int), c_int(1)),
-//                 CTail::Return(CExpr::Atom(c_var("y", Type::Int))),
-//             ),
-//         );
-//         assert_eq!(explicate_tail(input), expected);
-//     }
-//
-//     #[test]
-//     fn tail_let_with_if_rhs() {
-//         let input = anf_let(
-//             "x",
-//             ClosCompExpr::If(
-//                 anf_var("c", Type::Bool),
-//                 Box::new(anf_atom_to_anf(anf_int(1))),
-//                 Box::new(anf_atom_to_anf(anf_int(2))),
-//             ),
-//             anf_atom_to_anf(anf_var("x", Type::Int)),
-//         );
-//         let cont = CTail::Return(CExpr::Atom(c_var("x", Type::Int)));
-//         let expected = CTail::If(
-//             c_var("c", Type::Bool),
-//             Box::new(c_assign("x", CExpr::Atom(c_int(1)), cont.clone())),
-//             Box::new(c_assign("x", CExpr::Atom(c_int(2)), cont)),
-//         );
-//         assert_eq!(explicate_tail(input), expected);
-//     }
-//
-//     #[test]
-//     fn assign_atom() {
-//         let input = anf_atom_to_anf(anf_int(5));
-//         let cont = CTail::Return(CExpr::Atom(c_var("x", Type::Int)));
-//         let expected = c_assign("x", CExpr::Atom(c_int(5)), cont.clone());
-//         assert_eq!(explicate_assign(input, "x", cont), expected);
-//     }
-//
-//     #[test]
-//     fn assign_binop() {
-//         let input = ClosExpr::Complex(ClosCompExpr::BinOp(
-//             BinOp::Mul,
-//             anf_var("a", Type::Float),
-//             anf_var("b", Type::Float),
-//         ));
-//         let cont = CTail::Return(CExpr::Atom(c_var("x", Type::Float)));
-//         let expected = c_assign(
-//             "x",
-//             CExpr::BinOp(BinOp::Mul, c_var("a", Type::Float), c_var("b", Type::Float)),
-//             cont.clone(),
-//         );
-//         assert_eq!(explicate_assign(input, "x", cont), expected);
-//     }
-//
-//     #[test]
-//     fn assign_unaryop() {
-//         let input =
-//             ClosExpr::Complex(ClosCompExpr::UnaryOp(UnaryOp::Not, anf_var("a", Type::Bool)));
-//         let cont = CTail::Return(CExpr::Atom(c_var("x", Type::Bool)));
-//         let expected =
-//             c_assign("x", CExpr::UnaryOp(UnaryOp::Not, c_var("a", Type::Bool)), cont.clone());
-//         assert_eq!(explicate_assign(input, "x", cont), expected);
-//     }
-//
-//     #[test]
-//     fn assign_app_is_non_tail_call() {
-//         let a_ty = Type::Int;
-//         let b_ty = Type::Int;
-//         let result_ty = Type::Int;
-//         let f_ty = Type::Arrow(
-//             Box::new(a_ty.clone()),
-//             Box::new(Type::Arrow(Box::new(b_ty.clone()), Box::new(result_ty.clone()))),
-//         );
-//         let input = ClosExpr::Complex(ClosCompExpr::App(
-//             anf_var("f", f_ty.clone()),
-//             vec![anf_var("a", a_ty.clone()), anf_var("b", b_ty.clone())],
-//         ));
-//         let cont = CTail::Return(CExpr::Atom(c_var("x", result_ty.clone())));
-//         let expected = c_assign(
-//             "x",
-//             CExpr::Call(c_var("f", f_ty), vec![c_var("a", a_ty), c_var("b", b_ty)]),
-//             cont.clone(),
-//         );
-//         assert_eq!(explicate_assign(input, "x", cont), expected);
-//     }
-//
-//     #[test]
-//     fn assign_if_both_branches_assign_and_share_cont() {
-//         let input = ClosExpr::Complex(ClosCompExpr::If(
-//             anf_var("c", Type::Bool),
-//             Box::new(anf_atom_to_anf(anf_int(1))),
-//             Box::new(anf_atom_to_anf(anf_int(2))),
-//         ));
-//         let cont = CTail::Return(CExpr::Atom(c_var("x", Type::Int)));
-//         let expected = CTail::If(
-//             c_var("c", Type::Bool),
-//             Box::new(c_assign("x", CExpr::Atom(c_int(1)), cont.clone())),
-//             Box::new(c_assign("x", CExpr::Atom(c_int(2)), cont.clone())),
-//         );
-//         assert_eq!(explicate_assign(input, "x", cont.clone()), expected);
-//     }
-//
-//     #[test]
-//     fn assign_if_nested_inside_let_rhs_and_outer_let() {
-//         let inner_let = anf_let(
-//             "x",
-//             ClosCompExpr::If(
-//                 anf_var("c", Type::Bool),
-//                 Box::new(anf_atom_to_anf(anf_int(1))),
-//                 Box::new(anf_atom_to_anf(anf_int(2))),
-//             ),
-//             anf_atom_to_anf(anf_var("x", Type::Int)),
-//         );
-//
-//         let final_cont = CTail::Return(CExpr::Atom(c_var("y", Type::Int)));
-//         let result = explicate_assign(inner_let, "y", final_cont.clone());
-//
-//         let expected = CTail::If(
-//             c_var("c", Type::Bool),
-//             Box::new(c_assign(
-//                 "x",
-//                 CExpr::Atom(c_int(1)),
-//                 c_assign("y", CExpr::Atom(c_var("x", Type::Int)), final_cont.clone()),
-//             )),
-//             Box::new(c_assign(
-//                 "x",
-//                 CExpr::Atom(c_int(2)),
-//                 c_assign("y", CExpr::Atom(c_var("x", Type::Int)), final_cont),
-//             )),
-//         );
-//         assert_eq!(result, expected);
-//     }
-//
-//     #[test]
-//     fn assign_let_forwards_correctly() {
-//         let input =
-//             anf_let("a", anf_atom_to_comp(anf_int(1)), anf_atom_to_anf(anf_var("a", Type::Int)));
-//         let cont = CTail::Return(CExpr::Atom(c_var("x", Type::Int)));
-//         let expected = c_assign(
-//             "a",
-//             CExpr::Atom(c_int(1)),
-//             c_assign("x", CExpr::Atom(c_var("a", Type::Int)), cont.clone()),
-//         );
-//         assert_eq!(explicate_assign(input, "x", cont), expected);
-//     }
-//
-//     #[test]
-//     fn assign_true_false_atoms() {
-//         let input = anf_atom_to_anf(anf_bool(true));
-//         let cont = CTail::Return(CExpr::Atom(c_var("x", Type::Bool)));
-//         let expected = c_assign("x", CExpr::Atom(c_bool(true)), cont.clone());
-//         assert_eq!(explicate_assign(input, "x", cont), expected);
-//     }
-// }
+pub fn explicate_control_def(def: AnfDef, gs: &mut Gensym) -> CDef {
+    match def {
+        AnfDef::ValDef(name, opty, anf) => {
+            let mut blocks = vec![];
+            let tail = explicate_tail(anf, gs, &mut blocks);
+
+            CDef::ValDef(name, opty, tail, blocks)
+        },
+        AnfDef::FunDef(name, params, ret_ty, anf) => {
+            let mut blocks = vec![];
+            let tail = explicate_tail(anf, gs, &mut blocks);
+            CDef::FunDef(name, params, ret_ty, tail, blocks)
+        },
+    }
+}
+
+pub fn explicate_control_prog(prog: AnfProgram) -> CProgram {
+    let mut gs = Gensym::new();
+    let mut defs = Vec::with_capacity(prog.defs.len());
+    for def in prog.defs {
+        let cdef = explicate_control_def(def, &mut gs);
+        defs.push(cdef);
+    }
+    let mut main_blocks = vec![];
+    let main = explicate_tail(prog.main, &mut gs, &mut main_blocks);
+    CProgram { defs, main, main_blocks }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        a_normal_form::*,
+        syntax::{BinOp, PrimInput, UnaryOp, ty_arrow, ty_bool, ty_float, ty_int, ty_unit},
+    };
+    fn run_tail(anf: AnfExpr) -> (CTail, Vec<Block>) {
+        let mut blocks = Vec::new();
+        let tail = explicate_tail(anf, &mut Gensym::new(), &mut blocks);
+        (tail, blocks)
+    }
+
+    fn run_assign(name: &str, anf: AnfExpr, cont: CTail) -> (CTail, Vec<Block>) {
+        let mut blocks = Vec::new();
+        let tail =
+            explicate_assign_anf(name.to_string(), anf, cont, &mut Gensym::new(), &mut blocks);
+        (tail, blocks)
+    }
+
+    #[test]
+    fn explicate_tail_nested_let_and_if_creates_block() {
+        // let x = read_int () in
+        // let y = read_int () in
+        // let $0 = x < 1 in
+        // let $1 = if $0
+        //          then x == 0
+        //          else x == 2
+        // if $1
+        // then y + 2
+        // else y + 10
+        //
+        let anf = anf_let(
+            "x",
+            co_prim_input(PrimInput::ReadInt, ty_int()),
+            anf_let(
+                "y",
+                co_prim_input(PrimInput::ReadInt, ty_int()),
+                anf_let(
+                    "$0",
+                    co_bin_op(BinOp::Lt, a_var("x", ty_int()), a_int(1), ty_bool()),
+                    anf_let(
+                        "$1",
+                        co_if(
+                            a_var("$0", ty_bool()),
+                            anf_complex(
+                                co_bin_op(BinOp::Eq, a_var("x", ty_int()), a_int(0), ty_bool()),
+                                ty_bool(),
+                            ),
+                            anf_complex(
+                                co_bin_op(BinOp::Eq, a_var("x", ty_int()), a_int(2), ty_bool()),
+                                ty_bool(),
+                            ),
+                            ty_bool(),
+                        ),
+                        anf_complex(
+                            co_if(
+                                a_var("$1", ty_bool()),
+                                anf_complex(
+                                    co_bin_op(BinOp::Add, a_var("y", ty_int()), a_int(2), ty_int()),
+                                    ty_int(),
+                                ),
+                                anf_complex(
+                                    co_bin_op(
+                                        BinOp::Add,
+                                        a_var("y", ty_int()),
+                                        a_int(10),
+                                        ty_int(),
+                                    ),
+                                    ty_int(),
+                                ),
+                                ty_int(),
+                            ),
+                            ty_int(),
+                        ),
+                        ty_int(),
+                    ),
+                    ty_int(),
+                ),
+                ty_int(),
+            ),
+            ty_int(),
+        );
+
+        let expected_tail = c_seq(
+            vec![c_assign("x", c_prim_input(PrimInput::ReadInt))],
+            c_seq(
+                vec![c_assign("y", c_prim_input(PrimInput::ReadInt))],
+                c_seq(
+                    vec![c_assign(
+                        "$0",
+                        c_bin_op(BinOp::Lt, c_var("x", ty_int()), c_int(1), ty_bool()),
+                    )],
+                    c_tail_if(
+                        c_var("$0", ty_bool()),
+                        c_seq(
+                            vec![c_assign(
+                                "$1",
+                                c_bin_op(BinOp::Eq, c_var("x", ty_int()), c_int(0), ty_bool()),
+                            )],
+                            c_goto("block$0".to_string()),
+                        ),
+                        c_seq(
+                            vec![c_assign(
+                                "$1",
+                                c_bin_op(BinOp::Eq, c_var("x", ty_int()), c_int(2), ty_bool()),
+                            )],
+                            c_goto("block$0".to_string()),
+                        ),
+                    ),
+                ),
+            ),
+        );
+        let expected_blocks = vec![Block {
+            label: "block$0".to_string(),
+            tail: c_tail_if(
+                c_var("$1", ty_bool()),
+                c_return(c_bin_op(
+                    BinOp::Add,
+                    c_var("y", ty_int()),
+                    c_int(2),
+                    ty_int(),
+                )),
+                c_return(c_bin_op(
+                    BinOp::Add,
+                    c_var("y", ty_int()),
+                    c_int(10),
+                    ty_int(),
+                )),
+            ),
+        }];
+
+        let (tail, blocks) = run_tail(anf);
+        assert_eq!(tail, expected_tail);
+        assert_eq!(blocks, expected_blocks);
+    }
+
+    #[test]
+    fn tail_atom_int() {
+        let input = anf_complex(co_atom(a_int(5), ty_int()), ty_int());
+        let expected = c_return(c_atom(c_int(5), ty_int()));
+        let (tail, blocks) = run_tail(input);
+        assert_eq!(tail, expected);
+        assert!(blocks.is_empty());
+    }
+
+    #[test]
+    fn tail_atom_var() {
+        let input = anf_complex(co_atom(a_var("x", ty_int()), ty_int()), ty_int());
+        let expected = c_return(c_atom(c_var("x", ty_int()), ty_int()));
+        let (tail, blocks) = run_tail(input);
+        assert_eq!(tail, expected);
+        assert!(blocks.is_empty());
+    }
+
+    #[test]
+    fn tail_binop() {
+        let input = anf_complex(
+            co_bin_op(BinOp::Add, a_var("x", ty_int()), a_int(1), ty_int()),
+            ty_int(),
+        );
+        let expected = c_return(c_bin_op(
+            BinOp::Add,
+            c_var("x", ty_int()),
+            c_int(1),
+            ty_int(),
+        ));
+        let (tail, blocks) = run_tail(input);
+        assert_eq!(tail, expected);
+        assert!(blocks.is_empty());
+    }
+
+    #[test]
+    fn tail_unaryop() {
+        let input = anf_complex(
+            co_unary(UnaryOp::Neg, a_var("x", ty_float()), ty_float()),
+            ty_float(),
+        );
+        let expected = c_return(c_unary(UnaryOp::Neg, c_var("x", ty_float()), ty_float()));
+        let (tail, blocks) = run_tail(input);
+        assert_eq!(tail, expected);
+        assert!(blocks.is_empty());
+    }
+
+    #[test]
+    fn tail_app_becomes_tailcall() {
+        let x_ty = ty_int();
+        let y_ty = ty_int();
+        let fn_ty = ty_arrow(x_ty.clone(), ty_arrow(y_ty.clone(), ty_unit()));
+        let input = anf_complex(
+            co_app(
+                a_var("f", fn_ty.clone()),
+                vec![a_var("x", x_ty.clone()), a_var("y", y_ty.clone())],
+                ty_unit(),
+            ),
+            ty_unit(),
+        );
+        let expected =
+            c_tail_call(c_var("f", fn_ty), vec![c_var("x", x_ty), c_var("y", y_ty)]);
+        let (tail, blocks) = run_tail(input);
+        assert_eq!(tail, expected);
+        assert!(blocks.is_empty());
+    }
+
+    #[test]
+    fn tail_if_both_branches_are_tail() {
+        let input = anf_complex(
+            co_if(
+                a_var("c", ty_bool()),
+                anf_complex(co_atom(a_int(1), ty_int()), ty_int()),
+                anf_complex(co_atom(a_int(2), ty_int()), ty_int()),
+                ty_int(),
+            ),
+            ty_int(),
+        );
+        let expected = c_tail_if(
+            c_var("c", ty_bool()),
+            c_return(c_atom(c_int(1), ty_int())),
+            c_return(c_atom(c_int(2), ty_int())),
+        );
+        let (tail, blocks) = run_tail(input);
+        assert_eq!(tail, expected);
+        assert!(blocks.is_empty());
+    }
+
+    #[test]
+    fn tail_let_single() {
+        let input = anf_let(
+            "x",
+            co_atom(a_int(1), ty_int()),
+            anf_complex(co_atom(a_var("x", ty_int()), ty_int()), ty_int()),
+            ty_int(),
+        );
+        let expected = c_seq(
+            vec![c_assign("x", c_atom(c_int(1), ty_int()))],
+            c_return(c_atom(c_var("x", ty_int()), ty_int())),
+        );
+        let (tail, blocks) = run_tail(input);
+        assert_eq!(tail, expected);
+        assert!(blocks.is_empty());
+    }
+
+    #[test]
+    fn tail_let_nested_order_is_preserved() {
+        let input = anf_let(
+            "x",
+            co_atom(a_int(1), ty_int()),
+            anf_let(
+                "y",
+                co_bin_op(BinOp::Add, a_var("x", ty_int()), a_int(1), ty_int()),
+                anf_complex(co_atom(a_var("y", ty_int()), ty_int()), ty_int()),
+                ty_int(),
+            ),
+            ty_int(),
+        );
+        let expected = c_seq(
+            vec![c_assign("x", c_atom(c_int(1), ty_int()))],
+            c_seq(
+                vec![c_assign(
+                    "y",
+                    c_bin_op(BinOp::Add, c_var("x", ty_int()), c_int(1), ty_int()),
+                )],
+                c_return(c_atom(c_var("y", ty_int()), ty_int())),
+            ),
+        );
+        let (tail, blocks) = run_tail(input);
+        assert_eq!(tail, expected);
+        assert!(blocks.is_empty());
+    }
+
+    #[test]
+    fn tail_let_with_if_rhs() {
+        let input = anf_let(
+            "x",
+            co_if(
+                a_var("c", ty_bool()),
+                anf_complex(co_atom(a_int(1), ty_int()), ty_int()),
+                anf_complex(co_atom(a_int(2), ty_int()), ty_int()),
+                ty_int(),
+            ),
+            anf_complex(co_atom(a_var("x", ty_int()), ty_int()), ty_int()),
+            ty_int(),
+        );
+        let expected = c_tail_if(
+            c_var("c", ty_bool()),
+            c_seq(
+                vec![c_assign("x", c_atom(c_int(1), ty_int()))],
+                c_goto("block$0".to_string()),
+            ),
+            c_seq(
+                vec![c_assign("x", c_atom(c_int(2), ty_int()))],
+                c_goto("block$0".to_string()),
+            ),
+        );
+        let expected_blocks = vec![Block {
+            label: "block$0".to_string(),
+            tail: c_return(c_atom(c_var("x", ty_int()), ty_int())),
+        }];
+        let (tail, blocks) = run_tail(input);
+        assert_eq!(tail, expected);
+        assert_eq!(blocks, expected_blocks);
+    }
+
+    #[test]
+    fn assign_atom() {
+        let input = anf_complex(co_atom(a_int(5), ty_int()), ty_int());
+        let cont = c_return(c_atom(c_var("x", ty_int()), ty_int()));
+        let expected = c_seq(
+            vec![c_assign("x", c_atom(c_int(5), ty_int()))],
+            cont.clone(),
+        );
+        let (tail, blocks) = run_assign("x", input, cont);
+        assert_eq!(tail, expected);
+        assert!(blocks.is_empty());
+    }
+
+    #[test]
+    fn assign_binop() {
+        let input = anf_complex(
+            co_bin_op(
+                BinOp::Mul,
+                a_var("a", ty_float()),
+                a_var("b", ty_float()),
+                ty_float(),
+            ),
+            ty_float(),
+        );
+        let cont = c_return(c_atom(c_var("x", ty_float()), ty_float()));
+        let expected = c_seq(
+            vec![c_assign(
+                "x",
+                c_bin_op(
+                    BinOp::Mul,
+                    c_var("a", ty_float()),
+                    c_var("b", ty_float()),
+                    ty_float(),
+                ),
+            )],
+            cont.clone(),
+        );
+        let (tail, blocks) = run_assign("x", input, cont);
+        assert_eq!(tail, expected);
+        assert!(blocks.is_empty());
+    }
+
+    #[test]
+    fn assign_unaryop() {
+        let input = anf_complex(
+            co_unary(UnaryOp::Not, a_var("a", ty_bool()), ty_bool()),
+            ty_bool(),
+        );
+        let cont = c_return(c_atom(c_var("x", ty_bool()), ty_bool()));
+        let expected = c_seq(
+            vec![c_assign(
+                "x",
+                c_unary(UnaryOp::Not, c_var("a", ty_bool()), ty_bool()),
+            )],
+            cont.clone(),
+        );
+        let (tail, blocks) = run_assign("x", input, cont);
+        assert_eq!(tail, expected);
+        assert!(blocks.is_empty());
+    }
+
+    #[test]
+    fn assign_app_is_non_tail_call() {
+        let a_ty = ty_int();
+        let b_ty = ty_int();
+        let result_ty = ty_int();
+        let f_ty = ty_arrow(a_ty.clone(), ty_arrow(b_ty.clone(), result_ty.clone()));
+        let input = anf_complex(
+            co_app(
+                a_var("f", f_ty.clone()),
+                vec![a_var("a", a_ty.clone()), a_var("b", b_ty.clone())],
+                result_ty.clone(),
+            ),
+            result_ty.clone(),
+        );
+        let cont = c_return(c_atom(c_var("x", result_ty.clone()), result_ty.clone()));
+        let expected = c_seq(
+            vec![c_assign(
+                "x",
+                c_call(
+                    c_var("f", f_ty),
+                    vec![c_var("a", a_ty), c_var("b", b_ty)],
+                    result_ty,
+                ),
+            )],
+            cont.clone(),
+        );
+        let (tail, blocks) = run_assign("x", input, cont);
+        assert_eq!(tail, expected);
+        assert!(blocks.is_empty());
+    }
+
+    #[test]
+    fn assign_if_both_branches_assign_and_share_cont() {
+        let input = anf_complex(
+            co_if(
+                a_var("c", ty_bool()),
+                anf_complex(co_atom(a_int(1), ty_int()), ty_int()),
+                anf_complex(co_atom(a_int(2), ty_int()), ty_int()),
+                ty_int(),
+            ),
+            ty_int(),
+        );
+        let cont = c_return(c_atom(c_var("x", ty_int()), ty_int()));
+        let expected = c_tail_if(
+            c_var("c", ty_bool()),
+            c_seq(
+                vec![c_assign("x", c_atom(c_int(1), ty_int()))],
+                c_goto("block$0".to_string()),
+            ),
+            c_seq(
+                vec![c_assign("x", c_atom(c_int(2), ty_int()))],
+                c_goto("block$0".to_string()),
+            ),
+        );
+        let expected_blocks = vec![Block {
+            label: "block$0".to_string(),
+            tail: cont.clone(),
+        }];
+        let (tail, blocks) = run_assign("x", input, cont);
+        assert_eq!(tail, expected);
+        assert_eq!(blocks, expected_blocks);
+    }
+
+    #[test]
+    fn assign_let_forwards_correctly() {
+        let input = anf_let(
+            "a",
+            co_atom(a_int(1), ty_int()),
+            anf_complex(co_atom(a_var("a", ty_int()), ty_int()), ty_int()),
+            ty_int(),
+        );
+        let cont = c_return(c_atom(c_var("x", ty_int()), ty_int()));
+        let expected = c_seq(
+            vec![c_assign("a", c_atom(c_int(1), ty_int()))],
+            c_seq(
+                vec![c_assign("x", c_atom(c_var("a", ty_int()), ty_int()))],
+                cont.clone(),
+            ),
+        );
+        let (tail, blocks) = run_assign("x", input, cont);
+        assert_eq!(tail, expected);
+        assert!(blocks.is_empty());
+    }
+
+    #[test]
+    fn assign_true_false_atoms() {
+        let input = anf_complex(co_atom(a_bool(true), ty_bool()), ty_bool());
+        let cont = c_return(c_atom(c_var("x", ty_bool()), ty_bool()));
+        let expected = c_seq(
+            vec![c_assign("x", c_atom(c_bool(true), ty_bool()))],
+            cont.clone(),
+        );
+        let (tail, blocks) = run_assign("x", input, cont);
+        assert_eq!(tail, expected);
+        assert!(blocks.is_empty());
+    }
+}

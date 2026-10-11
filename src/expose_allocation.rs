@@ -103,6 +103,15 @@ pub enum GlobalValue {
     FromspaceEnd,
 }
 
+impl std::fmt::Display for GlobalValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GlobalValue::FreePtr => write!(f, "free_ptr"),
+            GlobalValue::FromspaceEnd => write!(f, "fromspace_end"),
+        }
+    }
+}
+
 impl HasType for GlobalValue {
     fn type_of(&self) -> Type {
         match self {
@@ -405,13 +414,11 @@ pub fn expose_allocation(clos_expr: ClosureExpr, gs: &mut Gensym) -> AllocExpr {
             let alloc_expr = expose_allocation(*expr, gs);
             alloc_tuple_proj(alloc_expr, idx, clos_ty.to_type())
         },
-        ClosureExpr::PrimInput(prim, clos_ty) => {
-            alloc_prim_input(prim, clos_ty.to_type())
-        }
+        ClosureExpr::PrimInput(prim, clos_ty) => alloc_prim_input(prim, clos_ty.to_type()),
         ClosureExpr::PrimOutput(prim, clos_expr, clos_ty) => {
             let expr = expose_allocation(*clos_expr, gs);
             alloc_prim_output(prim, expr, clos_ty.to_type())
-        }
+        },
         // ClosureExpr::PrimIO(prim_io, expr, clos_ty) => {
         //     let expr = expr.map(|e| expose_allocation(*e, gs));
         //     alloc_prim_io(prim_io, expr, clos_ty.to_type())
@@ -475,7 +482,7 @@ mod tests {
     use crate::closure_conversion::{
         Closure, ClosureDef, ClosureProgram, ClosureType, convert_fun_ptr_type,
     };
-    use crate::syntax::{BinOp, PrimOutput, PrimInput, Type, UnaryOp, ty_arrow, ty_int};
+    use crate::syntax::{BinOp, PrimInput, PrimOutput, Type, UnaryOp, ty_arrow, ty_int};
 
     fn run(expr: ClosureExpr) -> AllocExpr {
         expose_allocation(expr, &mut Gensym::new())
