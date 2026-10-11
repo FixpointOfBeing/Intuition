@@ -136,71 +136,71 @@ pub fn a_var(name: impl Into<Ident>, ty: Type) -> AExpr {
     AExpr::Var(name.into(), ty)
 }
 
-pub fn c_atom(atom: AExpr, ty: Type) -> CompExpr {
+pub fn co_atom(atom: AExpr, ty: Type) -> CompExpr {
     CompExpr::Atom(atom, ty)
 }
 
-pub fn c_bin_op(op: BinOp, left: AExpr, right: AExpr, ty: Type) -> CompExpr {
+pub fn co_bin_op(op: BinOp, left: AExpr, right: AExpr, ty: Type) -> CompExpr {
     CompExpr::BinOp(op, left, right, ty)
 }
 
-pub fn c_unary(op: UnaryOp, expr: AExpr, ty: Type) -> CompExpr {
+pub fn co_unary(op: UnaryOp, expr: AExpr, ty: Type) -> CompExpr {
     CompExpr::UnaryOp(op, expr, ty)
 }
 
-pub fn c_tuple_proj(tuple: AExpr, index: usize, ty: Type) -> CompExpr {
+pub fn co_tuple_proj(tuple: AExpr, index: usize, ty: Type) -> CompExpr {
     CompExpr::TupleProj(tuple, index, ty)
 }
 
-pub fn c_allocate(bytes: usize, ty: Type) -> CompExpr {
+pub fn co_allocate(bytes: usize, ty: Type) -> CompExpr {
     CompExpr::Allocate(bytes, ty)
 }
 
-pub fn c_allocate_closure(bytes: usize, arity: usize, ty: Type) -> CompExpr {
+pub fn co_allocate_closure(bytes: usize, arity: usize, ty: Type) -> CompExpr {
     CompExpr::AllocateClosure(bytes, arity, ty)
 }
 
-pub fn c_prim_input(prim: PrimInput, ty: Type) -> CompExpr {
+pub fn co_prim_input(prim: PrimInput, ty: Type) -> CompExpr {
     CompExpr::PrimInput(prim, ty)
 }
 
-pub fn c_prim_output(prim: PrimOutput, expr: AExpr, ty: Type) -> CompExpr {
+pub fn co_prim_output(prim: PrimOutput, expr: AExpr, ty: Type) -> CompExpr {
     CompExpr::PrimOutput(prim, expr, ty)
 }
 
-pub fn c_app(func: AExpr, args: Vec<AExpr>, ty: Type) -> CompExpr {
+pub fn co_app(func: AExpr, args: Vec<AExpr>, ty: Type) -> CompExpr {
     CompExpr::App(func, args, ty)
 }
 
-pub fn c_if(cond: AExpr, thn: AnfExpr, els: AnfExpr, ty: Type) -> CompExpr {
+pub fn co_if(cond: AExpr, thn: AnfExpr, els: AnfExpr, ty: Type) -> CompExpr {
     CompExpr::If(cond, Box::new(thn), Box::new(els), ty)
 }
 
-pub fn c_collect(bytes: usize) -> CompExpr {
+pub fn co_collect(bytes: usize) -> CompExpr {
     CompExpr::Collect(bytes)
 }
 
-pub fn c_tuple_set(tuple: AExpr, element: AExpr, index: usize) -> CompExpr {
+pub fn co_tuple_set(tuple: AExpr, element: AExpr, index: usize) -> CompExpr {
     CompExpr::TupleSet(tuple, element, index)
 }
 
-// pub fn c_seq(exprs: Vec<CompExpr>, last: AExpr, ty: Type) -> CompExpr {
+// pub fn co_seq(exprs: Vec<CompExpr>, last: AExpr, ty: Type) -> CompExpr {
 //     CompExpr::Seq(exprs, Box::new(last), ty)
 // }
 
-pub fn c_global_value(value: GlobalValue) -> CompExpr {
+pub fn co_global_value(value: GlobalValue) -> CompExpr {
     CompExpr::GlobalValue(value)
 }
 
-pub fn c_free_ptr() -> CompExpr {
+pub fn co_free_ptr() -> CompExpr {
     CompExpr::GlobalValue(GlobalValue::FreePtr)
 }
 
-pub fn c_fromspace_end() -> CompExpr {
+pub fn co_fromspace_end() -> CompExpr {
     CompExpr::GlobalValue(GlobalValue::FromspaceEnd)
 }
 
-pub fn c_fun_ref(name: impl Into<Ident>, arity: usize, ty: Type) -> CompExpr {
+pub fn co_fun_ref(name: impl Into<Ident>, arity: usize, ty: Type) -> CompExpr {
     CompExpr::FunRef(name.into(), arity, ty)
 }
 
@@ -208,8 +208,8 @@ pub fn anf_complex(c: CompExpr, ty: Type) -> AnfExpr {
     AnfExpr::Complex(c, ty)
 }
 
-pub fn anf_let(name: impl Into<Ident>, c: CompExpr, body: AnfExpr, ty: Type) -> AnfExpr {
-    AnfExpr::Let(name.into(), c, Box::new(body), ty)
+pub fn anf_let(name: impl Into<Ident>, rhs: CompExpr, body: AnfExpr, ty: Type) -> AnfExpr {
+    AnfExpr::Let(name.into(), rhs, Box::new(body), ty)
 }
 enum Binding {
     Let(Ident, CompExpr),
@@ -241,19 +241,19 @@ fn to_atom(expr: AllocExpr, gs: &mut Gensym, bindings: &mut Bindings) -> AExpr {
 
 fn to_complex(expr: AllocExpr, gs: &mut Gensym, bindings: &mut Bindings) -> CompExpr {
     match expr {
-        AllocExpr::Unit => c_atom(a_unit(), ty_unit()),
-        AllocExpr::Bool(b) => c_atom(a_bool(b), ty_bool()),
-        AllocExpr::Int(i) => c_atom(a_int(i), ty_int()),
-        AllocExpr::Float(f) => c_atom(a_float(f), ty_float()),
-        AllocExpr::Var(name, ty) => c_atom(a_var(name, ty.clone()), ty),
+        AllocExpr::Unit => co_atom(a_unit(), ty_unit()),
+        AllocExpr::Bool(b) => co_atom(a_bool(b), ty_bool()),
+        AllocExpr::Int(i) => co_atom(a_int(i), ty_int()),
+        AllocExpr::Float(f) => co_atom(a_float(f), ty_float()),
+        AllocExpr::Var(name, ty) => co_atom(a_var(name, ty.clone()), ty),
         AllocExpr::TupleProj(expr, idx, ty) => {
             let atom = to_atom(*expr, gs, bindings);
-            c_tuple_proj(atom, idx, ty)
+            co_tuple_proj(atom, idx, ty)
         },
-        AllocExpr::PrimInput(prim, ty) => c_prim_input(prim, ty),
+        AllocExpr::PrimInput(prim, ty) => co_prim_input(prim, ty),
         AllocExpr::PrimOutput(prim, alloc_expr, ty) => {
             let atom = to_atom(*alloc_expr, gs, bindings);
-            c_prim_output(prim, atom, ty)
+            co_prim_output(prim, atom, ty)
         },
         // AllocExpr::PrimIO(prim_io, alloc_expr, ty) => {
         //     let a_expr = match alloc_expr {
@@ -268,17 +268,17 @@ fn to_complex(expr: AllocExpr, gs: &mut Gensym, bindings: &mut Bindings) -> Comp
         AllocExpr::BinOp(op, left, right, ty) => {
             let left_atom = to_atom(*left, gs, bindings);
             let right_atom = to_atom(*right, gs, bindings);
-            c_bin_op(op, left_atom, right_atom, ty)
+            co_bin_op(op, left_atom, right_atom, ty)
         },
         AllocExpr::UnaryOp(op, operand, ty) => {
             let operand_atom = to_atom(*operand, gs, bindings);
-            c_unary(op, operand_atom, ty)
+            co_unary(op, operand_atom, ty)
         },
         AllocExpr::If(cond, thn, els, ty) => {
             let cond_atom = to_atom(*cond, gs, bindings);
             let thn_anf = to_anf(*thn, gs);
             let els_anf = to_anf(*els, gs);
-            c_if(cond_atom, thn_anf, els_anf, ty)
+            co_if(cond_atom, thn_anf, els_anf, ty)
         },
         AllocExpr::App(func, args, ty) => {
             let func_atom = to_atom(*func, gs, bindings);
@@ -287,22 +287,22 @@ fn to_complex(expr: AllocExpr, gs: &mut Gensym, bindings: &mut Bindings) -> Comp
                 let arg_atom = to_atom(arg, gs, bindings);
                 args_atom.push(arg_atom);
             }
-            c_app(func_atom, args_atom, ty)
+            co_app(func_atom, args_atom, ty)
         },
         AllocExpr::Let(name, _, rhs, body, _) => {
             let rhs_comp = to_complex(*rhs, gs, bindings);
             bindings.push(Binding::Let(name, rhs_comp));
             to_complex(*body, gs, bindings)
         },
-        AllocExpr::Collect(bytes) => c_collect(bytes),
-        AllocExpr::Allocate(bytes, ty) => c_allocate(bytes, ty),
-        AllocExpr::AllocateClosure(bytes, arity, ty) => c_allocate_closure(bytes, arity, ty),
-        AllocExpr::FunRef(name, arity, ty) => c_fun_ref(name, arity, ty),
-        AllocExpr::GlobalValue(value) => c_global_value(value),
+        AllocExpr::Collect(bytes) => co_collect(bytes),
+        AllocExpr::Allocate(bytes, ty) => co_allocate(bytes, ty),
+        AllocExpr::AllocateClosure(bytes, arity, ty) => co_allocate_closure(bytes, arity, ty),
+        AllocExpr::FunRef(name, arity, ty) => co_fun_ref(name, arity, ty),
+        AllocExpr::GlobalValue(value) => co_global_value(value),
         AllocExpr::TupleSet(tuple, elem, idx) => {
             let tuple_atom = to_atom(*tuple, gs, bindings);
             let elem_atom = to_atom(*elem, gs, bindings);
-            c_tuple_set(tuple_atom, elem_atom, idx)
+            co_tuple_set(tuple_atom, elem_atom, idx)
         },
     }
 }
@@ -374,7 +374,7 @@ mod tests {
 
     fn atom(a: AExpr) -> AnfExpr {
         let ty = a.type_of();
-        anf_complex(c_atom(a, ty.clone()), ty)
+        anf_complex(co_atom(a, ty.clone()), ty)
     }
 
     #[test]
@@ -404,11 +404,11 @@ mod tests {
             run(e),
             anf_let(
                 "$0",
-                c_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
+                co_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
                 anf_let(
                     "$1",
-                    c_bin_op(BinOp::Add, a_int(3), a_int(4), ty_int()),
-                    complex(c_bin_op(
+                    co_bin_op(BinOp::Add, a_int(3), a_int(4), ty_int()),
+                    complex(co_bin_op(
                         BinOp::Mul,
                         a_var("$0", ty_int()),
                         a_var("$1", ty_int()),
@@ -438,7 +438,7 @@ mod tests {
             run(e),
             anf_let(
                 "x",
-                c_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
+                co_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
                 atom(a_var("x", ty_int())),
                 ty_int(),
             )
@@ -469,11 +469,11 @@ mod tests {
             run(e),
             anf_let(
                 "x",
-                c_atom(a_int(2), ty_int()),
+                co_atom(a_int(2), ty_int()),
                 anf_let(
                     "$0",
-                    c_bin_op(BinOp::Add, a_var("x", ty_int()), a_int(1), ty_int()),
-                    complex(c_bin_op(BinOp::Add, a_int(1), a_var("$0", ty_int()), ty_int())),
+                    co_bin_op(BinOp::Add, a_var("x", ty_int()), a_int(1), ty_int()),
+                    complex(co_bin_op(BinOp::Add, a_int(1), a_var("$0", ty_int()), ty_int())),
                     ty_int(),
                 ),
                 ty_int(),
@@ -498,8 +498,8 @@ mod tests {
             run(e),
             anf_let(
                 "$0",
-                c_bin_op(BinOp::Lt, a_int(1), a_int(2), ty_bool()),
-                complex(c_if(a_var("$0", ty_bool()), atom(a_int(1)), atom(a_int(2)), ty_int(),)),
+                co_bin_op(BinOp::Lt, a_int(1), a_int(2), ty_bool()),
+                complex(co_if(a_var("$0", ty_bool()), atom(a_int(1)), atom(a_int(2)), ty_int(),)),
                 ty_int(),
             )
         );
@@ -554,26 +554,26 @@ mod tests {
 
         assert_eq!(
             run(e),
-            complex(c_if(
+            complex(co_if(
                 a_bool(true),
                 anf_let(
                     "x",
-                    c_atom(a_int(3), ty_int()),
+                    co_atom(a_int(3), ty_int()),
                     anf_let(
                         "$0",
-                        c_bin_op(BinOp::Mul, a_var("x", ty_int()), a_var("x", ty_int()), ty_int()),
-                        complex(c_bin_op(BinOp::Add, a_int(1), a_var("$0", ty_int()), ty_int())),
+                        co_bin_op(BinOp::Mul, a_var("x", ty_int()), a_var("x", ty_int()), ty_int()),
+                        complex(co_bin_op(BinOp::Add, a_int(1), a_var("$0", ty_int()), ty_int())),
                         ty_int(),
                     ),
                     ty_int(),
                 ),
                 anf_let(
                     "x",
-                    c_atom(a_int(5), ty_int()),
+                    co_atom(a_int(5), ty_int()),
                     anf_let(
                         "$1",
-                        c_bin_op(BinOp::Mul, a_var("x", ty_int()), a_int(3), ty_int()),
-                        complex(c_bin_op(BinOp::Add, a_var("$1", ty_int()), a_int(4), ty_int())),
+                        co_bin_op(BinOp::Mul, a_var("x", ty_int()), a_int(3), ty_int()),
+                        complex(co_bin_op(BinOp::Add, a_var("$1", ty_int()), a_int(4), ty_int())),
                         ty_int(),
                     ),
                     ty_int(),
@@ -603,8 +603,8 @@ mod tests {
             run(e),
             anf_let(
                 "$0",
-                c_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
-                complex(c_app(a_var("f", fn_ty), vec![a_var("$0", ty_int()), a_int(3)], ty_int(),)),
+                co_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
+                complex(co_app(a_var("f", fn_ty), vec![a_var("$0", ty_int()), a_int(3)], ty_int(),)),
                 ty_int(),
             )
         );
@@ -627,8 +627,8 @@ mod tests {
             run(e),
             anf_let(
                 "y",
-                c_atom(a_int(2), ty_int()),
-                complex(c_bin_op(BinOp::Add, a_int(1), a_var("y", ty_int()), ty_int())),
+                co_atom(a_int(2), ty_int()),
+                complex(co_bin_op(BinOp::Add, a_int(1), a_var("y", ty_int()), ty_int())),
                 ty_int(),
             )
         );
@@ -676,24 +676,24 @@ mod tests {
             run(e),
             anf_let(
                 "x",
-                c_atom(a_int(10), ty_int()),
+                co_atom(a_int(10), ty_int()),
                 anf_let(
                     "y",
-                    c_atom(a_int(12), ty_int()),
+                    co_atom(a_int(12), ty_int()),
                     anf_let(
                         "$0",
-                        c_bin_op(BinOp::Lt, a_var("x", ty_int()), a_int(1), ty_bool()),
+                        co_bin_op(BinOp::Lt, a_var("x", ty_int()), a_int(1), ty_bool()),
                         anf_let(
                             "$1",
-                            c_if(
+                            co_if(
                                 a_var("$0", ty_bool()),
-                                complex(c_bin_op(
+                                complex(co_bin_op(
                                     BinOp::Eq,
                                     a_var("x", ty_int()),
                                     a_int(0),
                                     ty_bool(),
                                 )),
-                                complex(c_bin_op(
+                                complex(co_bin_op(
                                     BinOp::Eq,
                                     a_var("x", ty_int()),
                                     a_int(2),
@@ -701,15 +701,15 @@ mod tests {
                                 )),
                                 ty_bool(),
                             ),
-                            complex(c_if(
+                            complex(co_if(
                                 a_var("$1", ty_bool()),
-                                complex(c_bin_op(
+                                complex(co_bin_op(
                                     BinOp::Add,
                                     a_var("y", ty_int()),
                                     a_int(2),
                                     ty_int(),
                                 )),
-                                complex(c_bin_op(
+                                complex(co_bin_op(
                                     BinOp::Add,
                                     a_var("y", ty_int()),
                                     a_int(10),
@@ -792,27 +792,27 @@ mod tests {
             run(e),
             anf_let(
                 "x",
-                c_prim_input(PrimInput::ReadInt, ty_int()),
+                co_prim_input(PrimInput::ReadInt, ty_int()),
                 anf_let(
                     "y",
-                    c_prim_input(PrimInput::ReadInt, ty_int()),
+                    co_prim_input(PrimInput::ReadInt, ty_int()),
                     anf_let(
                         "$0",
-                        c_bin_op(BinOp::Lt, a_var("x", ty_int()), a_var("y", ty_int()), ty_bool(),),
-                        complex(c_if(
+                        co_bin_op(BinOp::Lt, a_var("x", ty_int()), a_var("y", ty_int()), ty_bool(),),
+                        complex(co_if(
                             a_var("$0", ty_bool()),
                             anf_let(
                                 "$1",
-                                c_bin_op(BinOp::Lt, a_var("y", ty_int()), a_int(100), ty_bool(),),
-                                complex(c_if(
+                                co_bin_op(BinOp::Lt, a_var("y", ty_int()), a_int(100), ty_bool(),),
+                                complex(co_if(
                                     a_var("$1", ty_bool()),
-                                    complex(c_bin_op(
+                                    complex(co_bin_op(
                                         BinOp::Add,
                                         a_var("y", ty_int()),
                                         a_int(100),
                                         ty_int(),
                                     )),
-                                    complex(c_bin_op(
+                                    complex(co_bin_op(
                                         BinOp::Add,
                                         a_var("y", ty_int()),
                                         a_var("x", ty_int()),
@@ -822,7 +822,7 @@ mod tests {
                                 )),
                                 ty_int(),
                             ),
-                            complex(c_bin_op(
+                            complex(co_bin_op(
                                 BinOp::Add,
                                 a_var("y", ty_int()),
                                 a_int(10),
@@ -927,16 +927,16 @@ mod tests {
             run(e),
             anf_let(
                 "x",
-                c_prim_input(PrimInput::ReadInt, ty_int()),
+                co_prim_input(PrimInput::ReadInt, ty_int()),
                 anf_let(
                     "y",
-                    c_prim_input(PrimInput::ReadInt, ty_int()),
+                    co_prim_input(PrimInput::ReadInt, ty_int()),
                     anf_let(
                         "$0",
-                        c_bin_op(BinOp::Eq, a_var("x", ty_int()), a_var("y", ty_int()), ty_bool(),),
-                        complex(c_if(
+                        co_bin_op(BinOp::Eq, a_var("x", ty_int()), a_var("y", ty_int()), ty_bool(),),
+                        complex(co_if(
                             a_var("$0", ty_bool()),
-                            complex(c_bin_op(
+                            complex(co_bin_op(
                                 BinOp::Add,
                                 a_var("x", ty_int()),
                                 a_var("y", ty_int()),
@@ -944,28 +944,28 @@ mod tests {
                             )),
                             anf_let(
                                 "$1",
-                                c_bin_op(BinOp::Lt, a_var("x", ty_int()), a_int(42), ty_bool(),),
-                                complex(c_if(
+                                co_bin_op(BinOp::Lt, a_var("x", ty_int()), a_int(42), ty_bool(),),
+                                complex(co_if(
                                     a_var("$1", ty_bool()),
                                     anf_let(
                                         "$2",
-                                        c_bin_op(
+                                        co_bin_op(
                                             BinOp::Gt,
                                             a_var("y", ty_int()),
                                             a_int(10),
                                             ty_bool(),
                                         ),
-                                        complex(c_if(
+                                        complex(co_if(
                                             a_var("$2", ty_bool()),
                                             anf_let(
                                                 "$3",
-                                                c_bin_op(
+                                                co_bin_op(
                                                     BinOp::Add,
                                                     a_var("x", ty_int()),
                                                     a_int(10),
                                                     ty_int(),
                                                 ),
-                                                complex(c_bin_op(
+                                                complex(co_bin_op(
                                                     BinOp::Add,
                                                     a_var("$3", ty_int()),
                                                     a_var("y", ty_int()),
@@ -973,7 +973,7 @@ mod tests {
                                                 )),
                                                 ty_int(),
                                             ),
-                                            complex(c_bin_op(
+                                            complex(co_bin_op(
                                                 BinOp::Sub,
                                                 a_var("x", ty_int()),
                                                 a_int(100),
@@ -983,7 +983,7 @@ mod tests {
                                         )),
                                         ty_int(),
                                     ),
-                                    complex(c_bin_op(
+                                    complex(co_bin_op(
                                         BinOp::Add,
                                         a_var("x", ty_int()),
                                         a_int(42),
@@ -1020,8 +1020,8 @@ mod tests {
             run(e),
             anf_let(
                 "$0",
-                c_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
-                complex(c_prim_output(PrimOutput::PrintInt, a_var("$0", ty_int()), ty_unit(),)),
+                co_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
+                complex(co_prim_output(PrimOutput::PrintInt, a_var("$0", ty_int()), ty_unit(),)),
                 ty_unit(),
             )
         );
@@ -1033,18 +1033,18 @@ mod tests {
         // --->
         // read_int ()
         let e = alloc_prim_input(PrimInput::ReadInt, ty_int());
-        assert_eq!(run(e), complex(c_prim_input(PrimInput::ReadInt, ty_int())));
+        assert_eq!(run(e), complex(co_prim_input(PrimInput::ReadInt, ty_int())));
     }
 
     #[test]
     fn unary_op_normalizes_operand() {
         assert_eq!(
             run(alloc_unary(UnaryOp::Neg, alloc_int(3), ty_int())),
-            complex(c_unary(UnaryOp::Neg, a_int(3), ty_int()))
+            complex(co_unary(UnaryOp::Neg, a_int(3), ty_int()))
         );
         assert_eq!(
             run(alloc_unary(UnaryOp::Not, alloc_bool(true), ty_bool())),
-            complex(c_unary(UnaryOp::Not, a_bool(true), ty_bool()))
+            complex(co_unary(UnaryOp::Not, a_bool(true), ty_bool()))
         );
 
         let e = alloc_unary(
@@ -1056,8 +1056,8 @@ mod tests {
             run(e),
             anf_let(
                 "$0",
-                c_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
-                complex(c_unary(UnaryOp::Neg, a_var("$0", ty_int()), ty_int())),
+                co_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
+                complex(co_unary(UnaryOp::Neg, a_var("$0", ty_int()), ty_int())),
                 ty_int(),
             )
         );
@@ -1067,7 +1067,7 @@ mod tests {
     fn tuple_proj_normalizes_tuple_operand() {
         let tuple_ty = Type::Tuple(vec![Type::Int, Type::Bool]);
         let e = alloc_tuple_proj(alloc_var("t", tuple_ty.clone()), 1, ty_bool());
-        assert_eq!(run(e), complex(c_tuple_proj(a_var("t", tuple_ty), 1, ty_bool())));
+        assert_eq!(run(e), complex(co_tuple_proj(a_var("t", tuple_ty), 1, ty_bool())));
 
         let e = alloc_tuple_proj(
             alloc_bin_op(BinOp::Add, alloc_int(1), alloc_int(2), ty_int()),
@@ -1078,8 +1078,8 @@ mod tests {
             run(e),
             anf_let(
                 "$0",
-                c_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
-                complex(c_tuple_proj(a_var("$0", ty_int()), 0, ty_bool())),
+                co_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
+                complex(co_tuple_proj(a_var("$0", ty_int()), 0, ty_bool())),
                 ty_bool(),
             )
         );
@@ -1089,7 +1089,7 @@ mod tests {
     fn tuple_set_binds_complex_element() {
         let tuple_ty = Type::Tuple(vec![Type::Int, Type::Int]);
         let e = alloc_tuple_set(alloc_var("t", tuple_ty.clone()), alloc_int(7), 0);
-        assert_eq!(run(e), complex(c_tuple_set(a_var("t", tuple_ty), a_int(7), 0)));
+        assert_eq!(run(e), complex(co_tuple_set(a_var("t", tuple_ty), a_int(7), 0)));
 
         let tuple_ty = Type::Tuple(vec![Type::Int, Type::Int]);
         let e = alloc_tuple_set(
@@ -1101,8 +1101,8 @@ mod tests {
             run(e),
             anf_let(
                 "$0",
-                c_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
-                complex(c_tuple_set(a_var("t", tuple_ty), a_var("$0", ty_int()), 1)),
+                co_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
+                complex(co_tuple_set(a_var("t", tuple_ty), a_var("$0", ty_int()), 1)),
                 ty_int(),
             )
         );
@@ -1110,19 +1110,19 @@ mod tests {
 
     #[test]
     fn allocation_constructs_pass_through() {
-        assert_eq!(run(allocate(8, ty_int())), complex(c_allocate(8, ty_int())));
+        assert_eq!(run(allocate(8, ty_int())), complex(co_allocate(8, ty_int())));
         assert_eq!(
             run(allocate_closure(16, 2, ty_int())),
-            complex(c_allocate_closure(16, 2, ty_int()))
+            complex(co_allocate_closure(16, 2, ty_int()))
         );
-        assert_eq!(run(alloc_fun_ref("f", 2, ty_int())), complex(c_fun_ref("f", 2, ty_int())));
+        assert_eq!(run(alloc_fun_ref("f", 2, ty_int())), complex(co_fun_ref("f", 2, ty_int())));
         assert_eq!(
             run(global_value(GlobalValue::FreePtr)),
-            complex(c_global_value(GlobalValue::FreePtr))
+            complex(co_global_value(GlobalValue::FreePtr))
         );
-        assert_eq!(run(global_freeptr()), complex(c_free_ptr()));
-        assert_eq!(run(global_fromspace_end()), complex(c_fromspace_end()));
-        assert_eq!(run(collect(32)), complex(c_collect(32)));
+        assert_eq!(run(global_freeptr()), complex(co_free_ptr()));
+        assert_eq!(run(global_fromspace_end()), complex(co_fromspace_end()));
+        assert_eq!(run(collect(32)), complex(co_collect(32)));
     }
 
     #[test]
@@ -1137,7 +1137,7 @@ mod tests {
             AnfDef::ValDef(
                 "answer".to_string(),
                 Some(ty_int()),
-                complex(c_bin_op(BinOp::Add, a_int(20), a_int(22), ty_int())),
+                complex(co_bin_op(BinOp::Add, a_int(20), a_int(22), ty_int())),
             )
         );
 
@@ -1154,7 +1154,7 @@ mod tests {
                 vec![("a".to_string(), ty_int()), ("b".to_string(), ty_int())],
                 ty_int(),
                 complex(
-                    c_bin_op(BinOp::Add, a_var("a", ty_int()), a_var("b", ty_int()), ty_int(),)
+                    co_bin_op(BinOp::Add, a_var("a", ty_int()), a_var("b", ty_int()), ty_int(),)
                 ),
             )
         );
@@ -1191,8 +1191,8 @@ mod tests {
                     ty_int(),
                     anf_let(
                         "$0",
-                        c_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
-                        complex(c_bin_op(
+                        co_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
+                        complex(co_bin_op(
                             BinOp::Add,
                             a_var("x", ty_int()),
                             a_var("$0", ty_int()),
@@ -1203,8 +1203,8 @@ mod tests {
                 )],
                 main: anf_let(
                     "$1",
-                    c_bin_op(BinOp::Add, a_int(2), a_int(3), ty_int()),
-                    complex(c_app(a_var("id", fn_ty), vec![a_var("$1", ty_int())], ty_int(),)),
+                    co_bin_op(BinOp::Add, a_int(2), a_int(3), ty_int()),
+                    complex(co_app(a_var("id", fn_ty), vec![a_var("$1", ty_int())], ty_int(),)),
                     ty_int(),
                 ),
             }
