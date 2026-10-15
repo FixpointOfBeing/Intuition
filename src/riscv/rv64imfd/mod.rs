@@ -10,3 +10,5 @@ pub mod rv64imfd_reg;
 pub use rv64imfd_reg::{FReg, XReg};
 pub mod label;
 pub use label::Label;
+pub mod ld_sym;
+pub use ld_sym::LdSym;

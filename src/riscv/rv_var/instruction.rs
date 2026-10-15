@@ -1,7 +1,7 @@
 use crate::riscv::rv_var::location::{RvVarLocation, ra, zero};
-use crate::riscv::rv64imfd::Label;
 use crate::riscv::rv64imfd::rv64imfd_imm::{Imm12, Imm32LowZeroBits12, Shamt5, Shamt6};
 use crate::riscv::rv64imfd::rv64imfd_instr::Rm;
+use crate::riscv::rv64imfd::{Label, LdSym};
 use std::collections::HashSet;
 use std::{fmt, i64};
 
@@ -10,256 +10,679 @@ use std::{fmt, i64};
 pub enum RvVarInstr {
     // R-type
     /// 有符号加法：rd = rs1 + rs2
-    Add { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Add {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 有符号减法：rd = rs1 - rs2
-    Sub { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Sub {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 逻辑左移：rd = rs1 << (rs2 & 0x3F)
-    Sll { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Sll {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 有符号小于比较：rs1 < rs2 时 rd = 1，否则 rd = 0
-    Slt { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Slt {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 无符号小于比较：rs1 < rs2（无符号）时 rd = 1，否则 rd = 0
-    Sltu { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Sltu {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 按位异或：rd = rs1 ^ rs2
-    Xor { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Xor {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 逻辑右移：rd = rs1 >> (rs2 & 0x3F)，高位补 0
-    Srl { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Srl {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 算术右移：rd = rs1 >> (rs2 & 0x3F)，高位补符号位
-    Sra { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Sra {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 按位或：rd = rs1 | rs2
-    Or { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Or {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 按位与：rd = rs1 & rs2
-    And { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    And {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
 
     // R-type（M 扩展）
     /// 有符号乘法（取低 64 位）：rd = (rs1 *s rs2)[63:0]
-    Mul { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Mul {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 有符号乘法（取高 64 位）：rd = (rs1 *s rs2) >> 64
-    Mulh { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Mulh {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 无符号乘法（取高 64 位）：rd = (rs1 *u rs2) >> 64
-    Mulhu { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Mulhu {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 有符号乘无符号（取高 64 位）：rd = (rs1 *s rs2_u) >> 64
-    Mulhsu { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Mulhsu {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 有符号除法（向零截断）：rd = rs1 /s rs2；除零时 rd = -1，溢出（MIN / -1）时 rd = MIN
-    Div { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Div {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 无符号除法：rd = rs1 /u rs2；除零时 rd = 2^64 - 1
-    Divu { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Divu {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 有符号取余：rd = rs1 %s rs2；除零时 rd = rs1，溢出（MIN % -1）时 rd = 0
-    Rem { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Rem {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 无符号取余：rd = rs1 %u rs2；除零时 rd = rs1
-    Remu { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Remu {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
 
     // RV64 R-type W
     /// 32 位有符号加法，结果按 32 位符号扩展：rd = sext32(rs1 + rs2)
-    Addw { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Addw {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 32 位有符号减法，结果按 32 位符号扩展：rd = sext32(rs1 - rs2)
-    Subw { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Subw {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 32 位逻辑左移（移位数取低 5 位），结果按 32 位符号扩展
-    Sllw { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Sllw {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 32 位逻辑右移（移位数取低 5 位），结果按 32 位符号扩展
-    Srlw { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Srlw {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 32 位算术右移（移位数取低 5 位），结果按 32 位符号扩展
-    Sraw { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Sraw {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
 
     // RV64 R-type W（M 扩展）
     /// 32 位有符号乘法（取低 32 位），结果按 32 位符号扩展
-    Mulw { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Mulw {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 32 位有符号除法（向零截断），结果按 32 位符号扩展；除零时 rd = -1，溢出时 rd = sext32(INT32_MIN)
-    Divw { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Divw {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 32 位无符号除法，结果按 32 位符号扩展；除零时 rd = 2^32 - 1
-    Divuw { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Divuw {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 32 位有符号取余，结果按 32 位符号扩展；除零时 rd = rs1，溢出时 rd = 0
-    Remw { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Remw {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 32 位无符号取余，结果按 32 位符号扩展；除零时 rd = rs1
-    Remuw { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    Remuw {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
 
     // I-type
     /// 加立即数（12 位符号扩展）：rd = rs1 + sext(imm)
-    Addi { rd: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Addi {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
     /// 有符号小于立即数比较：rs1 < sext(imm) 时 rd = 1，否则 rd = 0
-    Slti { rd: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Slti {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
     /// 无符号小于立即数比较：rs1 < sext(imm)（无符号）时 rd = 1，否则 rd = 0
-    Sltiu { rd: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Sltiu {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
     /// 与立即数按位异或：rd = rs1 ^ sext(imm)
-    Xori { rd: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Xori {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
     /// 与立即数按位或：rd = rs1 | sext(imm)
-    Ori { rd: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Ori {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
     /// 与立即数按位与：rd = rs1 & sext(imm)
-    Andi { rd: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Andi {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
     /// 立即数逻辑左移：rd = rs1 << shamt
-    Slli { rd: RvVarLocation, rs1: RvVarLocation, shamt: Shamt6 },
+    Slli {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        shamt: Shamt6,
+    },
     /// 立即数逻辑右移：rd = rs1 >> shamt，高位补 0
-    Srli { rd: RvVarLocation, rs1: RvVarLocation, shamt: Shamt6 },
+    Srli {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        shamt: Shamt6,
+    },
     /// 立即数算术右移：rd = rs1 >> shamt，高位补符号位
-    Srai { rd: RvVarLocation, rs1: RvVarLocation, shamt: Shamt6 },
+    Srai {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        shamt: Shamt6,
+    },
 
     // RV64 I-type W
     /// 32 位加立即数（12 位符号扩展），结果按 32 位符号扩展：rd = sext32(rs1 + sext(imm))
-    Addiw { rd: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Addiw {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
     /// 32 位立即数逻辑左移，结果按 32 位符号扩展
-    Slliw { rd: RvVarLocation, rs1: RvVarLocation, shamt: Shamt5 },
+    Slliw {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        shamt: Shamt5,
+    },
     /// 32 位立即数逻辑右移，结果按 32 位符号扩展
-    Srliw { rd: RvVarLocation, rs1: RvVarLocation, shamt: Shamt5 },
+    Srliw {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        shamt: Shamt5,
+    },
     /// 32 位立即数算术右移，结果按 32 位符号扩展
-    Sraiw { rd: RvVarLocation, rs1: RvVarLocation, shamt: Shamt5 },
+    Sraiw {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        shamt: Shamt5,
+    },
 
     // Loads (I-type)
     /// 从内存加载字节并符号扩展：rd = sext8(Mem[rs1 + sext(imm)])
-    Lb { rd: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Lb {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
     /// 从内存加载半字并符号扩展：rd = sext16(Mem[rs1 + sext(imm)])
-    Lh { rd: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Lh {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
     /// 从内存加载字并符号扩展：rd = sext32(Mem[rs1 + sext(imm)])
-    Lw { rd: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Lw {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
     /// 从内存加载双字：rd = Mem[rs1 + sext(imm)]
-    Ld { rd: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Ld {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
     /// 从内存加载无符号字节并零扩展：rd = zeroext8(Mem[rs1 + sext(imm)])
-    Lbu { rd: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Lbu {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
     /// 从内存加载无符号半字并零扩展：rd = zeroext16(Mem[rs1 + sext(imm)])
-    Lhu { rd: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Lhu {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
     /// 从内存加载无符号字并零扩展：rd = zeroext32(Mem[rs1 + sext(imm)])
-    Lwu { rd: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Lwu {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
 
     // Jalr (I-type)
     /// 寄存器间接跳转并链接：rd = PC + 4，PC = (rs1 + sext(imm)) & ~1
-    Jalr { rd: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Jalr {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
+    JalrLdSym {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        sym: LdSym,
+    },
 
     // S-type
     /// 存字节：Mem[rs1 + sext(imm)] = rs2 & 0xFF
-    Sb { rs2: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Sb {
+        rs2: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
     /// 存半字：Mem[rs1 + sext(imm)] = rs2 & 0xFFFF
-    Sh { rs2: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Sh {
+        rs2: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
     /// 存字：Mem[rs1 + sext(imm)] = rs2 & 0xFFFFFFFF
-    Sw { rs2: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Sw {
+        rs2: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
     /// 存双字：Mem[rs1 + sext(imm)] = rs2
-    Sd { rs2: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Sd {
+        rs2: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
 
     // B-type
     /// 相等则跳转：rs1 == rs2 时跳转到 label
-    Beq { rs1: RvVarLocation, rs2: RvVarLocation, label: Label },
+    Beq {
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+        label: Label,
+    },
     /// 不等则跳转：rs1 != rs2 时跳转到 label
-    Bne { rs1: RvVarLocation, rs2: RvVarLocation, label: Label },
+    Bne {
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+        label: Label,
+    },
     /// 有符号小于则跳转：rs1 < rs2 时跳转到 labe
-    Blt { rs1: RvVarLocation, rs2: RvVarLocation, label: Label },
+    Blt {
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+        label: Label,
+    },
     /// 有符号大于等于则跳转：rs1 >= rs2 时跳转到 label
-    Bge { rs1: RvVarLocation, rs2: RvVarLocation, label: Label },
+    Bge {
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+        label: Label,
+    },
     /// 无符号小于则跳转：rs1 < rs2（无符号）时跳转到 label
-    Bltu { rs1: RvVarLocation, rs2: RvVarLocation, label: Label },
+    Bltu {
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+        label: Label,
+    },
     /// 无符号大于等于则跳转：rs1 >= rs2（无符号）时跳转到 label
-    Bgeu { rs1: RvVarLocation, rs2: RvVarLocation, label: Label },
+    Bgeu {
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+        label: Label,
+    },
 
     // Lui (U-type)
     /// 加载高位立即数：rd = sext(imm << 12)，低 12 位为 0
-    Lui { rd: RvVarLocation, imm: Imm32LowZeroBits12 },
+    Lui {
+        rd: RvVarLocation,
+        imm: Imm32LowZeroBits12,
+    },
 
     // Auipc (U-type)
     /// PC 加高位立即数：rd = PC + sext(imm << 12)
-    Auipc { rd: RvVarLocation, imm: Imm32LowZeroBits12 },
-
+    Auipc {
+        rd: RvVarLocation,
+        imm: Imm32LowZeroBits12,
+    },
+    AuipcLdSym {
+        rd: RvVarLocation,
+        sym: LdSym,
+    },
     // Jal (J-type)
     /// 直接跳转并链接：rd = PC + 4，PC = PC + sext(imm)
-    Jal { rd: RvVarLocation, label: Label },
+    Jal {
+        rd: RvVarLocation,
+        label: Label,
+    },
 
     /// 带变量操作数的 RISC-V 浮点指令（F/D 扩展）
     // 浮点算术（带舍入模式）
     /// 单精度浮点加法：rd = rs1 + rs2（按 rm 舍入）
-    FaddS { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation, rm: Rm },
+    FaddS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+        rm: Rm,
+    },
     /// 双精度浮点加法：rd = rs1 + rs2（按 rm 舍入）
-    FaddD { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation, rm: Rm },
+    FaddD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+        rm: Rm,
+    },
     /// 单精度浮点减法：rd = rs1 - rs2（按 rm 舍入）
-    FsubS { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation, rm: Rm },
+    FsubS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+        rm: Rm,
+    },
     /// 双精度浮点减法：rd = rs1 - rs2（按 rm 舍入）
-    FsubD { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation, rm: Rm },
+    FsubD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+        rm: Rm,
+    },
     /// 单精度浮点乘法：rd = rs1 × rs2（按 rm 舍入）
-    FmulS { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation, rm: Rm },
+    FmulS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+        rm: Rm,
+    },
     /// 双精度浮点乘法：rd = rs1 × rs2（按 rm 舍入）
-    FmulD { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation, rm: Rm },
+    FmulD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+        rm: Rm,
+    },
     /// 单精度浮点除法：rd = rs1 / rs2（按 rm 舍入）
-    FdivS { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation, rm: Rm },
+    FdivS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+        rm: Rm,
+    },
     /// 双精度浮点除法：rd = rs1 / rs2（按 rm 舍入）
-    FdivD { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation, rm: Rm },
+    FdivD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+        rm: Rm,
+    },
     /// 单精度浮点平方根：rd = √rs1（按 rm 舍入）
-    FsqrtS { rd: RvVarLocation, rs1: RvVarLocation, rm: Rm },
+    FsqrtS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rm: Rm,
+    },
     /// 双精度浮点平方根：rd = √rs1（按 rm 舍入）
-    FsqrtD { rd: RvVarLocation, rs1: RvVarLocation, rm: Rm },
+    FsqrtD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rm: Rm,
+    },
 
     // 符号注入/拷贝（无舍入）
     /// 单精度拷贝符号位：rd = rs1 的绝对值与 rs2 的符号位组合
-    FsgnjS { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    FsgnjS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 双精度拷贝符号位：rd = rs1 的绝对值与 rs2 的符号位组合
-    FsgnjD { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    FsgnjD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 单精度拷贝相反符号位：rd = rs1 的绝对值与 ~rs2 的符号位组合
-    FsgnjnS { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    FsgnjnS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 双精度拷贝相反符号位：rd = rs1 的绝对值与 ~rs2 的符号位组合
-    FsgnjnD { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    FsgnjnD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 单精度符号位异或：rd = rs1 的绝对值与 (rs1 符号位 xor rs2 符号位) 组合
-    FsgnjxS { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    FsgnjxS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 双精度符号位异或：rd = rs1 的绝对值与 (rs1 符号位 xor rs2 符号位) 组合
-    FsgnjxD { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    FsgnjxD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
 
     // 取最小值/最大值（无舍入，遵循 IEEE-754 2019 语义）
     /// 单精度取最小值：rd = min(rs1, rs2)
-    FminS { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    FminS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 双精度取最小值：rd = min(rs1, rs2)
-    FminD { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    FminD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 单精度取最大值：rd = max(rs1, rs2)
-    FmaxS { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    FmaxS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 双精度取最大值：rd = max(rs1, rs2)
-    FmaxD { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    FmaxD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
 
     // 浮点比较（结果写入整数寄存器）
     /// 单精度浮点相等比较：rs1 == rs2 时 rd = 1，否则 rd = 0
-    FeqS { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    FeqS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 双精度浮点相等比较：rs1 == rs2 时 rd = 1，否则 rd = 0
-    FeqD { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    FeqD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 单精度浮点小于比较：rs1 < rs2 时 rd = 1，否则 rd = 0
-    FltS { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    FltS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 双精度浮点小于比较：rs1 < rs2 时 rd = 1，否则 rd = 0
-    FltD { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    FltD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 单精度浮点小于等于比较：rs1 <= rs2 时 rd = 1，否则 rd = 0
-    FleS { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    FleS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
     /// 双精度浮点小于等于比较：rs1 <= rs2 时 rd = 1，否则 rd = 0
-    FleD { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation },
+    FleD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+    },
 
     // 寄存器移动（整数 ↔ 浮点，位模式不变）
     /// 将浮点寄存器的位模式按 32 位符号扩展移到整数寄存器：rd = sext32(bits(rs1))
-    FmvXW { rd: RvVarLocation, rs1: RvVarLocation },
+    FmvXW {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+    },
     /// 将整数寄存器的低 32 位位模式移到浮点寄存器：rd = bits(rs1)[31:0]
-    FmvWX { rd: RvVarLocation, rs1: RvVarLocation },
+    FmvWX {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+    },
     /// 将浮点寄存器的位模式（64 位）移到整数寄存器：rd = bits(rs1)
-    FmvXD { rd: RvVarLocation, rs1: RvVarLocation },
+    FmvXD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+    },
     /// 将整数寄存器的位模式（64 位）移到浮点寄存器：rd = bits(rs1)
-    FmvDX { rd: RvVarLocation, rs1: RvVarLocation },
+    FmvDX {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+    },
 
     // 类型转换（整数 → 浮点，无舍入）
     /// 有符号整数转单精度浮点：rd = (float)rs1
-    FcvtSW { rd: RvVarLocation, rs1: RvVarLocation },
+    FcvtSW {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+    },
     /// 无符号整数转单精度浮点：rd = (float)rs1
-    FcvtSWu { rd: RvVarLocation, rs1: RvVarLocation },
+    FcvtSWu {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+    },
     /// 有符号整数转双精度浮点：rd = (double)rs1
-    FcvtDW { rd: RvVarLocation, rs1: RvVarLocation },
+    FcvtDW {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+    },
     /// 无符号整数转双精度浮点：rd = (double)rs1
-    FcvtDWu { rd: RvVarLocation, rs1: RvVarLocation },
+    FcvtDWu {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+    },
 
     // 类型转换（浮点 ↔ 浮点，无舍入）
     /// 单精度浮点转双精度浮点：rd = (double)rs1
-    FcvtSD { rd: RvVarLocation, rs1: RvVarLocation },
+    FcvtSD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+    },
     /// 双精度浮点转单精度浮点：rd = (float)rs1
-    FcvtDS { rd: RvVarLocation, rs1: RvVarLocation },
+    FcvtDS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+    },
 
     // 类型转换（浮点 → 整数，带舍入模式）
     /// 单精度浮点转有符号整数（按 rm 舍入，向零截断等价于 rtz）
-    FcvtWS { rd: RvVarLocation, rs1: RvVarLocation, rm: Rm },
+    FcvtWS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rm: Rm,
+    },
     /// 单精度浮点转无符号整数（按 rm 舍入）
-    FcvtWuS { rd: RvVarLocation, rs1: RvVarLocation, rm: Rm },
+    FcvtWuS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rm: Rm,
+    },
     /// 双精度浮点转有符号整数（按 rm 舍入）
-    FcvtWD { rd: RvVarLocation, rs1: RvVarLocation, rm: Rm },
+    FcvtWD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rm: Rm,
+    },
     /// 双精度浮点转无符号整数（按 rm 舍入）
-    FcvtWuD { rd: RvVarLocation, rs1: RvVarLocation, rm: Rm },
+    FcvtWuD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rm: Rm,
+    },
 
     // 融合乘加（R4-type，带舍入模式）
     /// 单精度融合乘加：rd = rs1×rs2 + rs3（按 rm 舍入）
-    FmaddS { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation, rs3: RvVarLocation, rm: Rm },
+    FmaddS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+        rs3: RvVarLocation,
+        rm: Rm,
+    },
     /// 单精度融合乘减：rd = rs1×rs2 - rs3（按 rm 舍入）
-    FmsubS { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation, rs3: RvVarLocation, rm: Rm },
+    FmsubS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+        rs3: RvVarLocation,
+        rm: Rm,
+    },
     /// 单精度融合负乘加：rd = -(rs1×rs2) + rs3（按 rm 舍入）
     FnmsubS {
         rd: RvVarLocation,
@@ -277,9 +700,21 @@ pub enum RvVarInstr {
         rm: Rm,
     },
     /// 双精度融合乘加：rd = rs1×rs2 + rs3（按 rm 舍入）
-    FmaddD { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation, rs3: RvVarLocation, rm: Rm },
+    FmaddD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+        rs3: RvVarLocation,
+        rm: Rm,
+    },
     /// 双精度融合乘减：rd = rs1×rs2 - rs3（按 rm 舍入）
-    FmsubD { rd: RvVarLocation, rs1: RvVarLocation, rs2: RvVarLocation, rs3: RvVarLocation, rm: Rm },
+    FmsubD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rs2: RvVarLocation,
+        rs3: RvVarLocation,
+        rm: Rm,
+    },
     /// 双精度融合负乘加：rd = -(rs1×rs2) + rs3（按 rm 舍入）
     FnmsubD {
         rd: RvVarLocation,
@@ -299,37 +734,91 @@ pub enum RvVarInstr {
 
     // 浮点分类（结果写入整数寄存器）
     /// 单精度浮点分类：rd = 指示 rs1 类型的位掩码
-    FclassS { rd: RvVarLocation, rs1: RvVarLocation },
+    FclassS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+    },
     /// 双精度浮点分类：rd = 指示 rs1 类型的位掩码
-    FclassD { rd: RvVarLocation, rs1: RvVarLocation },
+    FclassD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+    },
 
     // RV64F/D 64 位整数转换（带舍入模式）
     /// 单精度浮点转有符号 64 位整数（按 rm 舍入）
-    FcvtLS { rd: RvVarLocation, rs1: RvVarLocation, rm: Rm },
+    FcvtLS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rm: Rm,
+    },
     /// 单精度浮点转无符号 64 位整数（按 rm 舍入）
-    FcvtLuS { rd: RvVarLocation, rs1: RvVarLocation, rm: Rm },
+    FcvtLuS {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rm: Rm,
+    },
     /// 有符号 64 位整数转单精度浮点（按 rm 舍入）
-    FcvtSL { rd: RvVarLocation, rs1: RvVarLocation, rm: Rm },
+    FcvtSL {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rm: Rm,
+    },
     /// 无符号 64 位整数转单精度浮点（按 rm 舍入）
-    FcvtSLu { rd: RvVarLocation, rs1: RvVarLocation, rm: Rm },
+    FcvtSLu {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rm: Rm,
+    },
     /// 双精度浮点转有符号 64 位整数（按 rm 舍入）
-    FcvtLD { rd: RvVarLocation, rs1: RvVarLocation, rm: Rm },
+    FcvtLD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rm: Rm,
+    },
     /// 双精度浮点转无符号 64 位整数（按 rm 舍入）
-    FcvtLuD { rd: RvVarLocation, rs1: RvVarLocation, rm: Rm },
+    FcvtLuD {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rm: Rm,
+    },
     /// 有符号 64 位整数转双精度浮点（按 rm 舍入）
-    FcvtDL { rd: RvVarLocation, rs1: RvVarLocation, rm: Rm },
+    FcvtDL {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rm: Rm,
+    },
     /// 无符号 64 位整数转双精度浮点（按 rm 舍入）
-    FcvtDLu { rd: RvVarLocation, rs1: RvVarLocation, rm: Rm },
+    FcvtDLu {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        rm: Rm,
+    },
 
     // 浮点访存
     /// 加载单精度浮点：rd = Mem[rs1 + sext(imm)]
-    Flw { rd: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Flw {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
     /// 加载双精度浮点：rd = Mem[rs1 + sext(imm)]
-    Fld { rd: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Fld {
+        rd: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
     /// 存单精度浮点：Mem[rs1 + sext(imm)] = rs2
-    Fsw { rs2: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Fsw {
+        rs2: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
     /// 存双精度浮点：Mem[rs1 + sext(imm)] = rs2
-    Fsd { rs2: RvVarLocation, rs1: RvVarLocation, imm: Imm12 },
+    Fsd {
+        rs2: RvVarLocation,
+        rs1: RvVarLocation,
+        imm: Imm12,
+    },
 }
 
 pub fn li(rd: RvVarLocation, imm: i64) -> Vec<RvVarInstr> {
@@ -573,7 +1062,6 @@ impl fmt::Display for RvVarInstr {
             Self::And { rd, rs1, rs2 } => {
                 write!(f, "and {rd}, {rs1}, {rs2}")
             },
-
             Self::Mul { rd, rs1, rs2 } => {
                 write!(f, "mul {rd}, {rs1}, {rs2}")
             },
@@ -598,7 +1086,6 @@ impl fmt::Display for RvVarInstr {
             Self::Remu { rd, rs1, rs2 } => {
                 write!(f, "remu {rd}, {rs1}, {rs2}")
             },
-
             Self::Addw { rd, rs1, rs2 } => {
                 write!(f, "addw {rd}, {rs1}, {rs2}")
             },
@@ -614,7 +1101,6 @@ impl fmt::Display for RvVarInstr {
             Self::Sraw { rd, rs1, rs2 } => {
                 write!(f, "sraw {rd}, {rs1}, {rs2}")
             },
-
             Self::Mulw { rd, rs1, rs2 } => {
                 write!(f, "mulw {rd}, {rs1}, {rs2}")
             },
@@ -630,7 +1116,6 @@ impl fmt::Display for RvVarInstr {
             Self::Remuw { rd, rs1, rs2 } => {
                 write!(f, "remuw {rd}, {rs1}, {rs2}")
             },
-
             Self::Addi { rd, rs1, imm } => {
                 write!(f, "addi {rd}, {rs1}, {imm}")
             },
@@ -658,7 +1143,6 @@ impl fmt::Display for RvVarInstr {
             Self::Srai { rd, rs1, shamt } => {
                 write!(f, "srai {rd}, {rs1}, {shamt}")
             },
-
             Self::Addiw { rd, rs1, imm } => {
                 write!(f, "addiw {rd}, {rs1}, {imm}")
             },
@@ -671,7 +1155,6 @@ impl fmt::Display for RvVarInstr {
             Self::Sraiw { rd, rs1, shamt } => {
                 write!(f, "sraiw {rd}, {rs1}, {shamt}")
             },
-
             Self::Lb { rd, rs1, imm } => {
                 write!(f, "lb {rd}, {imm}({rs1})")
             },
@@ -693,11 +1176,12 @@ impl fmt::Display for RvVarInstr {
             Self::Lwu { rd, rs1, imm } => {
                 write!(f, "lwu {rd}, {imm}({rs1})")
             },
-
             Self::Jalr { rd, rs1, imm } => {
                 write!(f, "jalr {rd}, {imm}({rs1})")
             },
-
+            Self::JalrLdSym { rd, rs1, sym } => {
+                write!(f, "jalr {rd}, {sym}({rs1})")
+            },
             Self::Sb { rs2, rs1, imm } => {
                 write!(f, "sb {rs2}, {imm}({rs1})")
             },
@@ -710,7 +1194,6 @@ impl fmt::Display for RvVarInstr {
             Self::Sd { rs2, rs1, imm } => {
                 write!(f, "sd {rs2}, {imm}({rs1})")
             },
-
             Self::Beq { rs1, rs2, label } => {
                 write!(f, "beq {rs1}, {rs2}, {label}")
             },
@@ -729,17 +1212,16 @@ impl fmt::Display for RvVarInstr {
             Self::Bgeu { rs1, rs2, label } => {
                 write!(f, "bgeu {rs1}, {rs2}, {label}")
             },
-
             Self::Lui { rd, imm } => {
                 write!(f, "lui {rd}, 0x{:x}", (imm.to_i32() >> 12) & 0xFFFFF)
             },
-
             Self::Auipc { rd, imm } => {
                 write!(f, "auipc {rd}, 0x{:x}", imm.to_i32() >> 12)
             },
-
+            Self::AuipcLdSym { rd, sym } => {
+                write!(f, "auipc {rd}, {sym}")
+            },
             Self::Jal { rd, label } => write!(f, "jal {rd}, {label}"),
-
             Self::FaddS { rd, rs1, rs2, rm } => {
                 write!(f, "fadd.s {rd}, {rs1}, {rs2}, {rm}")
             },
@@ -770,7 +1252,6 @@ impl fmt::Display for RvVarInstr {
             Self::FsqrtD { rd, rs1, rm } => {
                 write!(f, "fsqrt.d {rd}, {rs1}, {rm}")
             },
-
             Self::FsgnjS { rd, rs1, rs2 } => {
                 write!(f, "fsgnj.s {rd}, {rs1}, {rs2}")
             },
@@ -801,7 +1282,6 @@ impl fmt::Display for RvVarInstr {
             Self::FmaxD { rd, rs1, rs2 } => {
                 write!(f, "fmax.d {rd}, {rs1}, {rs2}")
             },
-
             Self::FeqS { rd, rs1, rs2 } => {
                 write!(f, "feq.s {rd}, {rs1}, {rs2}")
             },
@@ -820,7 +1300,6 @@ impl fmt::Display for RvVarInstr {
             Self::FleD { rd, rs1, rs2 } => {
                 write!(f, "fle.d {rd}, {rs1}, {rs2}")
             },
-
             Self::FmvXW { rd, rs1 } => {
                 write!(f, "fmv.x.w {rd}, {rs1}")
             },
@@ -833,7 +1312,6 @@ impl fmt::Display for RvVarInstr {
             Self::FmvDX { rd, rs1 } => {
                 write!(f, "fmv.d.x {rd}, {rs1}")
             },
-
             Self::FcvtSW { rd, rs1 } => {
                 write!(f, "fcvt.s.w {rd}, {rs1}")
             },
@@ -864,7 +1342,6 @@ impl fmt::Display for RvVarInstr {
             Self::FcvtWuD { rd, rs1, rm } => {
                 write!(f, "fcvt.wu.d {rd}, {rs1}, {rm}")
             },
-
             Self::FmaddS { rd, rs1, rs2, rs3, rm } => {
                 write!(f, "fmadd.s {rd}, {rs1}, {rs2}, {rs3}, {rm}")
             },
@@ -919,7 +1396,6 @@ impl fmt::Display for RvVarInstr {
             Self::FcvtDLu { rd, rs1, rm } => {
                 write!(f, "fcvt.d.lu {rd}, {rs1}, {rm}")
             },
-
             Self::Flw { rd, rs1, imm } => {
                 write!(f, "flw {rd}, {imm}({rs1})")
             },
@@ -1063,8 +1539,11 @@ impl RvVarInstr {
             RvVarInstr::Fld { rd, .. } => Some(rd.clone()),
             RvVarInstr::Fsw { .. } => None,
             RvVarInstr::Fsd { .. } => None,
+            RvVarInstr::JalrLdSym { rd, .. } => Some(rd.clone()),
+            RvVarInstr::AuipcLdSym { rd, .. } => Some(rd.clone()),
         }
     }
+
     pub fn source_locations(&self) -> HashSet<RvVarLocation> {
         let mut sources = HashSet::new();
         match self {
@@ -1259,7 +1738,6 @@ impl RvVarInstr {
                 sources.insert(rs1.clone());
                 sources.insert(rs2.clone());
             },
-
             RvVarInstr::Beq { rs1, rs2, .. } => {
                 sources.insert(rs1.clone());
                 sources.insert(rs2.clone());
@@ -1519,6 +1997,10 @@ impl RvVarInstr {
                 sources.insert(rs1.clone());
                 sources.insert(rs2.clone());
             },
+            RvVarInstr::JalrLdSym { rd, rs1, sym } => {
+                sources.insert(rs1.clone());
+            },
+            RvVarInstr::AuipcLdSym { .. } => {},
         }
         sources
     }
@@ -1956,6 +2438,12 @@ impl RvVarInstr {
             },
             RvVarInstr::Fsd { rs2, rs1, imm } => {
                 RvVarInstr::Fsd { rs2: map_src(rs2), rs1: map_src(rs1), imm: imm.clone() }
+            },
+            RvVarInstr::JalrLdSym { rd, rs1, sym } => {
+                RvVarInstr::JalrLdSym { rd: map_dest(rd), rs1: map_src(rs1), sym: sym.clone() }
+            },
+            RvVarInstr::AuipcLdSym { rd, sym } => {
+                RvVarInstr::AuipcLdSym { rd: map_dest(rd), sym: sym.clone() }
             },
         }
     }
