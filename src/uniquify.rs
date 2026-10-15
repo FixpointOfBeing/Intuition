@@ -50,13 +50,6 @@ pub fn rename(gensym: &mut Gensym, env: &mut NameEnv, expr: TypedExpr) -> TypedE
             let renamed = rename(gensym, env, *typed_expr);
             TypedExpr::PrimOutput(prim, Box::new(renamed), ty)
         },
-        // TypedExpr::PrimIO(prim_io, typed_expr, ty) => match typed_expr {
-        //     Some(typed_expr) => {
-        //         let renamed = rename(gensym, env, *typed_expr);
-        //         TypedExpr::PrimIO(prim_io, Some(Box::new(renamed)), ty)
-        //     },
-        //     None => TypedExpr::PrimIO(prim_io, None, ty),
-        // },
         TypedExpr::BinOp(op, left, right, ty) => {
             let left = rename(gensym, &mut env.clone(), *left);
             let right = rename(gensym, env, *right);
@@ -652,7 +645,7 @@ mod tests {
             TypedExpr::PrimOutput(PrimOutput::PrintInt, inner, _) => {
                 assert_eq!(expect_var(inner), x_name);
             },
-            other => panic!("expected PrimIO, got {:?}", other),
+            other => panic!("expected PrimOutput, got {:?}", other),
         }
     }
 

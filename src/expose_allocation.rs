@@ -39,7 +39,6 @@ pub enum AllocExpr {
     //     Box<AllocExpr>, // last expression
     //     Type,           // last expression's type
     // ),
-    // PrimIO(PrimIO, Option<Box<AllocExpr>>, Type),
     PrimInput(PrimInput, Type),
     PrimOutput(PrimOutput, Box<AllocExpr>, Type),
     UnaryOp(UnaryOp, Box<AllocExpr>, Type),
@@ -60,7 +59,6 @@ impl HasType for AllocExpr {
             AllocExpr::UnaryOp(_, _, ty) => (*ty).clone(),
             AllocExpr::PrimInput(_, ty) => (*ty).clone(),
             AllocExpr::PrimOutput(_, _, ty) => (*ty).clone(),
-            // AllocExpr::PrimIO(_, _, ty) => (*ty).clone(),
             AllocExpr::Collect(_) => ty_unit(),
             AllocExpr::Allocate(_, ty) => (*ty).clone(),
             AllocExpr::AllocateClosure(_, _, ty) => (*ty).clone(),
@@ -419,10 +417,6 @@ pub fn expose_allocation(clos_expr: ClosureExpr, gs: &mut Gensym) -> AllocExpr {
             let expr = expose_allocation(*clos_expr, gs);
             alloc_prim_output(prim, expr, clos_ty.to_type())
         },
-        // ClosureExpr::PrimIO(prim_io, expr, clos_ty) => {
-        //     let expr = expr.map(|e| expose_allocation(*e, gs));
-        //     alloc_prim_io(prim_io, expr, clos_ty.to_type())
-        // },
         ClosureExpr::UnaryOp(unary_op, expr, clos_ty) => {
             let alloc_expr = expose_allocation(*expr, gs);
             alloc_unary(unary_op, alloc_expr, clos_ty.to_type())

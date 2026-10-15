@@ -133,6 +133,14 @@ pub struct Program {
 }
 
 impl Type {
+    pub fn is_int_type(&self) -> bool {
+        matches!(self, Type::Int)
+    }
+
+    pub fn is_float_type(&self) -> bool {
+        matches!(self, Type::Float)
+    }
+
     pub fn is_func_type(&self) -> bool {
         matches!(self, Type::Arrow(_, _))
     }
@@ -385,7 +393,7 @@ impl std::fmt::Display for Expr {
                 PrimOutput::PrintFloat => write!(f, "print_float {}", *expr),
                 PrimOutput::PrintBool => write!(f, "print_bool {}", *expr),
             },
-            Expr::PrimInput(prim_io, ) => match prim_io {
+            Expr::PrimInput(prim_io) => match prim_io {
                 PrimInput::ReadInt => write!(f, "read_int ()"),
                 PrimInput::ReadFloat => write!(f, "read_float ()"),
             },

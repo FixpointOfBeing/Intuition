@@ -43,15 +43,18 @@ pub enum CompExpr {
         usize, // arity
         Type,
     ),
-    // PrimIO(PrimIO, Option<AExpr>, Type),
     PrimInput(PrimInput, Type),
     PrimOutput(PrimOutput, AExpr, Type),
     App(AExpr, Vec<AExpr>, Type),
-    If(AExpr, Box<AnfExpr>, Box<AnfExpr>, Type), // if <cond>
+
+    // 这是允许的：
+    // if <cond>
     // then let <name> = if <cond>
     //                   then let <name> = <rhs> in <body>
     //                   else <expr>
     // else <expr>
+    //
+    If(AExpr, Box<AnfExpr>, Box<AnfExpr>, Type), 
     Collect(usize),
     TupleSet(AExpr, AExpr, usize),
     // Seq(Vec<CompExpr>, Box<AExpr>, Type),
@@ -255,16 +258,6 @@ fn to_complex(expr: AllocExpr, gs: &mut Gensym, bindings: &mut Bindings) -> Comp
             let atom = to_atom(*alloc_expr, gs, bindings);
             co_prim_output(prim, atom, ty)
         },
-        // AllocExpr::PrimIO(prim_io, alloc_expr, ty) => {
-        //     let a_expr = match alloc_expr {
-        //         Some(e) => {
-        //             let atom = to_atom(*e, gs, bindings);
-        //             Some(atom)
-        //         },
-        //         None => None,
-        //     };
-        //     c_prim_io(prim_io, a_expr, ty)
-        // },
         AllocExpr::BinOp(op, left, right, ty) => {
             let left_atom = to_atom(*left, gs, bindings);
             let right_atom = to_atom(*right, gs, bindings);
@@ -604,7 +597,9 @@ mod tests {
             anf_let(
                 "$0",
                 co_bin_op(BinOp::Add, a_int(1), a_int(2), ty_int()),
-                complex(co_app(a_var("f", fn_ty), vec![a_var("$0", ty_int()), a_int(3)], ty_int(),)),
+                complex(
+                    co_app(a_var("f", fn_ty), vec![a_var("$0", ty_int()), a_int(3)], ty_int(),)
+                ),
                 ty_int(),
             )
         );
@@ -1153,9 +1148,12 @@ mod tests {
                 "add".to_string(),
                 vec![("a".to_string(), ty_int()), ("b".to_string(), ty_int())],
                 ty_int(),
-                complex(
-                    co_bin_op(BinOp::Add, a_var("a", ty_int()), a_var("b", ty_int()), ty_int(),)
-                ),
+                complex(co_bin_op(
+                    BinOp::Add,
+                    a_var("a", ty_int()),
+                    a_var("b", ty_int()),
+                    ty_int(),
+                )),
             )
         );
     }

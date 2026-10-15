@@ -435,14 +435,6 @@ fn convert_expr(
             let clos_expr = convert_expr(*reveal_expr, gensym, lifted, closure_env);
             clos_prim_output(prim, clos_expr, convert_type(ty))
         },
-        // RevealExpr::PrimIO(prim, expr, ty) => {
-        //     if let Some(reveal_expr) = expr {
-        //         let clos_expr = convert_expr(*reveal_expr, gensym, lifted, closure_env);
-        //         clos_prim_io(prim, Some(clos_expr), convert_type(ty))
-        //     } else {
-        //         clos_prim_io(prim, None, convert_type(ty))
-        //     }
-        // },
         RevealExpr::UnaryOp(op, reveal_expr, ty) => {
             let clos_expr = convert_expr(*reveal_expr, gensym, lifted, closure_env);
             clos_unary(op, clos_expr, convert_type(ty))
@@ -710,11 +702,6 @@ fn free_vars_rec(expr: &RevealExpr, bound: &HashSet<Ident>, frees_map: &mut Hash
         RevealExpr::PrimOutput(_, reveal_expr, _) => {
             free_vars_rec(reveal_expr, bound, frees_map);
         },
-        // RevealExpr::PrimIO(_, reveal_expr, _) => {
-        //     if let Some(reveal_expr) = reveal_expr {
-        //         free_vars_rec(reveal_expr, bound, frees_map);
-        //     }
-        // },
         RevealExpr::UnaryOp(_, reveal_expr, _) => {
             free_vars_rec(reveal_expr, bound, frees_map);
         },
@@ -1037,12 +1024,6 @@ mod tests {
             ClosureExpr::PrimOutput(_, expr, _) => {
                 collect_free_var_indices(expr, out);
             },
-
-            // ClosureExpr::PrimIO(_, expr, _) => {
-            //     if let Some(expr) = expr {
-            //         collect_free_var_indices(expr, out);
-            //     }
-            // },
             ClosureExpr::UnaryOp(_, inner, _) => collect_free_var_indices(inner, out),
             ClosureExpr::If(cond, thn, els, _) => {
                 collect_free_var_indices(cond, out);
@@ -1077,11 +1058,6 @@ mod tests {
             ClosureExpr::PrimOutput(_, expr, _) => {
                 collect_closures(expr, out);
             },
-            // ClosureExpr::PrimIO(_, expr, _) => {
-            //     if let Some(expr) = expr {
-            //         collect_closures(expr, out);
-            //     }
-            // },
             ClosureExpr::UnaryOp(_, inner, _) => collect_closures(inner, out),
             ClosureExpr::If(cond, thn, els, _) => {
                 collect_closures(cond, out);
