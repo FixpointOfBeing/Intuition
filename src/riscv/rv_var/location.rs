@@ -90,6 +90,22 @@ pub fn s1() -> RvVarLocation {
 }
 
 #[inline]
+pub fn x_arg(n: u8) -> RvVarLocation {
+    match n {
+
+    0 => RvVarLocation::XReg(XReg::a0()),
+    1 => RvVarLocation::XReg(XReg::a1()),
+    2 => RvVarLocation::XReg(XReg::a2()),
+    3 => RvVarLocation::XReg(XReg::a3()),
+    4 => RvVarLocation::XReg(XReg::a4()),
+    5 => RvVarLocation::XReg(XReg::a5()),
+    6 => RvVarLocation::XReg(XReg::a6()),
+    7 => RvVarLocation::XReg(XReg::a7()),
+    _ => unreachable!(),
+    }
+}
+
+#[inline]
 pub fn a0() -> RvVarLocation {
     RvVarLocation::XReg(XReg::a0())
 }
@@ -246,6 +262,21 @@ pub fn fs0() -> RvVarLocation {
 #[inline]
 pub fn fs1() -> RvVarLocation {
     RvVarLocation::FReg(FReg::fs1())
+}
+
+#[inline]
+pub fn f_arg(n: u8) -> RvVarLocation {
+    match n {
+        0 => RvVarLocation::FReg(FReg::fa0()),
+        1 => RvVarLocation::FReg(FReg::fa1()),
+        2 => RvVarLocation::FReg(FReg::fa2()),
+        3 => RvVarLocation::FReg(FReg::fa3()),
+        4 => RvVarLocation::FReg(FReg::fa4()),
+        5 => RvVarLocation::FReg(FReg::fa5()),
+        6 => RvVarLocation::FReg(FReg::fa6()),
+        7 => RvVarLocation::FReg(FReg::fa7()),
+        _ => unreachable!(),
+    }
 }
 
 #[inline]

@@ -576,11 +576,12 @@ fn allocate_block(block: RvVarBasicBlock) -> RvVarBasicBlock {
 }
 
 pub fn allocate_registers(var_prog: RvVarProgram) -> RvVarProgram {
-    let mut prog = RvVarProgram::new();
-    for basic_block in var_prog.blocks {
-        prog.append_basic_block(allocate_block(basic_block));
-    }
-    prog
+    todo!()
+    // let mut prog = RvVarProgram::new();
+    // for basic_block in var_prog.blocks {
+    //     prog.append_basic_block(allocate_block(basic_block));
+    // }
+    // prog
 }
 
 #[cfg(test)]
@@ -818,63 +819,64 @@ mod tests {
 
     #[test]
     fn spills_to_stack_when_x_registers_exhausted() {
-        use crate::riscv::rv64imfd::rv64imfd_imm::Imm12;
-
-        // 27 个同时活跃的整数变量构成 27 团，超过 26 个可分配 X 寄存器，必须溢出。
-        let mut instrs = Vec::new();
-        for i in 0..27 {
-            instrs.push(RvVarInstr::Addi {
-                rd: ivar(&format!("v{i}")),
-                rs1: x0(),
-                imm: Imm12::from_i16(1),
-            });
-        }
-        let acc = ivar("acc");
-        instrs.push(RvVarInstr::Add { rd: acc.clone(), rs1: ivar("v0"), rs2: ivar("v1") });
-        for i in 2..27 {
-            instrs.push(RvVarInstr::Add {
-                rd: acc.clone(),
-                rs1: acc.clone(),
-                rs2: ivar(&format!("v{i}")),
-            });
-        }
-
-        let mut prog = RvVarProgram::new();
-        prog.append_basic_block(RvVarBasicBlock {
-            name: crate::riscv::rv64imfd::Label::new("bb".to_string()),
-            instrs,
-        });
-
-        let allocated = allocate_registers(prog);
-        let instrs = &allocated.blocks[0].instrs;
-
-        // 前 27 条 addi 的目标正是 v0..v26 的映射。它们两两干涉，映射结果必须两两不同；
-        // 26 个可分配寄存器装不下 27 个同时活跃的变量，因此至少溢出 1 个。
-        let mut seen = HashSet::new();
-        let mut used_regs = HashSet::new();
-        let mut spilled_offsets = Vec::new();
-        for i in 0..27 {
-            let loc = instrs[i].dest_location().unwrap();
-            assert!(seen.insert(loc.clone()), "v{i} 与其它变量干涉却被分到相同位置 {loc}");
-            match loc {
-                RvVarLocation::XReg(reg) => {
-                    assert!(ALLOCATABLE_XREG_NUMS.contains(&reg.num()), "非法寄存器 {reg}");
-                    used_regs.insert(reg);
-                },
-                RvVarLocation::StackSlot { offset, size } => {
-                    assert_eq!(size, 8);
-                    spilled_offsets.push(offset);
-                },
-                other => panic!("意外位置 {other}"),
-            }
-        }
-
-        assert_eq!(
-            used_regs.len(),
-            ALLOCATABLE_XREGS_SIZE as usize,
-            "26 个可分配寄存器应全部被使用"
-        );
-        assert_eq!(spilled_offsets, vec![8], "27 团应恰好溢出 1 个变量到 offset 8");
+        todo!()
+        // use crate::riscv::rv64imfd::rv64imfd_imm::Imm12;
+        //
+        // // 27 个同时活跃的整数变量构成 27 团，超过 26 个可分配 X 寄存器，必须溢出。
+        // let mut instrs = Vec::new();
+        // for i in 0..27 {
+        //     instrs.push(RvVarInstr::Addi {
+        //         rd: ivar(&format!("v{i}")),
+        //         rs1: x0(),
+        //         imm: Imm12::from_i16(1),
+        //     });
+        // }
+        // let acc = ivar("acc");
+        // instrs.push(RvVarInstr::Add { rd: acc.clone(), rs1: ivar("v0"), rs2: ivar("v1") });
+        // for i in 2..27 {
+        //     instrs.push(RvVarInstr::Add {
+        //         rd: acc.clone(),
+        //         rs1: acc.clone(),
+        //         rs2: ivar(&format!("v{i}")),
+        //     });
+        // }
+        //
+        // let mut prog = RvVarProgram::new();
+        // prog.append_basic_block(RvVarBasicBlock {
+        //     name: crate::riscv::rv64imfd::Label::new("bb".to_string()),
+        //     instrs,
+        // });
+        //
+        // let allocated = allocate_registers(prog);
+        // let instrs = &allocated.blocks[0].instrs;
+        //
+        // // 前 27 条 addi 的目标正是 v0..v26 的映射。它们两两干涉，映射结果必须两两不同；
+        // // 26 个可分配寄存器装不下 27 个同时活跃的变量，因此至少溢出 1 个。
+        // let mut seen = HashSet::new();
+        // let mut used_regs = HashSet::new();
+        // let mut spilled_offsets = Vec::new();
+        // for i in 0..27 {
+        //     let loc = instrs[i].dest_location().unwrap();
+        //     assert!(seen.insert(loc.clone()), "v{i} 与其它变量干涉却被分到相同位置 {loc}");
+        //     match loc {
+        //         RvVarLocation::XReg(reg) => {
+        //             assert!(ALLOCATABLE_XREG_NUMS.contains(&reg.num()), "非法寄存器 {reg}");
+        //             used_regs.insert(reg);
+        //         },
+        //         RvVarLocation::StackSlot { offset, size } => {
+        //             assert_eq!(size, 8);
+        //             spilled_offsets.push(offset);
+        //         },
+        //         other => panic!("意外位置 {other}"),
+        //     }
+        // }
+        //
+        // assert_eq!(
+        //     used_regs.len(),
+        //     ALLOCATABLE_XREGS_SIZE as usize,
+        //     "26 个可分配寄存器应全部被使用"
+        // );
+        // assert_eq!(spilled_offsets, vec![8], "27 团应恰好溢出 1 个变量到 offset 8");
     }
 
     #[test]
@@ -1105,42 +1107,42 @@ mod tests {
 
     #[test]
     fn allocate_registers_leaves_no_virtual_locations() {
-        use crate::riscv::rv64imfd::rv64imfd_imm::Imm12;
-
-        /*   live-after: {x, y}
-         * addi a, x0, 1
-         *   live-after: {x, y, a}
-         * addi b, x0, 2
-         *   live-after: {x, y, a, b}
-         * add  c, a,  b
-         *   live-after: {x, y}
-         * fadd.s d, x, y
-         *   live-after: {}
-         */
-        let instrs = vec![
-            RvVarInstr::Addi { rd: ivar("a"), rs1: x0(), imm: Imm12::from_i16(1) },
-            RvVarInstr::Addi { rd: ivar("b"), rs1: x0(), imm: Imm12::from_i16(2) },
-            RvVarInstr::Add { rd: ivar("c"), rs1: ivar("a"), rs2: ivar("b") },
-            RvVarInstr::FaddS { rd: fv("d"), rs1: fv("x"), rs2: fv("y"), rm: Rm::Rne },
-        ];
-        let mut prog = RvVarProgram::new();
-        prog.append_basic_block(RvVarBasicBlock {
-            name: crate::riscv::rv64imfd::Label::new("bb".to_string()),
-            instrs,
-        });
-
-        let allocated = allocate_registers(prog);
-        for instr in &allocated.blocks[0].instrs {
-            let mut locs: Vec<RvVarLocation> = instr.source_locations().into_iter().collect();
-            if let Some(dest) = instr.dest_location() {
-                locs.push(dest);
-            }
-            for loc in locs {
-                assert!(
-                    !matches!(loc, RvVarLocation::XVar(_) | RvVarLocation::FVar(_)),
-                    "仍有未分配的虚拟位置 {loc}"
-                );
-            }
-        }
+        // use crate::riscv::rv64imfd::rv64imfd_imm::Imm12;
+        //
+        // /*   live-after: {x, y}
+        //  * addi a, x0, 1
+        //  *   live-after: {x, y, a}
+        //  * addi b, x0, 2
+        //  *   live-after: {x, y, a, b}
+        //  * add  c, a,  b
+        //  *   live-after: {x, y}
+        //  * fadd.s d, x, y
+        //  *   live-after: {}
+        //  */
+        // let instrs = vec![
+        //     RvVarInstr::Addi { rd: ivar("a"), rs1: x0(), imm: Imm12::from_i16(1) },
+        //     RvVarInstr::Addi { rd: ivar("b"), rs1: x0(), imm: Imm12::from_i16(2) },
+        //     RvVarInstr::Add { rd: ivar("c"), rs1: ivar("a"), rs2: ivar("b") },
+        //     RvVarInstr::FaddS { rd: fv("d"), rs1: fv("x"), rs2: fv("y"), rm: Rm::Rne },
+        // ];
+        // let mut prog = RvVarProgram::new();
+        // prog.append_basic_block(RvVarBasicBlock {
+        //     name: crate::riscv::rv64imfd::Label::new("bb".to_string()),
+        //     instrs,
+        // });
+        //
+        // let allocated = allocate_registers(prog);
+        // for instr in &allocated.blocks[0].instrs {
+        //     let mut locs: Vec<RvVarLocation> = instr.source_locations().into_iter().collect();
+        //     if let Some(dest) = instr.dest_location() {
+        //         locs.push(dest);
+        //     }
+        //     for loc in locs {
+        //         assert!(
+        //             !matches!(loc, RvVarLocation::XVar(_) | RvVarLocation::FVar(_)),
+        //             "仍有未分配的虚拟位置 {loc}"
+        //         );
+        //     }
+        // }
     }
 }

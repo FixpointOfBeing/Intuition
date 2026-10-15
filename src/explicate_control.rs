@@ -51,8 +51,15 @@ pub enum CExpr {
     UnaryOp(UnaryOp, CAtom, Type),
     PrimInput(PrimInput, Type),
     TupleProj(CAtom, usize, Type),
-    Allocate(usize, Type),
-    AllocateClosure(usize, usize, Type),
+    Allocate(
+        usize, // bytes
+        Type,
+    ),
+    AllocateClosure(
+        usize, // bytes
+        usize, //arity
+        Type,
+    ),
     Call(CAtom, Vec<CAtom>, Type),
     FunRef(Ident, usize, Type),
     GlobalValue(GlobalValue),
@@ -661,18 +668,8 @@ mod tests {
             label: "block$0".to_string(),
             tail: c_tail_if(
                 c_var("$1", ty_bool()),
-                c_return(c_bin_op(
-                    BinOp::Add,
-                    c_var("y", ty_int()),
-                    c_int(2),
-                    ty_int(),
-                )),
-                c_return(c_bin_op(
-                    BinOp::Add,
-                    c_var("y", ty_int()),
-                    c_int(10),
-                    ty_int(),
-                )),
+                c_return(c_bin_op(BinOp::Add, c_var("y", ty_int()), c_int(2), ty_int())),
+                c_return(c_bin_op(BinOp::Add, c_var("y", ty_int()), c_int(10), ty_int())),
             ),
         }];
 
@@ -701,16 +698,9 @@ mod tests {
 
     #[test]
     fn tail_binop() {
-        let input = anf_complex(
-            co_bin_op(BinOp::Add, a_var("x", ty_int()), a_int(1), ty_int()),
-            ty_int(),
-        );
-        let expected = c_return(c_bin_op(
-            BinOp::Add,
-            c_var("x", ty_int()),
-            c_int(1),
-            ty_int(),
-        ));
+        let input =
+            anf_complex(co_bin_op(BinOp::Add, a_var("x", ty_int()), a_int(1), ty_int()), ty_int());
+        let expected = c_return(c_bin_op(BinOp::Add, c_var("x", ty_int()), c_int(1), ty_int()));
         let (tail, blocks) = run_tail(input);
         assert_eq!(tail, expected);
         assert!(blocks.is_empty());
@@ -718,10 +708,8 @@ mod tests {
 
     #[test]
     fn tail_unaryop() {
-        let input = anf_complex(
-            co_unary(UnaryOp::Neg, a_var("x", ty_float()), ty_float()),
-            ty_float(),
-        );
+        let input =
+            anf_complex(co_unary(UnaryOp::Neg, a_var("x", ty_float()), ty_float()), ty_float());
         let expected = c_return(c_unary(UnaryOp::Neg, c_var("x", ty_float()), ty_float()));
         let (tail, blocks) = run_tail(input);
         assert_eq!(tail, expected);
@@ -741,8 +729,7 @@ mod tests {
             ),
             ty_unit(),
         );
-        let expected =
-            c_tail_call(c_var("f", fn_ty), vec![c_var("x", x_ty), c_var("y", y_ty)]);
+        let expected = c_tail_call(c_var("f", fn_ty), vec![c_var("x", x_ty), c_var("y", y_ty)]);
         let (tail, blocks) = run_tail(input);
         assert_eq!(tail, expected);
         assert!(blocks.is_empty());
@@ -829,14 +816,8 @@ mod tests {
         );
         let expected = c_tail_if(
             c_var("c", ty_bool()),
-            c_seq(
-                vec![c_assign("x", c_atom(c_int(1), ty_int()))],
-                c_goto("block$0".to_string()),
-            ),
-            c_seq(
-                vec![c_assign("x", c_atom(c_int(2), ty_int()))],
-                c_goto("block$0".to_string()),
-            ),
+            c_seq(vec![c_assign("x", c_atom(c_int(1), ty_int()))], c_goto("block$0".to_string())),
+            c_seq(vec![c_assign("x", c_atom(c_int(2), ty_int()))], c_goto("block$0".to_string())),
         );
         let expected_blocks = vec![Block {
             label: "block$0".to_string(),
@@ -851,10 +832,7 @@ mod tests {
     fn assign_atom() {
         let input = anf_complex(co_atom(a_int(5), ty_int()), ty_int());
         let cont = c_return(c_atom(c_var("x", ty_int()), ty_int()));
-        let expected = c_seq(
-            vec![c_assign("x", c_atom(c_int(5), ty_int()))],
-            cont.clone(),
-        );
+        let expected = c_seq(vec![c_assign("x", c_atom(c_int(5), ty_int()))], cont.clone());
         let (tail, blocks) = run_assign("x", input, cont);
         assert_eq!(tail, expected);
         assert!(blocks.is_empty());
@@ -863,24 +841,14 @@ mod tests {
     #[test]
     fn assign_binop() {
         let input = anf_complex(
-            co_bin_op(
-                BinOp::Mul,
-                a_var("a", ty_float()),
-                a_var("b", ty_float()),
-                ty_float(),
-            ),
+            co_bin_op(BinOp::Mul, a_var("a", ty_float()), a_var("b", ty_float()), ty_float()),
             ty_float(),
         );
         let cont = c_return(c_atom(c_var("x", ty_float()), ty_float()));
         let expected = c_seq(
             vec![c_assign(
                 "x",
-                c_bin_op(
-                    BinOp::Mul,
-                    c_var("a", ty_float()),
-                    c_var("b", ty_float()),
-                    ty_float(),
-                ),
+                c_bin_op(BinOp::Mul, c_var("a", ty_float()), c_var("b", ty_float()), ty_float()),
             )],
             cont.clone(),
         );
@@ -891,16 +859,11 @@ mod tests {
 
     #[test]
     fn assign_unaryop() {
-        let input = anf_complex(
-            co_unary(UnaryOp::Not, a_var("a", ty_bool()), ty_bool()),
-            ty_bool(),
-        );
+        let input =
+            anf_complex(co_unary(UnaryOp::Not, a_var("a", ty_bool()), ty_bool()), ty_bool());
         let cont = c_return(c_atom(c_var("x", ty_bool()), ty_bool()));
         let expected = c_seq(
-            vec![c_assign(
-                "x",
-                c_unary(UnaryOp::Not, c_var("a", ty_bool()), ty_bool()),
-            )],
+            vec![c_assign("x", c_unary(UnaryOp::Not, c_var("a", ty_bool()), ty_bool()))],
             cont.clone(),
         );
         let (tail, blocks) = run_assign("x", input, cont);
@@ -926,11 +889,7 @@ mod tests {
         let expected = c_seq(
             vec![c_assign(
                 "x",
-                c_call(
-                    c_var("f", f_ty),
-                    vec![c_var("a", a_ty), c_var("b", b_ty)],
-                    result_ty,
-                ),
+                c_call(c_var("f", f_ty), vec![c_var("a", a_ty), c_var("b", b_ty)], result_ty),
             )],
             cont.clone(),
         );
@@ -953,19 +912,10 @@ mod tests {
         let cont = c_return(c_atom(c_var("x", ty_int()), ty_int()));
         let expected = c_tail_if(
             c_var("c", ty_bool()),
-            c_seq(
-                vec![c_assign("x", c_atom(c_int(1), ty_int()))],
-                c_goto("block$0".to_string()),
-            ),
-            c_seq(
-                vec![c_assign("x", c_atom(c_int(2), ty_int()))],
-                c_goto("block$0".to_string()),
-            ),
+            c_seq(vec![c_assign("x", c_atom(c_int(1), ty_int()))], c_goto("block$0".to_string())),
+            c_seq(vec![c_assign("x", c_atom(c_int(2), ty_int()))], c_goto("block$0".to_string())),
         );
-        let expected_blocks = vec![Block {
-            label: "block$0".to_string(),
-            tail: cont.clone(),
-        }];
+        let expected_blocks = vec![Block { label: "block$0".to_string(), tail: cont.clone() }];
         let (tail, blocks) = run_assign("x", input, cont);
         assert_eq!(tail, expected);
         assert_eq!(blocks, expected_blocks);
@@ -982,10 +932,7 @@ mod tests {
         let cont = c_return(c_atom(c_var("x", ty_int()), ty_int()));
         let expected = c_seq(
             vec![c_assign("a", c_atom(c_int(1), ty_int()))],
-            c_seq(
-                vec![c_assign("x", c_atom(c_var("a", ty_int()), ty_int()))],
-                cont.clone(),
-            ),
+            c_seq(vec![c_assign("x", c_atom(c_var("a", ty_int()), ty_int()))], cont.clone()),
         );
         let (tail, blocks) = run_assign("x", input, cont);
         assert_eq!(tail, expected);
@@ -996,10 +943,7 @@ mod tests {
     fn assign_true_false_atoms() {
         let input = anf_complex(co_atom(a_bool(true), ty_bool()), ty_bool());
         let cont = c_return(c_atom(c_var("x", ty_bool()), ty_bool()));
-        let expected = c_seq(
-            vec![c_assign("x", c_atom(c_bool(true), ty_bool()))],
-            cont.clone(),
-        );
+        let expected = c_seq(vec![c_assign("x", c_atom(c_bool(true), ty_bool()))], cont.clone());
         let (tail, blocks) = run_assign("x", input, cont);
         assert_eq!(tail, expected);
         assert!(blocks.is_empty());
