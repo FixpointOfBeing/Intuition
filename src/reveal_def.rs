@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::syntax::BinOp;
 use crate::syntax::HasType;
@@ -12,6 +12,7 @@ use crate::typechecker::TypedExpr;
 use crate::typechecker::TypedProgram;
 
 type Fnames = HashMap<Ident, usize>; // name -> arity
+type Gnames = HashSet<Ident>; // 全局 val 名字
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RevealExpr {
@@ -20,6 +21,7 @@ pub enum RevealExpr {
     Int(i64),
     Float(f64),
     Var(Ident, Type),
+    Global(Ident, Type), // 全局 val 引用
     FunRef(Ident, usize, Type), // 新增：函数名 → label
     BinOp(BinOp, Box<RevealExpr>, Box<RevealExpr>, Type),
     Tuple(Vec<RevealExpr>, Type),
@@ -42,6 +44,7 @@ impl HasType for RevealExpr {
             RevealExpr::Int(_) => Type::Int,
             RevealExpr::Float(_) => Type::Float,
             RevealExpr::Var(_, ty) => ty.clone(),
+            RevealExpr::Global(_, ty) => ty.clone(),
             RevealExpr::FunRef(_, _, ty) => ty.clone(),
             RevealExpr::Tuple(_, ty) => ty.clone(),
             RevealExpr::TupleProj(_, _, ty) => ty.clone(),
@@ -103,6 +106,10 @@ pub fn r_fun_ref(name: impl Into<Ident>, arity: usize, ty: Type) -> RevealExpr {
     RevealExpr::FunRef(name.into(), arity, ty)
 }
 
+pub fn r_global(name: impl Into<Ident>, ty: Type) -> RevealExpr {
+    RevealExpr::Global(name.into(), ty)
+}
+
 pub fn r_tuple(elems: Vec<RevealExpr>, ty: Type) -> RevealExpr {
     RevealExpr::Tuple(elems, ty)
 }
@@ -160,7 +167,7 @@ pub fn r_lambda(params: Vec<(Ident, Type)>, body: RevealExpr, lambda_ty: Type) -
     RevealExpr::Lambda(params, Box::new(body), lambda_ty)
 }
 
-pub fn reveal_expr(typed_expr: TypedExpr, fnames: &mut Fnames) -> RevealExpr {
+pub fn reveal_expr(typed_expr: TypedExpr, fnames: &mut Fnames, gnames: &Gnames) -> RevealExpr {
     match typed_expr {
         TypedExpr::Unit => r_unit(),
         TypedExpr::Bool(b) => r_bool(b),
@@ -169,71 +176,73 @@ pub fn reveal_expr(typed_expr: TypedExpr, fnames: &mut Fnames) -> RevealExpr {
         TypedExpr::Var(name, ty) => {
             if let Some(arity) = fnames.get(&name) {
                 r_fun_ref(name, *arity, ty)
+            } else if gnames.contains(&name) {
+                r_global(name, ty)
             } else {
                 r_var(name, ty)
             }
         },
         TypedExpr::BinOp(op, left, right, ty) => {
-            let left = reveal_expr(*left, fnames);
-            let right = reveal_expr(*right, fnames);
+            let left = reveal_expr(*left, fnames, gnames);
+            let right = reveal_expr(*right, fnames, gnames);
             r_bin_op(op, left, right, ty)
         },
         TypedExpr::Tuple(elems, ty) => {
-            let elems = elems.into_iter().map(|e| reveal_expr(e, fnames)).collect();
+            let elems = elems.into_iter().map(|e| reveal_expr(e, fnames, gnames)).collect();
             r_tuple(elems, ty)
         },
         TypedExpr::TupleProj(tuple, idx, ty) => {
-            let tuple = reveal_expr(*tuple, fnames);
+            let tuple = reveal_expr(*tuple, fnames, gnames);
             r_tuple_projection(tuple, idx, ty)
         },
         TypedExpr::PrimInput(prim, ty) => r_prim_input(prim, ty),
         TypedExpr::PrimOutput(prim, typed_expr, ty) => {
-            let expr = reveal_expr(*typed_expr, fnames);
+            let expr = reveal_expr(*typed_expr, fnames, gnames);
             r_prim_output(prim, expr, ty)
         },
         TypedExpr::UnaryOp(op, operand, ty) => {
-            let operand = reveal_expr(*operand, fnames);
+            let operand = reveal_expr(*operand, fnames, gnames);
             r_unary(op, operand, ty)
         },
         TypedExpr::If(cond, thn, els, ty) => {
-            let cond = reveal_expr(*cond, fnames);
-            let thn = reveal_expr(*thn, fnames);
-            let els = reveal_expr(*els, fnames);
+            let cond = reveal_expr(*cond, fnames, gnames);
+            let thn = reveal_expr(*thn, fnames, gnames);
+            let els = reveal_expr(*els, fnames, gnames);
             r_if(cond, thn, els, ty)
         },
         TypedExpr::Let(name, rhs_ty, rhs, body, let_ty) => {
-            let rhs = reveal_expr(*rhs, fnames);
-            let body = reveal_expr(*body, fnames);
+            let rhs = reveal_expr(*rhs, fnames, gnames);
+            let body = reveal_expr(*body, fnames, gnames);
             r_let(name, rhs_ty, rhs, body, let_ty)
         },
         TypedExpr::LetRec(fname, fparams, f_ret_ty, fbody, body, ty) => {
             let mut scoped = fnames.clone();
             scoped.insert(fname.clone(), fparams.len());
-            let new_fbody = reveal_expr(*fbody, &mut scoped);
-            let new_body = reveal_expr(*body, &mut scoped);
+            let new_fbody = reveal_expr(*fbody, &mut scoped, gnames);
+            let new_body = reveal_expr(*body, &mut scoped, gnames);
             r_let_rec(fname, fparams, f_ret_ty, new_fbody, new_body, ty)
         },
         TypedExpr::App(func, args, ty) => {
-            let func = reveal_expr(*func, fnames);
-            let args = args.into_iter().map(|a| reveal_expr(a, fnames)).collect();
+            let func = reveal_expr(*func, fnames, gnames);
+            let args = args.into_iter().map(|a| reveal_expr(a, fnames, gnames)).collect();
             r_app(func, args, ty)
         },
         TypedExpr::Lambda(params, body, ty) => {
-            let body = reveal_expr(*body, fnames);
+            let body = reveal_expr(*body, fnames, gnames);
             r_lambda(params, body, ty)
         },
     }
 }
 
-pub fn reveal_def(def: TypedDef, fnames: &mut Fnames) -> RevealDef {
+pub fn reveal_def(def: TypedDef, fnames: &mut Fnames, gnames: &Gnames) -> RevealDef {
     match def {
         TypedDef::ValDef(name, ty, typed_expr) => {
-            let reveal = reveal_expr(typed_expr, fnames);
+            let reveal = reveal_expr(typed_expr, fnames, gnames);
             RevealDef::ValDef(name, ty, reveal)
         },
         TypedDef::FunDef(name, params, ty, typed_expr) => {
             fnames.insert(name.clone(), params.len());
-            let reveal = reveal_expr(typed_expr, fnames);
+            let reveal = reveal_expr(typed_expr, fnames, gnames);
             RevealDef::FunDef(name, params, ty, reveal)
         },
     }
@@ -242,13 +251,24 @@ pub fn reveal_def(def: TypedDef, fnames: &mut Fnames) -> RevealDef {
 pub fn reveal_program(prog: TypedProgram) -> RevealProgram {
     let mut fnames = Fnames::new();
 
+    // 预收集所有全局 val 名字。typecheck 保证 val 只能引用更早的 def，
+    // 所以预收集不会把局部或未绑定名字误标为全局。
+    let gnames: Gnames = prog
+        .defs
+        .iter()
+        .filter_map(|def| match def {
+            TypedDef::ValDef(name, _, _) => Some(name.clone()),
+            TypedDef::FunDef(_, _, _, _) => None,
+        })
+        .collect();
+
     let mut reveal_defs = Vec::with_capacity(prog.defs.len());
     for def in prog.defs {
-        let reveal_def = reveal_def(def, &mut fnames);
+        let reveal_def = reveal_def(def, &mut fnames, &gnames);
         reveal_defs.push(reveal_def);
     }
 
-    let reveal_main = reveal_expr(prog.main, &mut fnames);
+    let reveal_main = reveal_expr(prog.main, &mut fnames, &gnames);
     RevealProgram { defs: reveal_defs, main: reveal_main }
 }
 
@@ -265,13 +285,17 @@ mod tests {
         ty_arrow(ty_int(), ty_int())
     }
 
+    fn no_gnames() -> Gnames {
+        Gnames::new()
+    }
+
     #[test]
     fn reveals_atoms() {
         let mut fnames = Fnames::new();
-        assert_eq!(reveal_expr(t_unit(), &mut fnames), r_unit());
-        assert_eq!(reveal_expr(t_bool(true), &mut fnames), r_bool(true));
-        assert_eq!(reveal_expr(t_int(42), &mut fnames), r_int(42));
-        assert_eq!(reveal_expr(t_float(3.5), &mut fnames), r_float(3.5));
+        assert_eq!(reveal_expr(t_unit(), &mut fnames, &no_gnames()), r_unit());
+        assert_eq!(reveal_expr(t_bool(true), &mut fnames, &no_gnames()), r_bool(true));
+        assert_eq!(reveal_expr(t_int(42), &mut fnames, &no_gnames()), r_int(42));
+        assert_eq!(reveal_expr(t_float(3.5), &mut fnames, &no_gnames()), r_float(3.5));
     }
 
     #[test]
@@ -279,7 +303,7 @@ mod tests {
         let mut fnames = Fnames::new();
         fnames.insert("f".to_string(), 2);
         let ty = int_to_int();
-        let got = reveal_expr(t_var("f", ty.clone()), &mut fnames);
+        let got = reveal_expr(t_var("f", ty.clone()), &mut fnames, &no_gnames());
         assert_eq!(got, r_fun_ref("f".to_string(), 2, ty));
     }
 
@@ -287,7 +311,7 @@ mod tests {
     fn keeps_unknown_var_as_var() {
         let mut fnames = Fnames::new();
         let ty = ty_int();
-        let got = reveal_expr(t_var("x", ty.clone()), &mut fnames);
+        let got = reveal_expr(t_var("x", ty.clone()), &mut fnames, &no_gnames());
         assert_eq!(got, r_var("x".to_string(), ty));
     }
 
@@ -300,7 +324,7 @@ mod tests {
             t_bin_op(BinOp::Mul, t_int(3), t_int(7), ty_int()),
             ty_int(),
         );
-        let got = reveal_expr(expr, &mut fnames);
+        let got = reveal_expr(expr, &mut fnames, &no_gnames());
         assert_eq!(
             got,
             r_bin_op(
@@ -318,7 +342,7 @@ mod tests {
         fnames.insert("f".to_string(), 2);
         let fn_ty = int_to_int();
         let expr = t_app(t_var("f", fn_ty.clone()), vec![t_int(1)], ty_int());
-        let got = reveal_expr(expr, &mut fnames);
+        let got = reveal_expr(expr, &mut fnames, &no_gnames());
         assert_eq!(got, r_app(r_fun_ref("f".to_string(), 2, fn_ty), vec![r_int(1)], ty_int(),));
     }
 
@@ -335,7 +359,7 @@ mod tests {
         let expr =
             t_let_rec("fact", vec![("n".to_string(), ty_int())], ty_int(), fbody, body, ty_int());
 
-        let got = reveal_expr(expr, &mut fnames);
+        let got = reveal_expr(expr, &mut fnames, &no_gnames());
 
         match got {
             RevealExpr::LetRec(name, params, ret_ty, fbody, body, ty) => {
@@ -375,8 +399,11 @@ mod tests {
     fn reveal_def_preserves_fields() {
         let mut fnames = Fnames::new();
 
-        let val =
-            reveal_def(TypedDef::ValDef("x".to_string(), Some(ty_int()), t_int(7)), &mut fnames);
+        let val = reveal_def(
+            TypedDef::ValDef("x".to_string(), Some(ty_int()), t_int(7)),
+            &mut fnames,
+            &no_gnames(),
+        );
         assert_eq!(val, RevealDef::ValDef("x".to_string(), Some(ty_int()), r_int(7)));
 
         let fun = reveal_def(
@@ -387,6 +414,7 @@ mod tests {
                 t_int(1),
             ),
             &mut fnames,
+            &no_gnames(),
         );
         assert_eq!(
             fun,
@@ -421,7 +449,7 @@ mod tests {
     }
 
     #[test]
-    fn reveal_program_keeps_val_def_lambda_as_var() {
+    fn reveal_program_marks_val_def_as_global() {
         let fn_ty = int_to_int();
         let prog = TypedProgram {
             defs: vec![TypedDef::ValDef(
@@ -433,6 +461,6 @@ mod tests {
         };
 
         let revealed = reveal_program(prog);
-        assert_eq!(revealed.main, r_var("id".to_string(), fn_ty));
+        assert_eq!(revealed.main, r_global("id".to_string(), fn_ty));
     }
 }

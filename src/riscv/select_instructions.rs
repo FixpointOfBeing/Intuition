@@ -2,7 +2,8 @@ use crate::{
     BinOp, CAtom, CBlock, CDef, CExpr, CProgram, CStmt, CTail, Gensym, GlobalValue, HasType,
     PrimInput, PrimOutput, Type, UnaryOp,
     riscv::rv_var::{
-        RvVarBasicBlock, RvVarFunction, RvVarInstr, RvVarInstrPseudo, RvVarLocation, RvVarProgram,
+        RvVarBasicBlock, RvVarFunction, RvVarGlobal, RvVarInstr, RvVarInstrPseudo, RvVarLocation,
+        RvVarProgram,
         location::{a0, a1, f_arg, fa0, ft0, ft1, ra, t0, t1, x_arg, x0, zero},
     },
 };
@@ -418,6 +419,19 @@ fn select_expr(expr: CExpr, dest: RvVarLocation, block: &mut RvVarBasicBlock) {
 
             block.append_pesudo(la).append_instr(ld);
         },
+        CExpr::Global(name, ty) => {
+            let la = RvVarInstrPseudo::Lla { rd: t0(), sym: Sym::new(name) };
+            block.append_pesudo(la);
+            if ty.is_float_type() {
+                debug_assert!(matches!(dest, RvVarLocation::FVar(_) | RvVarLocation::FReg(_)));
+                let fld = RvVarInstr::Fld { rd: dest, rs1: t0(), imm: Imm12::from_i16(0) };
+                block.append_instr(fld);
+            } else {
+                debug_assert!(matches!(dest, RvVarLocation::XVar(_) | RvVarLocation::XReg(_)));
+                let ld = RvVarInstr::Ld { rd: dest, rs1: t0(), imm: Imm12::from_i16(0) };
+                block.append_instr(ld);
+            }
+        },
     }
 }
 
@@ -554,9 +568,94 @@ pub fn select_tail(
         },
     }
 }
+pub fn select_def(def: CDef, var_prog: &mut RvVarProgram, inits: &mut Vec<(String, String, bool)>, gensym: &mut Gensym) {
+    match def {
+        CDef::ValDef(name, opty, body, blocks) => {
+            let ty = opty.expect("typecheck 后 ValDef 应有类型");
+            var_prog.append_global(RvVarGlobal { name: name.clone(), ty: ty.clone() });
 
+            // body 编译成零参 thunk，返回值落在 a0/fa0
+            let thunk = gensym.fresh_with_prefix(&format!("{}_init", name));
+            let entry = Label::new(thunk.clone());
+            let mut f = RvVarFunction {
+                fun_name: thunk.clone(),
+                params: vec![],
+                blocks: vec![],
+                entry: entry.clone(),
+            };
+            let mut entry_block = RvVarBasicBlock::new(entry);
+            select_tail(body, gensym, &mut entry_block, &mut f);
+            for b in blocks {
+                let mut bb = RvVarBasicBlock::new(Label::new(b.label));
+                select_tail(b.tail, gensym, &mut bb, &mut f);
+            }
+            inits.push((thunk, name, ty.is_float_type()));
+            var_prog.append_function(f);
+        },
+        CDef::FunDef(name, params, _ret_ty, body, blocks) => {
+            let params = params
+                .into_iter()
+                .map(|(n, t)| {
+                    if t.is_float_type() { RvVarLocation::FVar(n) } else { RvVarLocation::XVar(n) }
+                })
+                .collect();
+            let entry = Label::new(name.clone());
+            let mut f =
+                RvVarFunction { fun_name: name, params, blocks: vec![], entry: entry.clone() };
+            let mut entry_block = RvVarBasicBlock::new(entry);
+            select_tail(body, gensym, &mut entry_block, &mut f);
+            for b in blocks {
+                let mut bb = RvVarBasicBlock::new(Label::new(b.label));
+                select_tail(b.tail, gensym, &mut bb, &mut f);
+            }
+            var_prog.append_function(f);
+        },
+    }
+}
 pub fn select_prog(prog: CProgram) -> RvVarProgram {
-    todo!()
+    let mut gensym = Gensym::new();
+    let mut var_prog = RvVarProgram::new();
+    // (thunk 符号, 全局符号, is_float)
+    let mut inits: Vec<(String, String, bool)> = vec![];
+
+    for def in prog.defs {
+        select_def(def, &mut var_prog, &mut inits, &mut gensym);
+    }
+
+    // main → start：先跑全局初始化，再跑 main body
+    let entry = Label::new("start".to_string());
+    let mut start_fn = RvVarFunction {
+        fun_name: "start".to_string(),
+        params: vec![],
+        blocks: vec![],
+        entry: entry.clone(),
+    };
+    let mut entry_block = RvVarBasicBlock::new(entry);
+    for (thunk, global, is_float) in inits {
+        entry_block.append_pesudo(RvVarInstrPseudo::Call { sym: Sym::new(thunk) });
+        entry_block.append_pesudo(RvVarInstrPseudo::Lla { rd: t0(), sym: Sym::new(global) });
+        if is_float {
+            entry_block.append_instr(RvVarInstr::Fsd {
+                rs2: fa0(),
+                rs1: t0(),
+                imm: Imm12::from_i16(0),
+            });
+        } else {
+            entry_block.append_instr(RvVarInstr::Sd {
+                rs2: a0(),
+                rs1: t0(),
+                imm: Imm12::from_i16(0),
+            });
+        }
+    }
+    select_tail(prog.main, &mut gensym, &mut entry_block, &mut start_fn);
+    for b in prog.main_blocks {
+        let mut bb = RvVarBasicBlock::new(Label::new(b.label));
+        select_tail(b.tail, &mut gensym, &mut bb, &mut start_fn);
+    }
+    var_prog.append_function(start_fn);
+
+    var_prog
 }
 
 #[cfg(test)]

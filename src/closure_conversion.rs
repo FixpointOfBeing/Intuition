@@ -1,10 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    gensym::Gensym,
-    reveal_functions::{RevealDef, RevealExpr, RevealProgram},
-    syntax::{BinOp, HasType, Ident, PrimInput, PrimOutput, Type, UnaryOp},
-    typechecker::build_arrow,
+    BinOp, Gensym, HasType, Ident, PrimInput, PrimOutput, RevealDef, RevealExpr, RevealProgram,
+    Type, UnaryOp, typechecker::build_arrow,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -77,6 +75,7 @@ pub enum ClosureExpr {
     Int(i64),
     Float(f64),
     Var(Ident, ClosureType),
+    Global(Ident, ClosureType),
     BinOp(BinOp, Box<ClosureExpr>, Box<ClosureExpr>, ClosureType),
     Closure(Closure, ClosureType),
     ClosureFunPtr(Box<ClosureExpr>, ClosureType), // get function pointer of closure (index 0)
@@ -112,6 +111,7 @@ impl std::fmt::Display for ClosureExpr {
             ClosureExpr::Int(n) => write!(f, "{}", n),
             ClosureExpr::Float(fl) => write!(f, "{}", fl),
             ClosureExpr::Var(name, ty) => write!(f, "({} : {})", name, ty),
+            ClosureExpr::Global(name, ty) => write!(f, "(global {} : {})", name, ty),
             ClosureExpr::BinOp(op, left, right, _) => {
                 write!(f, "{} {} {}", left, op, right)
             },
@@ -171,6 +171,7 @@ impl ClosureExpr {
             ClosureExpr::Int(_) => ClosureType::Int,
             ClosureExpr::Float(_) => ClosureType::Float,
             ClosureExpr::Var(_, ty) => (*ty).clone(),
+            ClosureExpr::Global(_, ty) => (*ty).clone(),
             ClosureExpr::BinOp(_, _, _, ty) => (*ty).clone(),
             ClosureExpr::UnaryOp(_, _, ty) => (*ty).clone(),
             ClosureExpr::PrimInput(_, ty) => (*ty).clone(),
@@ -217,6 +218,10 @@ pub fn clos_clos_free_var(clos: ClosureExpr, index: usize, ty: ClosureType) -> C
 
 pub fn clos_var(name: impl Into<Ident>, ty: ClosureType) -> ClosureExpr {
     ClosureExpr::Var(name.into(), ty)
+}
+
+pub fn clos_global(name: impl Into<Ident>, ty: ClosureType) -> ClosureExpr {
+    ClosureExpr::Global(name.into(), ty)
 }
 
 pub fn clos_tuple(elems: Vec<ClosureExpr>, ty: ClosureType) -> ClosureExpr {
@@ -402,6 +407,7 @@ fn convert_expr(
                 clos_var(name, convert_type(ty))
             }
         },
+        RevealExpr::Global(name, ty) => clos_global(name, convert_type(ty)),
         RevealExpr::FunRef(name, arity, ty) => {
             // A recursive function's self-reference resolves to the closure
             // value created for it, not to a fresh empty closure.
@@ -686,6 +692,7 @@ fn free_vars_rec(expr: &RevealExpr, bound: &HashSet<Ident>, frees_map: &mut Hash
             }
         },
         RevealExpr::FunRef(_, _, _) => {},
+        RevealExpr::Global(_, _) => {},
         RevealExpr::BinOp(_, left, right, _) => {
             free_vars_rec(left, bound, frees_map);
             free_vars_rec(right, bound, frees_map);
@@ -1006,6 +1013,7 @@ mod tests {
             | ClosureExpr::Int(_)
             | ClosureExpr::Float(_)
             | ClosureExpr::Var(_, _)
+            | ClosureExpr::Global(_, _)
             | ClosureExpr::Closure(_, _) => {},
             ClosureExpr::BinOp(_, left, right, _) => {
                 collect_free_var_indices(left, out);
@@ -1077,6 +1085,7 @@ mod tests {
             ClosureExpr::Int(_) => {},
             ClosureExpr::Float(_) => {},
             ClosureExpr::Var(_, _) => {},
+            ClosureExpr::Global(_, _) => {},
         }
     }
 }

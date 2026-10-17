@@ -15,6 +15,7 @@ pub enum AllocExpr {
     Int(i64),
     Float(f64),
     Var(Ident, Type),
+    Global(Ident, Type),
     BinOp(BinOp, Box<AllocExpr>, Box<AllocExpr>, Type),
     Collect(usize), // bytes
     Allocate(
@@ -55,6 +56,7 @@ impl HasType for AllocExpr {
             AllocExpr::Int(_) => ty_int(),
             AllocExpr::Float(_) => ty_float(),
             AllocExpr::Var(_, ty) => (*ty).clone(),
+            AllocExpr::Global(_, ty) => (*ty).clone(),
             AllocExpr::BinOp(_, _, _, ty) => (*ty).clone(),
             AllocExpr::UnaryOp(_, _, ty) => (*ty).clone(),
             AllocExpr::PrimInput(_, ty) => (*ty).clone(),
@@ -137,6 +139,10 @@ pub fn alloc_float(f: f64) -> AllocExpr {
 
 pub fn alloc_var(name: impl Into<Ident>, ty: Type) -> AllocExpr {
     AllocExpr::Var(name.into(), ty)
+}
+
+pub fn alloc_global(name: impl Into<Ident>, ty: Type) -> AllocExpr {
+    AllocExpr::Global(name.into(), ty)
 }
 
 pub fn alloc_fun_ref(name: impl Into<Ident>, arity: usize, ty: Type) -> AllocExpr {
@@ -283,6 +289,7 @@ pub fn expose_allocation(clos_expr: ClosureExpr, gs: &mut Gensym) -> AllocExpr {
         ClosureExpr::Int(i) => alloc_int(i),
         ClosureExpr::Float(f) => alloc_float(f),
         ClosureExpr::Var(name, clos_ty) => alloc_var(name, clos_ty.to_type()),
+        ClosureExpr::Global(name, clos_ty) => alloc_global(name, clos_ty.to_type()),
         ClosureExpr::BinOp(op, left, right, clos_ty) => {
             let alloc_left = expose_allocation(*left, gs);
             let alloc_right = expose_allocation(*right, gs);

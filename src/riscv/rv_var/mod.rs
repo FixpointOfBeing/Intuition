@@ -6,4 +6,5 @@ pub mod location;
 pub use location::RvVarLocation;
 pub mod program;
 pub use program::RvVarFunction;
+pub use program::RvVarGlobal;
 pub use program::RvVarProgram;

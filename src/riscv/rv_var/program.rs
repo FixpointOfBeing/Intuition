@@ -1,6 +1,7 @@
 use crate::riscv::rv_var::RvVarBasicBlock;
 use crate::riscv::rv_var::RvVarLocation;
 use crate::riscv::rv64imfd::Label;
+use crate::syntax::Type;
 use std::fmt;
 
 pub struct RvVarFunction {
@@ -29,17 +30,27 @@ impl fmt::Display for RvVarFunction {
     }
 }
 
+pub struct RvVarGlobal {
+    pub name: String, // 符号名
+    pub ty: Type,     // 决定 ld 还是 fld
+}
+
 pub struct RvVarProgram {
     pub functions: Vec<RvVarFunction>,
+    pub globals: Vec<RvVarGlobal>,
 }
 
 impl RvVarProgram {
     pub fn new() -> Self {
-        RvVarProgram { functions: vec![] }
+        RvVarProgram { functions: vec![], globals: vec![] }
     }
 
     pub fn append_function(&mut self, function: RvVarFunction) {
         self.functions.push(function);
+    }
+
+    pub fn append_global(&mut self, global: RvVarGlobal) {
+        self.globals.push(global);
     }
 }
 

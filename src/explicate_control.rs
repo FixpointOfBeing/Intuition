@@ -63,6 +63,7 @@ pub enum CExpr {
     Call(CAtom, Vec<CAtom>, Type),
     FunRef(Ident, usize, Type),
     GlobalValue(GlobalValue),
+    Global(Ident, Type),
 }
 
 impl std::fmt::Display for CExpr {
@@ -87,6 +88,7 @@ impl std::fmt::Display for CExpr {
             },
             CExpr::FunRef(name, arity, _) => write!(f, "fun_ref({}, {})", name, arity),
             CExpr::GlobalValue(value) => write!(f, "{}", value),
+            CExpr::Global(name, _) => write!(f, "{}", name),
         }
     }
 }
@@ -104,6 +106,7 @@ impl HasType for CExpr {
             CExpr::Call(_, _, ty) => ty.clone(),
             CExpr::FunRef(_, _, ty) => ty.clone(),
             CExpr::GlobalValue(value) => value.type_of(),
+            CExpr::Global(_, ty) => ty.clone(),
         }
     }
 }
@@ -226,6 +229,10 @@ pub fn c_float(f: f64) -> CAtom {
 
 pub fn c_var(name: impl Into<Ident>, ty: Type) -> CAtom {
     CAtom::Var(name.into(), ty)
+}
+
+pub fn c_global(name: impl Into<Ident>, ty: Type) -> CExpr {
+    CExpr::Global(name.into(), ty)
 }
 
 pub fn c_atom(atom: CAtom, ty: Type) -> CExpr {
@@ -426,6 +433,11 @@ pub fn explicate_assign_complex(
             let stmt = c_assign(name, cexpr);
             c_seq(vec![stmt], cont)
         },
+        CompExpr::Global(global_name, ty) => {
+            let cexpr = c_global(global_name, ty);
+            let stmt = c_assign(name, cexpr);
+            c_seq(vec![stmt], cont)
+        },
         CompExpr::FunRef(func_name, arity, ty) => {
             let cexpr = c_fun_ref(func_name, arity, ty);
             let stmt = c_assign(name, cexpr);
@@ -514,6 +526,7 @@ fn explicate_tail(anf: AnfExpr, gensym: &mut Gensym, blocks: &mut Vec<CBlock>) -
                 c_seq(vec![stmt], last)
             },
             CompExpr::GlobalValue(value) => c_return(c_global_value(value)),
+            CompExpr::Global(name, ty) => c_return(c_global(name, ty)),
             CompExpr::FunRef(name, arity, ty) => c_return(c_fun_ref(name, arity, ty)),
         },
         AnfExpr::Let(name, rhs, body, _) => {

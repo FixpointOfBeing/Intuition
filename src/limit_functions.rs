@@ -1,8 +1,8 @@
 use crate::closure_conversion::{
     ClosureDef, ClosureExpr, ClosureProgram, ClosureType, clos_app, clos_bin_op, clos_bool,
-    clos_clos, clos_clos_free_var, clos_clos_fun_ptr, clos_float, clos_if, clos_int, clos_let,
-    clos_prim_input, clos_prim_output, clos_tuple, clos_tuple_projection, clos_unary, clos_unit,
-    clos_var,
+    clos_clos, clos_clos_free_var, clos_clos_fun_ptr, clos_float, clos_global, clos_if, clos_int,
+    clos_let, clos_prim_input, clos_prim_output, clos_tuple, clos_tuple_projection, clos_unary,
+    clos_unit, clos_var,
 };
 
 use std::collections::HashMap;
@@ -31,6 +31,7 @@ pub fn limit_funcs_expr(
                 clos_var(name, clos_ty)
             }
         },
+        ClosureExpr::Global(name, clos_ty) => clos_global(name, clos_ty),
         ClosureExpr::BinOp(op, left, right, clos_ty) => {
             let left = limit_funcs_expr(*left, params_in_tuple, limit);
             let right = limit_funcs_expr(*right, params_in_tuple, limit);

@@ -59,6 +59,7 @@ pub enum CompExpr {
     TupleSet(AExpr, AExpr, usize),
     // Seq(Vec<CompExpr>, Box<AExpr>, Type),
     GlobalValue(GlobalValue),
+    Global(Ident, Type),
     FunRef(Ident, usize, Type), // closure convention去掉了FunRef, expose allocation加了回来
 }
 
@@ -78,6 +79,7 @@ impl HasType for CompExpr {
             CompExpr::Collect(_) => Type::Unit,
             CompExpr::TupleSet(_, _, _) => Type::Int,
             CompExpr::GlobalValue(gv) => gv.type_of(),
+            CompExpr::Global(_, ty) => ty.clone(),
             CompExpr::FunRef(_, _, ty) => ty.clone(),
         }
     }
@@ -137,6 +139,10 @@ pub fn a_float(f: f64) -> AExpr {
 
 pub fn a_var(name: impl Into<Ident>, ty: Type) -> AExpr {
     AExpr::Var(name.into(), ty)
+}
+
+pub fn co_global(name: impl Into<Ident>, ty: Type) -> CompExpr {
+    CompExpr::Global(name.into(), ty)
 }
 
 pub fn co_atom(atom: AExpr, ty: Type) -> CompExpr {
@@ -249,6 +255,7 @@ fn to_complex(expr: AllocExpr, gs: &mut Gensym, bindings: &mut Bindings) -> Comp
         AllocExpr::Int(i) => co_atom(a_int(i), ty_int()),
         AllocExpr::Float(f) => co_atom(a_float(f), ty_float()),
         AllocExpr::Var(name, ty) => co_atom(a_var(name, ty.clone()), ty),
+        AllocExpr::Global(name, ty) => co_global(name, ty),
         AllocExpr::TupleProj(expr, idx, ty) => {
             let atom = to_atom(*expr, gs, bindings);
             co_tuple_proj(atom, idx, ty)

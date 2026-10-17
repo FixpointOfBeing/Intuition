@@ -31,16 +31,14 @@ pub Program: Box<Program> = {
         if main_idx != defs.len() - 1 {
             panic!("`main` must be the last definition");
         }
-        
-        match &defs[main_idx] {
-            Def::FunDef(_, params, _, _) if params.len() == 1 && params[0].1 == Type::Unit => {},
+        let main_def = &defs[main_idx];
+        match main_def {
+            Def::FunDef(_, params, _, _)
+                if params.len() == 1 && params[0].1 == Type::Unit => {},
             _ => panic!("`main` must be declared as `def main () : Type = ...`"),
         }
-
-        let main_def = defs.pop().expect("main must be the last definition");
-
         let main = Expr::App(Box::new(Expr::Var("main".to_string())), vec![Expr::Unit]);
-        Box::new(Program { defs, main_def, main })
+        Box::new(Program { defs, main })
     }
 }
 
