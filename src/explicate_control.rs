@@ -190,10 +190,10 @@ impl std::fmt::Display for CBlock {
 #[derive(Debug, Clone, PartialEq)]
 pub enum CDef {
     ValDef(
-        Ident,        // name
-        Option<Type>, // optional type annotation
-        CTail,        // expresion
-        Vec<CBlock>,   // blocks
+        Ident,       // name
+        Type,        // type
+        CTail,       // expresion
+        Vec<CBlock>, // blocks
     ),
     FunDef(
         Ident,              // function name

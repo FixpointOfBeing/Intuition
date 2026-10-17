@@ -63,7 +63,7 @@ impl HasType for RevealExpr {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RevealDef {
-    ValDef(Ident, Option<Type>, RevealExpr),
+    ValDef(Ident, Type, RevealExpr),
     FunDef(Ident, Vec<(Ident, Type)>, Type, RevealExpr),
 }
 
@@ -400,11 +400,11 @@ mod tests {
         let mut fnames = Fnames::new();
 
         let val = reveal_def(
-            TypedDef::ValDef("x".to_string(), Some(ty_int()), t_int(7)),
+            TypedDef::ValDef("x".to_string(), ty_int(), t_int(7)),
             &mut fnames,
             &no_gnames(),
         );
-        assert_eq!(val, RevealDef::ValDef("x".to_string(), Some(ty_int()), r_int(7)));
+        assert_eq!(val, RevealDef::ValDef("x".to_string(), ty_int(), r_int(7)));
 
         let fun = reveal_def(
             TypedDef::FunDef(
@@ -454,7 +454,7 @@ mod tests {
         let prog = TypedProgram {
             defs: vec![TypedDef::ValDef(
                 "id".to_string(),
-                Some(fn_ty.clone()),
+                fn_ty.clone(),
                 t_lambda(vec![("x".to_string(), ty_int())], t_var("x", ty_int()), fn_ty.clone()),
             )],
             main: t_var("id", fn_ty.clone()),

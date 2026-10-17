@@ -570,8 +570,7 @@ pub fn select_tail(
 }
 pub fn select_def(def: CDef, var_prog: &mut RvVarProgram, inits: &mut Vec<(String, String, bool)>, gensym: &mut Gensym) {
     match def {
-        CDef::ValDef(name, opty, body, blocks) => {
-            let ty = opty.expect("typecheck 后 ValDef 应有类型");
+        CDef::ValDef(name, ty, body, blocks) => {
             var_prog.append_global(RvVarGlobal { name: name.clone(), ty: ty.clone() });
 
             // body 编译成零参 thunk，返回值落在 a0/fa0
@@ -592,6 +591,18 @@ pub fn select_def(def: CDef, var_prog: &mut RvVarProgram, inits: &mut Vec<(Strin
             inits.push((thunk, name, ty.is_float_type()));
             var_prog.append_function(f);
         },
+        /*
+         * 指令选择阶段不加 prologue
+         *
+         *  栈帧大小此刻还不知道。
+         *  prologue 里的 addi sp, sp, -N 里那个 N，取决于寄存器分配后 spill 出多少个StackSlot
+         *  （allocate_registers.rs 里 location_to_reg 会把装不下的变量映射成 StackSlot { offset, size }）。
+         *  分配没跑，N 就没法算，prologue 也无从写。
+         * 
+         *  prologue 是「物理寄存器 + ABI」层面的东西，不是指令选择。 
+         *  select_instructions 的职责是把 C 层 IR 映射成带虚拟位置（XVar/FVar）的 RISC-V 指令。
+         *  压 ra、存 callee-saved 寄存器、开栈帧，都是拿到物理寄存器/栈布局之后才能做的约定（calling convention）细节。
+         */
         CDef::FunDef(name, params, _ret_ty, body, blocks) => {
             let params = params
                 .into_iter()

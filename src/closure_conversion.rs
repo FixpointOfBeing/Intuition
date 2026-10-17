@@ -290,9 +290,9 @@ pub fn clos_app(func: ClosureExpr, args: Vec<ClosureExpr>, ty: ClosureType) -> C
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClosureDef {
     ValDef(
-        Ident,               // name
-        Option<ClosureType>, // optional type annotation
-        ClosureExpr,         // expresion
+        Ident,        // name
+        ClosureType,  // type
+        ClosureExpr,  // expresion
     ),
     FunDef(
         Ident,                     // function name
@@ -306,11 +306,7 @@ impl std::fmt::Display for ClosureDef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ClosureDef::ValDef(name, ty, expr) => {
-                if let Some(ty) = ty {
-                    write!(f, "let {} : {} = {}", name, ty, expr)
-                } else {
-                    write!(f, "let {} = {}", name, expr)
-                }
+                write!(f, "let {} : {} = {}", name, ty, expr)
             },
             ClosureDef::FunDef(name, params, ret_ty, body) => {
                 let params_str = params
@@ -633,7 +629,7 @@ pub fn convert_to_closure_def(
     match def {
         RevealDef::ValDef(name, ty, reveal_expr) => {
             let clos_expr = convert_to_closure(reveal_expr, gensym, lifted);
-            ClosureDef::ValDef(name, ty.map(|ty| convert_type(ty)), clos_expr)
+            ClosureDef::ValDef(name, convert_type(ty), clos_expr)
         },
         RevealDef::FunDef(name, params, ret_ty, reveal_expr) => {
             let clos_name = gensym.fresh_with_prefix("clos");

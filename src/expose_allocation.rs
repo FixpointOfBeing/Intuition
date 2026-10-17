@@ -79,9 +79,9 @@ impl HasType for AllocExpr {
 #[derive(Debug, Clone, PartialEq)]
 pub enum AllocDef {
     ValDef(
-        Ident,        // name
-        Option<Type>, // optional type annotation
-        AllocExpr,    // expresion
+        Ident,     // name
+        Type,      // type
+        AllocExpr, // expresion
     ),
     FunDef(
         Ident,              // function name
@@ -451,7 +451,7 @@ pub fn expose_allocation_def(def: ClosureDef, gs: &mut Gensym) -> AllocDef {
     match def {
         ClosureDef::ValDef(name, clos_ty, clos_expr) => AllocDef::ValDef(
             name,
-            clos_ty.map(|cty| cty.to_type()),
+            clos_ty.to_type(),
             expose_allocation(clos_expr, gs),
         ),
         ClosureDef::FunDef(name, params, ret_ty, clos_expr) => AllocDef::FunDef(
@@ -984,18 +984,18 @@ mod tests {
         assert_eq!(
             run_def(ClosureDef::ValDef(
                 "x".to_string(),
-                Some(ClosureType::Int),
+                ClosureType::Int,
                 ClosureExpr::Int(42),
             )),
-            AllocDef::ValDef("x".to_string(), Some(Type::Int), AllocExpr::Int(42))
+            AllocDef::ValDef("x".to_string(), Type::Int, AllocExpr::Int(42))
         );
     }
 
     #[test]
-    fn exposes_val_def_without_annotation() {
+    fn exposes_val_def_bool() {
         assert_eq!(
-            run_def(ClosureDef::ValDef("b".to_string(), None, ClosureExpr::Bool(true))),
-            AllocDef::ValDef("b".to_string(), None, AllocExpr::Bool(true))
+            run_def(ClosureDef::ValDef("b".to_string(), ClosureType::Bool, ClosureExpr::Bool(true))),
+            AllocDef::ValDef("b".to_string(), Type::Bool, AllocExpr::Bool(true))
         );
     }
 
@@ -1003,10 +1003,10 @@ mod tests {
     fn exposes_val_def_converts_annotations() {
         let tuple_ty = ClosureType::Tuple(vec![ClosureType::Int, ClosureType::Bool]);
         assert_eq!(
-            run_def(ClosureDef::ValDef("t".to_string(), Some(tuple_ty), ClosureExpr::Int(0))),
+            run_def(ClosureDef::ValDef("t".to_string(), tuple_ty, ClosureExpr::Int(0))),
             AllocDef::ValDef(
                 "t".to_string(),
-                Some(Type::Tuple(vec![Type::Int, Type::Bool])),
+                Type::Tuple(vec![Type::Int, Type::Bool]),
                 AllocExpr::Int(0),
             )
         );
@@ -1016,10 +1016,10 @@ mod tests {
         assert_eq!(
             run_def(ClosureDef::ValDef(
                 "f".to_string(),
-                Some(ClosureType::Closure(Box::new(func_ty.clone()))),
+                ClosureType::Closure(Box::new(func_ty.clone())),
                 ClosureExpr::Int(0),
             )),
-            AllocDef::ValDef("f".to_string(), Some(func_ty), AllocExpr::Int(0))
+            AllocDef::ValDef("f".to_string(), func_ty, AllocExpr::Int(0))
         );
     }
 
@@ -1067,17 +1067,17 @@ mod tests {
         );
 
         let result =
-            run_def(ClosureDef::ValDef("t".to_string(), Some(tuple_ty.clone()), expr.clone()));
+            run_def(ClosureDef::ValDef("t".to_string(), tuple_ty.clone(), expr.clone()));
         let expected = expose_allocation(expr, &mut Gensym::new());
 
-        assert_eq!(result, AllocDef::ValDef("t".to_string(), Some(tuple_ty.to_type()), expected));
+        assert_eq!(result, AllocDef::ValDef("t".to_string(), tuple_ty.to_type(), expected));
     }
 
     #[test]
     fn exposes_program_maps_defs_and_main() {
         let prog = ClosureProgram {
             defs: vec![
-                ClosureDef::ValDef("x".to_string(), Some(ClosureType::Int), ClosureExpr::Int(1)),
+                ClosureDef::ValDef("x".to_string(), ClosureType::Int, ClosureExpr::Int(1)),
                 ClosureDef::FunDef(
                     "inc".to_string(),
                     vec![("n".to_string(), ClosureType::Int)],
@@ -1097,7 +1097,7 @@ mod tests {
             expose_allocation_prog(prog),
             AllocProgram {
                 defs: vec![
-                    AllocDef::ValDef("x".to_string(), Some(Type::Int), AllocExpr::Int(1)),
+                    AllocDef::ValDef("x".to_string(), Type::Int, AllocExpr::Int(1)),
                     AllocDef::FunDef(
                         "inc".to_string(),
                         vec![("n".to_string(), Type::Int)],
@@ -1131,8 +1131,8 @@ mod tests {
 
         let prog = ClosureProgram {
             defs: vec![
-                ClosureDef::ValDef("a".to_string(), Some(tuple_ty.clone()), tuple_expr()),
-                ClosureDef::ValDef("b".to_string(), Some(tuple_ty.clone()), tuple_expr()),
+                ClosureDef::ValDef("a".to_string(), tuple_ty.clone(), tuple_expr()),
+                ClosureDef::ValDef("b".to_string(), tuple_ty.clone(), tuple_expr()),
             ],
             main: tuple_expr(),
         };

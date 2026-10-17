@@ -103,9 +103,9 @@ impl HasType for AnfExpr {
 #[derive(Debug, Clone, PartialEq)]
 pub enum AnfDef {
     ValDef(
-        Ident,        // name
-        Option<Type>, // optional type annotation
-        AnfExpr,      // expresion
+        Ident,   // name
+        Type,    // type
+        AnfExpr, // expresion
     ),
     FunDef(
         Ident,              // function name
@@ -1131,14 +1131,14 @@ mod tests {
     fn anf_def_normalizes_val_and_fun() {
         let val = AllocDef::ValDef(
             "answer".to_string(),
-            Some(ty_int()),
+            ty_int(),
             alloc_bin_op(BinOp::Add, alloc_int(20), alloc_int(22), ty_int()),
         );
         assert_eq!(
             anf_def(val, &mut Gensym::new()),
             AnfDef::ValDef(
                 "answer".to_string(),
-                Some(ty_int()),
+                ty_int(),
                 complex(co_bin_op(BinOp::Add, a_int(20), a_int(22), ty_int())),
             )
         );

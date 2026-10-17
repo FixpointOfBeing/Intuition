@@ -54,7 +54,7 @@ pub enum TypedExpr {
 pub enum TypedDef {
     ValDef(
         Ident,        // name
-        Option<Type>, // optional type annotation
+        Type, // optional type annotation
         TypedExpr,    // expresion
     ),
     FunDef(
@@ -93,11 +93,7 @@ impl std::fmt::Display for TypedDef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TypedDef::ValDef(name, ann, expr) => {
-                if let Some(ty) = ann {
-                    write!(f, "let {}: {} = {};", name, ty, expr)
-                } else {
-                    write!(f, "let {} = {};", name, expr)
-                }
+                write!(f, "let {}: {} = {};", name, ann, expr)
             },
             TypedDef::FunDef(name, params, ret_ty, body) => {
                 let params_str = params
@@ -691,10 +687,10 @@ pub fn typecheck_def(def: Def, ctx: &mut Context) -> Result<(Type, TypedDef), Ty
                     if found != val_ty {
                         Err(TypeError::Mismatch { expected: val_ty, found })
                     } else {
-                        Ok((found.clone(), TypedDef::ValDef(name, Some(found), typed_expr)))
+                        Ok((found.clone(), TypedDef::ValDef(name, found.clone(), typed_expr)))
                     }
                 },
-                None => Ok((found.clone(), TypedDef::ValDef(name, Some(found), typed_expr))),
+                None => Ok((found.clone(), TypedDef::ValDef(name, found, typed_expr))),
             }
         },
 
@@ -1066,7 +1062,7 @@ mod tests {
         assert_eq!(ty, Type::Int);
         assert_eq!(
             typed_def,
-            TypedDef::ValDef("x".to_string(), Some(Type::Int), TypedExpr::Int(42))
+            TypedDef::ValDef("x".to_string(), Type::Int, TypedExpr::Int(42))
         );
     }
 
@@ -1076,7 +1072,7 @@ mod tests {
         assert_eq!(ty, Type::Int);
         assert_eq!(
             typed_def,
-            TypedDef::ValDef("x".to_string(), Some(Type::Int), TypedExpr::Int(42))
+            TypedDef::ValDef("x".to_string(), Type::Int, TypedExpr::Int(42))
         );
     }
 
@@ -1322,7 +1318,7 @@ mod tests {
 
     #[test]
     fn test_display_typed_def() {
-        let val = TypedDef::ValDef("x".to_string(), Some(ty_int()), t_int(1));
+        let val = TypedDef::ValDef("x".to_string(), ty_int(), t_int(1));
         assert_eq!(val.to_string(), "let x: Int = 1;");
 
         let fun = TypedDef::FunDef(
@@ -1337,7 +1333,7 @@ mod tests {
     #[test]
     fn test_display_typed_program() {
         let prog = TypedProgram {
-            defs: vec![TypedDef::ValDef("x".to_string(), Some(ty_int()), t_int(1))],
+            defs: vec![TypedDef::ValDef("x".to_string(), ty_int(), t_int(1))],
             main: t_var("x", ty_int()),
         };
         assert_eq!(prog.to_string(), "let x: Int = 1;\n(x: Int)");

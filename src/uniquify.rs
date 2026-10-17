@@ -196,7 +196,7 @@ mod tests {
         }
     }
 
-    fn expect_val_def(def: &TypedDef) -> (&Ident, &Option<Type>, &TypedExpr) {
+    fn expect_val_def(def: &TypedDef) -> (&Ident, &Type, &TypedExpr) {
         match def {
             TypedDef::ValDef(name, ty, expr) => (name, ty, expr),
             other => panic!("expected TypedDef::ValDef, got {:?}", other),
@@ -659,11 +659,11 @@ mod tests {
 
     #[test]
     fn def_val_renames_name_and_literal_body() {
-        let def = TypedDef::ValDef("x".to_string(), Some(Type::Int), t_int(42));
+        let def = TypedDef::ValDef("x".to_string(), Type::Int, t_int(42));
         let renamed = run_def(def);
         let (name, ty, body) = expect_val_def(&renamed);
         assert!(name.starts_with("x."));
-        assert_eq!(*ty, Some(Type::Int));
+        assert_eq!(*ty, Type::Int);
         assert_eq!(body, &t_int(42));
     }
 
@@ -672,7 +672,7 @@ mod tests {
         let mut gensym = Gensym::new();
         let mut env = NameEnv::new();
         env.insert("y".to_string(), "y.0".to_string());
-        let def = TypedDef::ValDef("x".to_string(), Some(Type::Int), t_var("y", Type::Int));
+        let def = TypedDef::ValDef("x".to_string(), Type::Int, t_var("y", Type::Int));
         let renamed = uniquify_def(&mut gensym, &mut env, def);
         let (name, _, body) = expect_val_def(&renamed);
         assert!(name.starts_with("x."));
@@ -777,7 +777,7 @@ mod tests {
     #[test]
     fn prog_val_def_main_uses_it() {
         let prog = TypedProgram {
-            defs: vec![TypedDef::ValDef("x".to_string(), Some(Type::Int), t_int(42))],
+            defs: vec![TypedDef::ValDef("x".to_string(), Type::Int, t_int(42))],
             main: t_var("x", Type::Int),
         };
         let renamed = uniquify_program(prog);
@@ -849,10 +849,10 @@ mod tests {
     fn prog_chained_defs() {
         let prog = TypedProgram {
             defs: vec![
-                TypedDef::ValDef("x".to_string(), Some(Type::Int), t_int(42)),
+                TypedDef::ValDef("x".to_string(), Type::Int, t_int(42)),
                 TypedDef::ValDef(
                     "y".to_string(),
-                    Some(Type::Int),
+                    Type::Int,
                     t_bin_op(BinOp::Add, t_var("x", Type::Int), t_int(1), Type::Int),
                 ),
             ],
@@ -873,10 +873,10 @@ mod tests {
     fn prog_shadowing_val_defs() {
         let prog = TypedProgram {
             defs: vec![
-                TypedDef::ValDef("x".to_string(), Some(Type::Int), t_int(1)),
+                TypedDef::ValDef("x".to_string(), Type::Int, t_int(1)),
                 TypedDef::ValDef(
                     "x".to_string(),
-                    Some(Type::Int),
+                    Type::Int,
                     t_bin_op(BinOp::Add, t_var("x", Type::Int), t_int(1), Type::Int),
                 ),
             ],
