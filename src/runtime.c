@@ -234,6 +234,24 @@ void print_bool(int8_t x) { printf(x ? "true" : "false"); }
 void print_float(double x) { printf("%f", x); }
 void print_newline(void) { printf("\n"); }
 
+int64_t read_int(void) {
+    int64_t n;
+    if (scanf("%ld", &n) != 1) {
+        fprintf(stderr, "read_int: failed to read an integer\n");
+        exit(EXIT_FAILURE);
+    }
+    return n;
+}
+
+double read_float(void) {
+    double f;
+    if (scanf("%lf", &f) != 1) {
+        fprintf(stderr, "read_float: failed to read a float\n");
+        exit(EXIT_FAILURE);
+    }
+    return f;
+}
+
 /* --- entry ------------------------------------------------------------ */
 
 int main(void) {

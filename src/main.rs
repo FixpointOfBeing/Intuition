@@ -1,19 +1,27 @@
-// pub mod compile_llvm;
 pub mod a_normal_form;
+pub use a_normal_form::{AExpr, AnfDef, AnfProgram, CompExpr};
 pub mod closure_conversion;
+pub use closure_conversion::{Closure, ClosureDef, ClosureExpr, ClosureProgram, ClosureType};
 pub mod env;
+pub use env::Value;
 pub mod eval;
 pub mod explicate_control;
+pub use explicate_control::{CAtom, CBlock, CDef, CExpr, CProgram, CStmt, CTail};
 pub mod expose_allocation;
+pub use expose_allocation::{AllocDef, AllocExpr, AllocProgram, GlobalValue};
 pub mod gensym;
+pub use gensym::Gensym;
 pub mod limit_functions;
 pub mod llvm;
 pub mod repl;
 pub mod reveal_functions;
+pub use reveal_functions::{RevealDef, RevealExpr, RevealProgram};
 pub mod riscv;
 pub mod shrink;
 pub mod syntax;
+pub use syntax::{BinOp, Def, Expr, HasType, PrimInput, PrimOutput, Program, Type, UnaryOp};
 pub mod typechecker;
+pub use typechecker::{TypedDef, TypedExpr, TypedProgram};
 pub mod uniquify;
 pub mod wasm;
 

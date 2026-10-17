@@ -1,21 +1,16 @@
 use crate::{
-    explicate_control::{CAtom, CDef, CExpr, CStmt, CTail},
-    gensym::Gensym,
-    riscv::{
-        rv_var::{
-            RvVarFunction,
-            basicblock::RvVarBasicBlock,
-            instruction::{RvVarInstr, fmv_d, fneg_d, li, mv, seqz, snez},
-            location::{RvVarLocation, a0, f_arg, fa0, ft0, ft1, ra, t0, t1, x_arg, x0, zero},
-            program::RvVarProgram,
-        },
-        rv64imfd::{LdSym, rv64imfd_instr::Rm},
+    BinOp, CAtom, CBlock, CDef, CExpr, CProgram, CStmt, CTail, Gensym, GlobalValue, HasType,
+    PrimInput, PrimOutput, Type, UnaryOp,
+    riscv::rv_var::{
+        RvVarBasicBlock, RvVarFunction, RvVarInstr, RvVarInstrPseudo, RvVarLocation, RvVarProgram,
+        location::{a0, a1, f_arg, fa0, ft0, ft1, ra, t0, t1, x_arg, x0, zero},
     },
-    syntax::{BinOp, HasType, Type, UnaryOp},
 };
 
 use crate::riscv::rv64imfd::Imm12;
 use crate::riscv::rv64imfd::Label;
+use crate::riscv::rv64imfd::Rm;
+use crate::riscv::rv64imfd::Sym;
 
 fn bool_not(rd: RvVarLocation, rs1: RvVarLocation) -> RvVarInstr {
     RvVarInstr::Xori { rd, rs1: rs1, imm: Imm12::from_i16(1) }
@@ -32,7 +27,7 @@ fn is_heap_ptr(ty: &Type) -> bool {
 // | bit (7+i) : `1` 表示第 `i` 个字段是指向堆对象的指针
 fn closure_tag(elems: &[Type]) -> i64 {
     let n = elems.len();
-    debug_assert!(n <= 63, "tag length field is only 6 bits");
+    debug_assert!(n <= 63,);
 
     let mut ptr_bits: i64 = 0;
     for (i, ty) in elems.iter().enumerate() {
@@ -49,7 +44,7 @@ fn closure_tag(elems: &[Type]) -> i64 {
 
 fn tuple_tag(elems: &[Type]) -> i64 {
     let n = elems.len();
-    debug_assert!(n <= 63, "tag length field is only 6 bits");
+    debug_assert!(n <= 63,);
 
     let mut ptr_bits: i64 = 0;
     for (i, ty) in elems.iter().enumerate() {
@@ -61,34 +56,39 @@ fn tuple_tag(elems: &[Type]) -> i64 {
     1 | ((n as i64) << 1) | (ptr_bits << 7)
 }
 
-fn select_atom(atom: CAtom, instrs: &mut Vec<RvVarInstr>, dest: RvVarLocation) {
+fn select_atom(atom: CAtom, dest: RvVarLocation, block: &mut RvVarBasicBlock) {
     match atom {
         CAtom::Unit => {
-            let instr = RvVarInstr::Addi { rd: dest, rs1: zero(), imm: Imm12::from_i16(0) };
-            instrs.push(instr);
+            let add = RvVarInstr::Addi { rd: dest, rs1: zero(), imm: Imm12::from_i16(0) };
+            block.append_instr(add);
         },
         CAtom::Bool(b) => {
             let v = if b { 1 } else { 0 };
-            let instr = RvVarInstr::Addi { rd: dest, rs1: zero(), imm: Imm12::from_i16(v as i16) };
-            instrs.push(instr);
+            let add = RvVarInstr::Addi { rd: dest, rs1: zero(), imm: Imm12::from_i16(v as i16) };
+            block.append_instr(add);
         },
-        CAtom::Int(i) => instrs.append(&mut li(dest, i)),
+        CAtom::Int(i) => {
+            let li = RvVarInstrPseudo::Li { rd: dest, imm: i };
+            block.append_pesudo(li);
+        },
         CAtom::Float(f) => {
             let bits = f.to_bits() as i64;
-            instrs.append(&mut li(t0(), bits));
-            instrs.push(RvVarInstr::FmvDX { rd: dest, rs1: t0() });
+            let li = RvVarInstrPseudo::Li { rd: t0(), imm: bits };
+            block
+                .append_pesudo(li)
+                .append_instr(RvVarInstr::FmvDX { rd: dest, rs1: t0() });
         },
         CAtom::Var(name, ty) => match ty {
             Type::Float => {
                 let var = RvVarLocation::FVar(name);
-                let mv = fmv_d(dest, var);
-                instrs.push(mv);
+                let mv = RvVarInstrPseudo::FmvD { rd: dest, rs: var };
+                block.append_pesudo(mv);
             },
             Type::Int | Type::Unit | Type::Bool | Type::Tuple(_) | Type::Arrow(_, _) => {
                 // 函数指针和Tuple指针都放到X寄存器
                 let var = RvVarLocation::XVar(name);
-                let mv = mv(dest, var);
-                instrs.push(mv);
+                let mv = RvVarInstrPseudo::Mv { rd: dest, rs: var };
+                block.append_pesudo(mv);
             },
             Type::Var(_) => unreachable!(),
             Type::Dummy => unreachable!(),
@@ -100,83 +100,79 @@ fn select_expr_binop_xreg(
     op: BinOp,
     left: CAtom,
     right: CAtom,
-    instrs: &mut Vec<RvVarInstr>,
     dest: RvVarLocation,
+    block: &mut RvVarBasicBlock,
 ) {
     debug_assert!(matches!(dest, RvVarLocation::XVar(_) | RvVarLocation::XReg(_)));
 
     match op {
         BinOp::Add => {
-            select_atom(left, instrs, t0());
-            select_atom(right, instrs, t1());
+            select_atom(left, t0(), block);
+            select_atom(right, t1(), block);
             let instr = RvVarInstr::Add { rd: dest.clone(), rs1: t0(), rs2: t1() };
-            instrs.push(instr);
+            block.append_instr(instr);
         },
         BinOp::Sub => {
-            select_atom(left, instrs, t0());
-            select_atom(right, instrs, t1());
+            select_atom(left, t0(), block);
+            select_atom(right, t1(), block);
             let instr = RvVarInstr::Sub { rd: dest, rs1: t0(), rs2: t1() };
-            instrs.push(instr);
+            block.append_instr(instr);
         },
         BinOp::Mul => {
             // 乘法溢出的处理（回绕）
-            select_atom(left, instrs, t0());
-            select_atom(right, instrs, t1());
+            select_atom(left, t0(), block);
+            select_atom(right, t1(), block);
             let instr = RvVarInstr::Mul { rd: dest, rs1: t0(), rs2: t1() };
-            instrs.push(instr);
+            block.append_instr(instr);
         },
         BinOp::Div => {
-            select_atom(left, instrs, t0());
-            select_atom(right, instrs, t1());
+            select_atom(left, t0(), block);
+            select_atom(right, t1(), block);
             let instr = RvVarInstr::Div { rd: dest, rs1: t0(), rs2: t1() };
-            instrs.push(instr);
+            block.append_instr(instr);
         },
         BinOp::Eq => {
-            select_atom(left, instrs, t0());
-            select_atom(right, instrs, t1());
+            select_atom(left, t0(), block);
+            select_atom(right, t1(), block);
             let sub = RvVarInstr::Sub { rd: dest.clone(), rs1: t0(), rs2: t1() };
-            let set_bool = seqz(dest.clone(), dest);
-            instrs.push(sub);
-            instrs.push(set_bool);
+            let set_bool = RvVarInstrPseudo::Seqz { rd: dest.clone(), rs: dest };
+            block.append_instr(sub).append_pesudo(set_bool);
         },
         BinOp::Neq => {
-            select_atom(left, instrs, t0());
-            select_atom(right, instrs, t1());
+            select_atom(left, t0(), block);
+            select_atom(right, t1(), block);
             let sub = RvVarInstr::Sub { rd: dest.clone(), rs1: t0(), rs2: t1() };
-            let set_bool = snez(dest.clone(), dest);
-            instrs.push(sub);
-            instrs.push(set_bool);
+            let set_bool = RvVarInstrPseudo::Snez { rd: dest.clone(), rs: dest };
+            block.append_instr(sub).append_pesudo(set_bool);
         },
         BinOp::Lt => {
-            select_atom(left, instrs, t0());
-            select_atom(right, instrs, t1());
+            select_atom(left, t0(), block);
+            select_atom(right, t1(), block);
             let instr = RvVarInstr::Slt { rd: dest, rs1: t0(), rs2: t1() };
-            instrs.push(instr);
+            block.append_instr(instr);
         },
         BinOp::Gt => {
-            select_atom(left, instrs, t0());
-            select_atom(right, instrs, t1());
+            select_atom(left, t0(), block);
+            select_atom(right, t1(), block);
             let instr = RvVarInstr::Slt { rd: dest, rs1: t1(), rs2: t0() };
-            instrs.push(instr);
+            block.append_instr(instr);
         },
         BinOp::Leq => {
             // left <= right => !(left > right)
-            select_atom(left, instrs, t0());
-            select_atom(right, instrs, t1());
+            select_atom(left, t0(), block);
+            select_atom(right, t1(), block);
             let right_lt_left = RvVarInstr::Slt { rd: dest.clone(), rs1: t1(), rs2: t0() };
             let reverse = bool_not(dest.clone(), dest);
-            instrs.push(right_lt_left);
-            instrs.push(reverse);
+            block.append_instr(right_lt_left).append_instr(reverse);
         },
         BinOp::Geq => {
             // left >= right => !(left < right)
-            select_atom(left, instrs, t0());
-            select_atom(right, instrs, t1());
+            select_atom(left, t0(), block);
+            select_atom(right, t1(), block);
             let left_lt_right = RvVarInstr::Slt { rd: dest.clone(), rs1: t0(), rs2: t1() };
 
             let reverse = bool_not(dest.clone(), dest);
-            instrs.push(left_lt_right);
-            instrs.push(reverse);
+            block.append_instr(left_lt_right).append_instr(reverse);
         },
         _ => unreachable!(),
     }
@@ -186,141 +182,140 @@ fn select_expr_binop_freg(
     op: BinOp,
     left: CAtom,
     right: CAtom,
-    instrs: &mut Vec<RvVarInstr>,
     dest: RvVarLocation,
+    block: &mut RvVarBasicBlock,
 ) {
     match op {
         BinOp::Add => {
             debug_assert!(matches!(dest, RvVarLocation::FVar(_) | RvVarLocation::FReg(_)));
 
-            select_atom(left, instrs, ft0());
-            select_atom(right, instrs, ft1());
+            select_atom(left, ft0(), block);
+            select_atom(right, ft1(), block);
             let instr = RvVarInstr::FaddD { rd: dest, rs1: ft0(), rs2: ft1(), rm: Rm::Rne };
-            instrs.push(instr);
+            block.append_instr(instr);
         },
         BinOp::Sub => {
             debug_assert!(matches!(dest, RvVarLocation::FVar(_) | RvVarLocation::FReg(_)));
 
-            select_atom(left, instrs, ft0());
-            select_atom(right, instrs, ft1());
+            select_atom(left, ft0(), block);
+            select_atom(right, ft1(), block);
             let instr = RvVarInstr::FsubD { rd: dest, rs1: ft0(), rs2: ft1(), rm: Rm::Rne };
-            instrs.push(instr);
+            block.append_instr(instr);
         },
         BinOp::Mul => {
             debug_assert!(matches!(dest, RvVarLocation::FVar(_) | RvVarLocation::FReg(_)));
 
-            select_atom(left, instrs, ft0());
-            select_atom(right, instrs, ft1());
+            select_atom(left, ft0(), block);
+            select_atom(right, ft1(), block);
             let instr = RvVarInstr::FmulD { rd: dest, rs1: ft0(), rs2: ft1(), rm: Rm::Rne };
-            instrs.push(instr);
+            block.append_instr(instr);
         },
         BinOp::Div => {
             debug_assert!(matches!(dest, RvVarLocation::FVar(_) | RvVarLocation::FReg(_)));
 
-            select_atom(left, instrs, ft0());
-            select_atom(right, instrs, ft1());
+            select_atom(left, ft0(), block);
+            select_atom(right, ft1(), block);
             let instr = RvVarInstr::FdivD { rd: dest, rs1: ft0(), rs2: ft1(), rm: Rm::Rne };
-            instrs.push(instr);
+            block.append_instr(instr);
         },
         BinOp::Eq => {
             debug_assert!(matches!(dest, RvVarLocation::XVar(_) | RvVarLocation::XReg(_)));
 
-            select_atom(left, instrs, ft0());
-            select_atom(right, instrs, ft1());
+            select_atom(left, ft0(), block);
+            select_atom(right, ft1(), block);
             let instr = RvVarInstr::FeqD { rd: dest, rs1: ft0(), rs2: ft1() };
-            instrs.push(instr);
+            block.append_instr(instr);
         },
         BinOp::Neq => {
             debug_assert!(matches!(dest, RvVarLocation::XVar(_) | RvVarLocation::XReg(_)));
 
-            select_atom(left, instrs, ft0());
-            select_atom(right, instrs, ft1());
+            select_atom(left, ft0(), block);
+            select_atom(right, ft1(), block);
             let eq = RvVarInstr::FeqD { rd: dest.clone(), rs1: ft0(), rs2: ft1() };
             let reverse = bool_not(dest.clone(), dest);
-            instrs.push(eq);
-            instrs.push(reverse);
+            block.append_instr(eq).append_instr(reverse);
         },
         BinOp::Lt => {
             debug_assert!(matches!(dest, RvVarLocation::XVar(_) | RvVarLocation::XReg(_)));
 
-            select_atom(left, instrs, ft0());
-            select_atom(right, instrs, ft1());
+            select_atom(left, ft0(), block);
+            select_atom(right, ft1(), block);
             let instr = RvVarInstr::FltD { rd: dest, rs1: ft0(), rs2: ft1() };
-            instrs.push(instr);
+            block.append_instr(instr);
         },
         BinOp::Gt => {
             debug_assert!(matches!(dest, RvVarLocation::XVar(_) | RvVarLocation::XReg(_)));
 
             // left > right => right < left
-            select_atom(left, instrs, ft0());
-            select_atom(right, instrs, ft1());
+            select_atom(left, ft0(), block);
+            select_atom(right, ft1(), block);
             let instr = RvVarInstr::FltD { rd: dest, rs1: ft1(), rs2: ft0() };
-            instrs.push(instr);
+            block.append_instr(instr);
         },
         BinOp::Leq => {
             debug_assert!(matches!(dest, RvVarLocation::XVar(_) | RvVarLocation::XReg(_)));
 
-            select_atom(left, instrs, ft0());
-            select_atom(right, instrs, ft1());
+            select_atom(left, ft0(), block);
+            select_atom(right, ft1(), block);
             let instr = RvVarInstr::FleD { rd: dest, rs1: ft0(), rs2: ft1() };
-            instrs.push(instr);
+            block.append_instr(instr);
         },
         BinOp::Geq => {
             debug_assert!(matches!(dest, RvVarLocation::XVar(_) | RvVarLocation::XReg(_)));
 
             // left >= right => right <= left
-            select_atom(left, instrs, ft0());
-            select_atom(right, instrs, ft1());
+            select_atom(left, ft0(), block);
+            select_atom(right, ft1(), block);
             let instr = RvVarInstr::FleD { rd: dest, rs1: ft1(), rs2: ft0() };
-            instrs.push(instr);
+            block.append_instr(instr);
         },
         _ => unreachable!(),
     }
 }
 
-fn select_expr(expr: CExpr, instrs: &mut Vec<RvVarInstr>, dest: RvVarLocation) {
+fn select_expr(expr: CExpr, dest: RvVarLocation, block: &mut RvVarBasicBlock) {
     match expr {
         CExpr::Atom(catom, _) => {
-            select_atom(catom, instrs, dest);
+            select_atom(catom, dest, block);
         },
         CExpr::BinOp(op, left, right, ty) => match op {
             BinOp::And => {
-                select_atom(left, instrs, t0());
-                select_atom(right, instrs, t1());
-                let instr = RvVarInstr::And { rd: dest, rs1: t0(), rs2: t1() };
-                instrs.push(instr);
+                select_atom(left, t0(), block);
+                select_atom(right, t1(), block);
+                let and = RvVarInstr::And { rd: dest, rs1: t0(), rs2: t1() };
+                block.append_instr(and);
             },
             BinOp::Or => {
-                select_atom(left, instrs, t0());
-                select_atom(right, instrs, t1());
-                let instr = RvVarInstr::Or { rd: dest, rs1: t0(), rs2: t1() };
-                instrs.push(instr);
+                select_atom(left, t0(), block);
+                select_atom(right, t1(), block);
+                let or = RvVarInstr::Or { rd: dest, rs1: t0(), rs2: t1() };
+                block.append_instr(or);
             },
             _ => {
                 if ty.is_float_type() {
-                    select_expr_binop_freg(op, left, right, instrs, dest);
+                    select_expr_binop_freg(op, left, right, dest, block);
                 } else {
-                    select_expr_binop_xreg(op, left, right, instrs, dest);
+                    select_expr_binop_xreg(op, left, right, dest, block);
                 }
             },
         },
         CExpr::UnaryOp(op, catom, ty) => match op {
             UnaryOp::Neg => {
                 if ty.is_float_type() {
-                    select_atom(catom, instrs, dest.clone());
-                    let instr = fneg_d(dest.clone(), dest);
-                    instrs.push(instr);
+                    select_atom(catom, dest.clone(), block);
+                    let neg = RvVarInstrPseudo::FnegD { rd: dest.clone(), rs: dest };
+                    block.append_pesudo(neg);
                 } else {
                     debug_assert!(ty.is_int_type());
-                    select_atom(catom, instrs, dest.clone());
+                    select_atom(catom, dest.clone(), block);
                     let sub = RvVarInstr::Sub { rd: dest.clone(), rs1: zero(), rs2: dest };
-                    instrs.push(sub);
+                    block.append_instr(sub);
                 }
             },
             UnaryOp::Not => {
-                select_atom(catom, instrs, dest.clone());
+                select_atom(catom, dest.clone(), block);
                 let reverse = bool_not(dest.clone(), dest);
-                instrs.push(reverse);
+                block.append_instr(reverse);
             },
         },
         CExpr::Call(func, args, ty) => {
@@ -337,91 +332,176 @@ fn select_expr(expr: CExpr, instrs: &mut Vec<RvVarInstr>, dest: RvVarLocation) {
                     x_args += 1;
                     r
                 };
-                select_atom(arg, instrs, dest);
+                select_atom(arg, dest, block);
             }
             debug_assert!(matches!(func, CAtom::Var(_, Type::Arrow(_, _))));
-            select_atom(func, instrs, t0());
+            select_atom(func, t0(), block);
 
             let jr = RvVarInstr::Jalr { rd: ra(), rs1: t0(), imm: Imm12::from_i16(0) };
-            instrs.push(jr);
+            block.append_instr(jr);
 
-            let mv = if ty.is_float_type() { fmv_d(dest, fa0()) } else { mv(dest, a0()) };
-            instrs.push(mv);
+            let mv = if ty.is_float_type() {
+                RvVarInstrPseudo::FmvD { rd: dest, rs: fa0() }
+            } else {
+                RvVarInstrPseudo::Mv { rd: dest, rs: a0() }
+            };
+            block.append_pesudo(mv);
         },
-        CExpr::PrimInput(prim, ty) => todo!(),
-        CExpr::TupleProj(tuple, index, ty) => todo!(),
+        CExpr::PrimInput(prim, ty) => {
+            let sym = match prim {
+                PrimInput::ReadInt => "read_int",
+                PrimInput::ReadFloat => "read_float",
+            };
+
+            let call = RvVarInstrPseudo::Call { sym: Sym::new(sym) };
+            let mv = if ty.is_float_type() {
+                debug_assert!(matches!(dest, RvVarLocation::FVar(_) | RvVarLocation::FReg(_)));
+                RvVarInstrPseudo::Mv { rd: dest, rs: fa0() }
+            } else {
+                debug_assert!(matches!(dest, RvVarLocation::XVar(_) | RvVarLocation::XReg(_)));
+                RvVarInstrPseudo::Mv { rd: dest, rs: a0() }
+            };
+            block.append_pesudo(call).append_pesudo(mv);
+        },
+        CExpr::TupleProj(tuple, index, ty) => {
+            select_atom(tuple, t0(), block);
+
+            let offset = (index + 1) * 8;
+            let imm = Imm12::from_i16(offset as i16);
+
+            if ty.is_float_type() {
+                debug_assert!(matches!(dest, RvVarLocation::FVar(_) | RvVarLocation::FReg(_)));
+                let fld = RvVarInstr::Fld { rd: dest, rs1: t0(), imm };
+                block.append_instr(fld);
+            } else {
+                debug_assert!(matches!(dest, RvVarLocation::XVar(_) | RvVarLocation::XReg(_)));
+                let ld = RvVarInstr::Ld { rd: dest, rs1: t0(), imm };
+                block.append_instr(ld);
+            }
+        },
         CExpr::Allocate(bytes, ty) => {
-            let sym = "allocate";
-            let mut li_bytes = li(a0(), bytes as i64);
-            instrs.append(&mut li_bytes);
-            instrs.push(RvVarInstr::AuipcLdSym { rd: t0(), sym: LdSym::hi(sym) });
-            instrs.push(RvVarInstr::JalrLdSym { rd: ra(), rs1: t0(), sym: LdSym::lo(sym) });
+            debug_assert!(is_heap_ptr(&ty));
+            debug_assert!(matches!(dest, RvVarLocation::XVar(_) | RvVarLocation::XReg(_)));
 
-            // a0返回一串地址，前8个bytes（64位）是一个tuple tag
-            let Type::Tuple(elems) = ty else { unreachable!() };
-            let mut li_tag = li(t0(), tuple_tag(&elems));
-            instrs.append(&mut li_tag);
-            instrs.push(RvVarInstr::Sd { rs2: t0(), rs1: a0(), imm: Imm12::from_i16(0) }); // rs1 memory <- rs2
+            let li = RvVarInstrPseudo::Li { rd: a0(), imm: bytes as i64 };
+            let call = RvVarInstrPseudo::Call { sym: Sym::new("allocate") };
+            let mv = RvVarInstrPseudo::Mv { rd: dest, rs: a0() };
 
-            instrs.push(mv(dest, a0()));
+            block.append_pesudo(li).append_pesudo(call).append_pesudo(mv);
         },
-        CExpr::AllocateClosure(bytes, arity, ty) => {
-            let sym = "allocate";
-            let mut li_bytes = li(a0(), bytes as i64);
-            instrs.append(&mut li_bytes);
-            instrs.push(RvVarInstr::AuipcLdSym { rd: t0(), sym: LdSym::hi(sym) });
-            instrs.push(RvVarInstr::JalrLdSym { rd: ra(), rs1: t0(), sym: LdSym::lo(sym) });
+        CExpr::AllocateClosure(bytes, _, ty) => {
+            debug_assert!(is_heap_ptr(&ty));
+            debug_assert!(matches!(dest, RvVarLocation::XVar(_) | RvVarLocation::XReg(_)));
 
-            // a0返回一串地址，前8个bytes（64位）是一个closure tag
-            let Type::Tuple(elems) = ty else { unreachable!() };
-            let mut li_tag = li(t0(), closure_tag(&elems));
-            instrs.append(&mut li_tag);
-            instrs.push(RvVarInstr::Sd { rs2: t0(), rs1: a0(), imm: Imm12::from_i16(0) }); // rs1 memory <- rs2
+            let li = RvVarInstrPseudo::Li { rd: a0(), imm: bytes as i64 };
+            let call = RvVarInstrPseudo::Call { sym: Sym::new("allocate") };
+            let mv = RvVarInstrPseudo::Mv { rd: dest, rs: a0() };
 
-            instrs.push(mv(dest, a0()));
+            block.append_pesudo(li).append_pesudo(call).append_pesudo(mv);
         },
-        CExpr::FunRef(name, arity, ty) => todo!(),
-        CExpr::GlobalValue(global_value) => todo!(),
+        CExpr::FunRef(name, _, _) => {
+            debug_assert!(matches!(dest, RvVarLocation::XVar(_) | RvVarLocation::XReg(_)));
+
+            let lla = RvVarInstrPseudo::Lla { rd: dest, sym: Sym::new(name) };
+
+            block.append_pesudo(lla);
+        },
+        CExpr::GlobalValue(global_value) => {
+            debug_assert!(matches!(dest, RvVarLocation::XVar(_) | RvVarLocation::XReg(_)));
+            let sym = match &global_value {
+                GlobalValue::FreePtr => "free_ptr",
+                GlobalValue::FromspaceEnd => "fromspace_end",
+            };
+
+            let la = RvVarInstrPseudo::La { rd: t0(), sym: Sym::new(sym) };
+            let ld = RvVarInstr::Ld { rd: dest, rs1: t0(), imm: Imm12::from_i16(0) };
+
+            block.append_pesudo(la).append_instr(ld);
+        },
     }
 }
 
-fn select_stmt(stmt: CStmt, instrs: &mut Vec<RvVarInstr>) {
+fn select_stmt(stmt: CStmt, block: &mut RvVarBasicBlock) {
     match stmt {
         CStmt::Assign(name, cexpr) => {
-            let ty = cexpr.type_of();
-            let var = if matches!(ty, Type::Float) {
+            let var = if cexpr.type_of().is_float_type() {
                 RvVarLocation::FVar(name)
             } else {
                 RvVarLocation::XVar(name)
             };
-            select_expr(cexpr, instrs, var);
+            select_expr(cexpr, var, block);
         },
-        CStmt::TupleSet(tuple, elem, index) => todo!(),
-        CStmt::PrimOutput(prim, catom) => todo!(),
-        CStmt::Collect(bytes) => todo!(),
+        CStmt::TupleSet(tuple, elem, index) => {
+            let offset = (index + 1) * 8;
+            let imm = Imm12::from_i16(offset as i16);
+
+            if elem.type_of().is_float_type() {
+                select_atom(elem, ft1(), block); // 先算元素，避免 t0 被浮点字面量覆盖
+                select_atom(tuple, t0(), block);
+                let fsd = RvVarInstr::Fsd { rs2: t1(), rs1: t0(), imm };
+                block.append_instr(fsd);
+            } else {
+                select_atom(elem, t1(), block);
+                select_atom(tuple, t0(), block);
+                let sd = RvVarInstr::Sd { rs2: t1(), rs1: t0(), imm };
+                block.append_instr(sd);
+            }
+        },
+        CStmt::PrimOutput(prim, catom) => match prim {
+            PrimOutput::PrintInt => {
+                select_atom(catom, a0(), block);
+                let sym = "print_int";
+                let call = RvVarInstrPseudo::Call { sym: Sym::new(sym) };
+                block.append_pesudo(call);
+            },
+            PrimOutput::PrintFloat => {
+                select_atom(catom, fa0(), block);
+                let sym = "print_float";
+                let call = RvVarInstrPseudo::Call { sym: Sym::new(sym) };
+                block.append_pesudo(call);
+            },
+            PrimOutput::PrintBool => {
+                select_atom(catom, a0(), block);
+                let sym = "print_bool";
+                let call = RvVarInstrPseudo::Call { sym: Sym::new(sym) };
+                block.append_pesudo(call);
+            },
+        },
+        CStmt::Collect(bytes) => {
+            // todo: 有问题
+            let la = RvVarInstrPseudo::La { rd: t0(), sym: Sym::new("rootstack_begin") };
+            let ld = RvVarInstr::Ld { rd: a0(), rs1: t0(), imm: Imm12::from_i16(0) };
+            let li = RvVarInstrPseudo::Li { rd: a1(), imm: bytes as i64 };
+            let call = RvVarInstrPseudo::Call { sym: Sym::new("collect") };
+            block
+                .append_pesudo(la)
+                .append_instr(ld)
+                .append_pesudo(li)
+                .append_pesudo(call);
+        },
     }
 }
 
 pub fn select_tail(
     tail: CTail,
     gensym: &mut Gensym,
-    mut current: RvVarBasicBlock,
+    block: &mut RvVarBasicBlock,
     function: &mut RvVarFunction,
 ) {
-    let instrs = &mut current.instrs;
     match tail {
         CTail::Goto(label) => {
-            let goto = RvVarInstr::Jal { rd: x0(), label: Label::new(label) };
-            instrs.push(goto);
-            function.append_basic_block(current);
+            let j = RvVarInstrPseudo::J { label: Label::new(label) };
+            block.append_pesudo(j);
+            function.append_basic_block((*block).clone());
         },
         CTail::Return(cexpr) => {
-            let ty = cexpr.type_of();
-            let dest = if ty.is_float_type() { fa0() } else { a0() };
-            select_expr(cexpr, instrs, dest);
-            let instr = RvVarInstr::Jalr { rd: x0(), rs1: ra(), imm: Imm12::from_i16(0) };
-            instrs.push(instr);
-            function.append_basic_block(current);
+            let dest = if cexpr.type_of().is_float_type() { fa0() } else { a0() };
+            select_expr(cexpr, dest, block);
+
+            let ret = RvVarInstrPseudo::Ret {};
+            block.append_pesudo(ret);
+
+            function.append_basic_block((*block).clone());
         },
         CTail::TailCall(func, args) => {
             let mut x_args = 0u8;
@@ -436,21 +516,22 @@ pub fn select_tail(
                     x_args += 1;
                     r
                 };
-                select_atom(arg, instrs, dest);
+                select_atom(arg, dest, block);
             }
+
             // func 是 CAtom::Var(name, Arrow(..))，加载函数指针
             debug_assert!(matches!(func, CAtom::Var(_, Type::Arrow(_, _))));
-            select_atom(func, instrs, t0());
+            select_atom(func, t0(), block);
 
             let jr = RvVarInstr::Jalr { rd: x0(), rs1: t0(), imm: Imm12::from_i16(0) };
-            instrs.push(jr);
-            function.append_basic_block(current);
+            block.append_instr(jr);
+            function.append_basic_block((*block).clone());
         },
         CTail::Seq(cstmts, ctail) => {
             for cstmt in cstmts {
-                select_stmt(cstmt, instrs);
+                select_stmt(cstmt, block);
             }
-            select_tail(*ctail, gensym, current, function)
+            select_tail(*ctail, gensym, block, function)
         },
 
         CTail::TailIf(catom, then_tail, else_tail) => {
@@ -459,19 +540,23 @@ pub fn select_tail(
             let then_label = Label::new(then_name);
             let else_label = Label::new(else_name);
 
-            select_atom(catom, instrs, t0());
+            select_atom(catom, t0(), block);
+
             let branch = RvVarInstr::Beq { rs1: t0(), rs2: zero(), label: else_label.clone() };
-            instrs.push(branch);
+            block.append_instr(branch);
+            function.append_basic_block((*block).clone());
 
-            function.append_basic_block(current);
+            let mut then_block = RvVarBasicBlock::new(then_label);
+            select_tail(*then_tail, gensym, &mut then_block, function);
 
-            let then_block = RvVarBasicBlock::new(then_label);
-            select_tail(*then_tail, gensym, then_block, function);
-
-            let else_block = RvVarBasicBlock::new(else_label);
-            select_tail(*else_tail, gensym, else_block, function);
+            let mut else_block = RvVarBasicBlock::new(else_label);
+            select_tail(*else_tail, gensym, &mut else_block, function);
         },
     }
+}
+
+pub fn select_prog(prog: CProgram) -> RvVarProgram {
+    todo!()
 }
 
 #[cfg(test)]

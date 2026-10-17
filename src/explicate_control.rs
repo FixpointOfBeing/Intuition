@@ -173,12 +173,12 @@ impl std::fmt::Display for CTail {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Block {
+pub struct CBlock {
     pub label: Ident,
     pub tail: CTail,
 }
 
-impl std::fmt::Display for Block {
+impl std::fmt::Display for CBlock {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}:\n{}", self.label, self.tail)
     }
@@ -190,14 +190,14 @@ pub enum CDef {
         Ident,        // name
         Option<Type>, // optional type annotation
         CTail,        // expresion
-        Vec<Block>,   // blocks
+        Vec<CBlock>,   // blocks
     ),
     FunDef(
         Ident,              // function name
         Vec<(Ident, Type)>, // function arguments with their types
         Type,               // function return type
         CTail,              // function body
-        Vec<Block>,         // blocks
+        Vec<CBlock>,         // blocks
     ),
 }
 
@@ -205,7 +205,7 @@ pub enum CDef {
 pub struct CProgram {
     pub defs: Vec<CDef>,
     pub main: CTail,
-    pub main_blocks: Vec<Block>,
+    pub main_blocks: Vec<CBlock>,
 }
 
 pub fn c_unit() -> CAtom {
@@ -313,7 +313,7 @@ pub fn explicate_assign_anf(
     anf: AnfExpr,
     cont: CTail,
     gensym: &mut Gensym,
-    blocks: &mut Vec<Block>,
+    blocks: &mut Vec<CBlock>,
 ) -> CTail {
     match anf {
         AnfExpr::Complex(cexpr, _) => explicate_assign_complex(name, cexpr, cont, gensym, blocks),
@@ -329,7 +329,7 @@ pub fn explicate_assign_complex(
     cexpr: CompExpr,
     cont: CTail,
     gensym: &mut Gensym,
-    blocks: &mut Vec<Block>,
+    blocks: &mut Vec<CBlock>,
 ) -> CTail {
     let dummy = "_".to_string();
     match cexpr {
@@ -374,7 +374,7 @@ pub fn explicate_assign_complex(
             c_seq(vec![stmt], cont)
         },
         CompExpr::PrimOutput(prim, aexpr, _) => {
-            assert!(name == dummy);
+            debug_assert!(name == dummy);
             let catom = aexpr_to_catom(aexpr);
             let stmt = c_prim_output(prim, catom);
             c_seq(vec![stmt], cont)
@@ -410,12 +410,12 @@ pub fn explicate_assign_complex(
             c_tail_if(cond_catom, thn_cont, els_cont)
         },
         CompExpr::Collect(bytes) => {
-            assert!(name == dummy);
+            debug_assert!(name == dummy);
             let stmt = c_collect(bytes);
             c_seq(vec![stmt], cont)
         },
         CompExpr::TupleSet(tuple, elem, idx) => {
-            assert!(name == dummy);
+            debug_assert!(name == dummy);
             let tuple_catom = aexpr_to_catom(tuple);
             let elem_catom = aexpr_to_catom(elem);
             let stmt = c_tuple_set(tuple_catom, elem_catom, idx);
@@ -434,9 +434,9 @@ pub fn explicate_assign_complex(
     }
 }
 
-fn create_block(cont: CTail, gensym: &mut Gensym) -> Block {
+fn create_block(cont: CTail, gensym: &mut Gensym) -> CBlock {
     let name = gensym.fresh_with_prefix("block");
-    Block { label: name, tail: cont }
+    CBlock { label: name, tail: cont }
 }
 
 fn aexpr_to_catom(aexpr: AExpr) -> CAtom {
@@ -449,7 +449,7 @@ fn aexpr_to_catom(aexpr: AExpr) -> CAtom {
     }
 }
 
-fn explicate_tail(anf: AnfExpr, gensym: &mut Gensym, blocks: &mut Vec<Block>) -> CTail {
+fn explicate_tail(anf: AnfExpr, gensym: &mut Gensym, blocks: &mut Vec<CBlock>) -> CTail {
     match anf {
         AnfExpr::Complex(comp_expr, _) => match comp_expr {
             CompExpr::Atom(aexpr, ty) => {
@@ -558,13 +558,13 @@ mod tests {
         a_normal_form::*,
         syntax::{BinOp, PrimInput, UnaryOp, ty_arrow, ty_bool, ty_float, ty_int, ty_unit},
     };
-    fn run_tail(anf: AnfExpr) -> (CTail, Vec<Block>) {
+    fn run_tail(anf: AnfExpr) -> (CTail, Vec<CBlock>) {
         let mut blocks = Vec::new();
         let tail = explicate_tail(anf, &mut Gensym::new(), &mut blocks);
         (tail, blocks)
     }
 
-    fn run_assign(name: &str, anf: AnfExpr, cont: CTail) -> (CTail, Vec<Block>) {
+    fn run_assign(name: &str, anf: AnfExpr, cont: CTail) -> (CTail, Vec<CBlock>) {
         let mut blocks = Vec::new();
         let tail =
             explicate_assign_anf(name.to_string(), anf, cont, &mut Gensym::new(), &mut blocks);
@@ -664,7 +664,7 @@ mod tests {
                 ),
             ),
         );
-        let expected_blocks = vec![Block {
+        let expected_blocks = vec![CBlock {
             label: "block$0".to_string(),
             tail: c_tail_if(
                 c_var("$1", ty_bool()),
@@ -819,7 +819,7 @@ mod tests {
             c_seq(vec![c_assign("x", c_atom(c_int(1), ty_int()))], c_goto("block$0".to_string())),
             c_seq(vec![c_assign("x", c_atom(c_int(2), ty_int()))], c_goto("block$0".to_string())),
         );
-        let expected_blocks = vec![Block {
+        let expected_blocks = vec![CBlock {
             label: "block$0".to_string(),
             tail: c_return(c_atom(c_var("x", ty_int()), ty_int())),
         }];
@@ -915,7 +915,7 @@ mod tests {
             c_seq(vec![c_assign("x", c_atom(c_int(1), ty_int()))], c_goto("block$0".to_string())),
             c_seq(vec![c_assign("x", c_atom(c_int(2), ty_int()))], c_goto("block$0".to_string())),
         );
-        let expected_blocks = vec![Block { label: "block$0".to_string(), tail: cont.clone() }];
+        let expected_blocks = vec![CBlock { label: "block$0".to_string(), tail: cont.clone() }];
         let (tail, blocks) = run_assign("x", input, cont);
         assert_eq!(tail, expected);
         assert_eq!(blocks, expected_blocks);
