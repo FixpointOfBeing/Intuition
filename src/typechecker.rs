@@ -53,9 +53,9 @@ pub enum TypedExpr {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypedDef {
     ValDef(
-        Ident,        // name
-        Type, // optional type annotation
-        TypedExpr,    // expresion
+        Ident,     // name
+        Type,      // type 
+        TypedExpr, // expresion
     ),
     FunDef(
         Ident,              // function name
@@ -1060,20 +1060,14 @@ mod tests {
     fn test_def_val_no_ann() {
         let (ty, typed_def) = check_def(val_def("x", None, int(42))).unwrap();
         assert_eq!(ty, Type::Int);
-        assert_eq!(
-            typed_def,
-            TypedDef::ValDef("x".to_string(), Type::Int, TypedExpr::Int(42))
-        );
+        assert_eq!(typed_def, TypedDef::ValDef("x".to_string(), Type::Int, TypedExpr::Int(42)));
     }
 
     #[test]
     fn test_def_val_matching_ann() {
         let (ty, typed_def) = check_def(val_def("x", Some(ty_int()), int(42))).unwrap();
         assert_eq!(ty, Type::Int);
-        assert_eq!(
-            typed_def,
-            TypedDef::ValDef("x".to_string(), Type::Int, TypedExpr::Int(42))
-        );
+        assert_eq!(typed_def, TypedDef::ValDef("x".to_string(), Type::Int, TypedExpr::Int(42)));
     }
 
     #[test]
