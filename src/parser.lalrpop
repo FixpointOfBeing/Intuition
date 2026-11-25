@@ -50,7 +50,8 @@ pub Def: Box<Def> = {
         }
     },
 
-    "def" "main" "(" ")" <rt_ty:(":" Type)> "=" <e:Expr> => {
+    // "def" "main" "(" ")" <rt_ty:(":" Type)> "=" <e:Expr> => {
+    "def" "main" "(" ")" ":" "Unit" "=" <e:Expr> => {
         Box::new(Def::FunDef(
             "main".to_string(),
             vec![("_".to_string(), Type::Unit)],
